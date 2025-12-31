@@ -40,7 +40,8 @@ export class EntryModal extends Modal {
     private durationValue: string; // e.g., "1h 30m" or "90m"
     private descriptionValue: string;
     private projectValue: string;
-    private tagsValue: string;
+    private selectedTags: Set<string>; // Predefined tags that are selected
+    private customTagsValue: string; // Additional custom tags
     private linkedNoteValue: string;
 
     // Input references for updating
@@ -71,7 +72,13 @@ export class EntryModal extends Modal {
             this.durationValue = this.formatDurationMinutes(data.entry.durationMinutes);
             this.descriptionValue = data.entry.description;
             this.projectValue = this.resolveProjectName(data.entry.project);
-            this.tagsValue = data.entry.tags?.join(', ') || '';
+
+            // Split existing tags into predefined and custom
+            const existingTags = data.entry.tags || [];
+            const predefinedTagNames = new Set(this.settings.tags.map(t => t.name));
+            this.selectedTags = new Set(existingTags.filter(t => predefinedTagNames.has(t)));
+            this.customTagsValue = existingTags.filter(t => !predefinedTagNames.has(t)).join(', ');
+
             this.linkedNoteValue = data.entry.linkedNote || '';
         } else {
             // Create mode defaults
@@ -102,7 +109,8 @@ export class EntryModal extends Modal {
             this.durationValue = this.calculateDurationFromDates();
             this.descriptionValue = '';
             this.projectValue = this.resolveProjectName(this.settings.defaultProject);
-            this.tagsValue = '';
+            this.selectedTags = new Set();
+            this.customTagsValue = '';
             this.linkedNoteValue = '';
         }
     }
@@ -269,17 +277,81 @@ export class EntryModal extends Modal {
             });
         });
 
-        // Tags
-        new Setting(contentEl)
+        // Tags section
+        const tagsSection = contentEl.createDiv('tags-section');
+
+        // Header
+        const tagsHeader = new Setting(tagsSection)
             .setName('Tags')
-            .setDesc('Comma-separated tags')
-            .addText((text) => {
-                text.setValue(this.tagsValue);
+            .setDesc(this.settings.tags.length > 0
+                ? 'Select predefined tags or add custom ones'
+                : 'Add comma-separated tags (configure predefined tags in settings)');
+
+        // Predefined tags as checkboxes (if any exist)
+        if (this.settings.tags.length > 0) {
+            const checkboxContainer = tagsSection.createDiv('tag-checkboxes');
+
+            // Sort tags alphabetically
+            const sortedTags = [...this.settings.tags].sort((a, b) =>
+                a.name.localeCompare(b.name)
+            );
+
+            for (const tag of sortedTags) {
+                const isSelected = this.selectedTags.has(tag.name);
+                const label = checkboxContainer.createEl('label', {
+                    cls: `tag-checkbox-label${isSelected ? ' is-selected' : ''}`
+                });
+
+                // Hidden checkbox for form semantics
+                const checkbox = label.createEl('input', { type: 'checkbox' });
+                checkbox.checked = isSelected;
+
+                // Color indicator
+                const colorDot = label.createSpan('tag-color-dot');
+                colorDot.style.backgroundColor = tag.color || '#808080';
+
+                // Tag name
+                label.createSpan({ text: tag.name, cls: 'tag-name' });
+
+                // Checkmark indicator
+                label.createSpan({ text: '✓', cls: 'tag-checkmark' });
+
+                // Click handler
+                label.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (this.selectedTags.has(tag.name)) {
+                        this.selectedTags.delete(tag.name);
+                        label.removeClass('is-selected');
+                        checkbox.checked = false;
+                    } else {
+                        this.selectedTags.add(tag.name);
+                        label.addClass('is-selected');
+                        checkbox.checked = true;
+                    }
+                });
+            }
+
+            // Custom tags input for additional tags
+            new Setting(tagsSection)
+                .setName('Other tags')
+                .setDesc('Comma-separated additional tags')
+                .addText((text) => {
+                    text.setValue(this.customTagsValue);
+                    text.setPlaceholder('custom, tags');
+                    text.onChange((value) => {
+                        this.customTagsValue = value;
+                    });
+                });
+        } else {
+            // No predefined tags - just show text input
+            tagsHeader.addText((text) => {
+                text.setValue(this.customTagsValue);
                 text.setPlaceholder('meeting, planning, dev');
                 text.onChange((value) => {
-                    this.tagsValue = value;
+                    this.customTagsValue = value;
                 });
             });
+        }
 
         // Linked note
         const linkedNoteSetting = new Setting(contentEl)
@@ -370,11 +442,12 @@ export class EntryModal extends Modal {
             return;
         }
 
-        // Parse tags
-        const tags = this.tagsValue
+        // Combine predefined and custom tags
+        const customTags = this.customTagsValue
             .split(',')
             .map((t) => t.trim())
             .filter((t) => t.length > 0);
+        const tags = [...this.selectedTags, ...customTags];
 
         // Format start and end with explicit date+time: "YYYY-MM-DD HH:mm"
         const startForStorage = `${this.startDateValue} ${this.startTimeValue}`;

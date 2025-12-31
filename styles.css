@@ -266,7 +266,9 @@
 }
 
 .tag-chip {
-    font-style: italic;
+    background: color-mix(in srgb, var(--tag-color, #808080) 15%, transparent);
+    border-color: color-mix(in srgb, var(--tag-color, #808080) 30%, transparent);
+    color: var(--tag-color, var(--tt-text-muted));
 }
 
 /* Note row - expanded cards only */
@@ -577,4 +579,86 @@
     pointer-events: none;
     z-index: 20;
     min-height: 10px;
+}
+
+/* Tags settings container */
+.tags-container {
+    margin: 16px 0;
+    padding: 12px;
+    background: var(--background-secondary);
+    border-radius: 8px;
+}
+
+.tag-setting {
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 8px;
+}
+
+/* Tags section in entry modal */
+.tags-section {
+    margin: 8px 0;
+}
+
+.tag-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 6px;
+    padding: 12px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    margin: 8px 0;
+}
+
+.tag-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--background-secondary);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s ease;
+}
+
+.tag-checkbox-label:hover {
+    background: var(--background-modifier-hover);
+}
+
+.tag-checkbox-label.is-selected {
+    border-color: var(--interactive-accent);
+    background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-secondary));
+}
+
+.tag-checkbox-label input[type="checkbox"] {
+    display: none; /* Hide native checkbox, use visual state instead */
+}
+
+.tag-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.tag-name {
+    color: var(--text-normal);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tag-checkmark {
+    font-size: 14px;
+    color: var(--interactive-accent);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.tag-checkbox-label.is-selected .tag-checkmark {
+    opacity: 1;
 }

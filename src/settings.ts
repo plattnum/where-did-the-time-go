@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import type { TimeTrackerSettings, Project } from './types';
+import type { TimeTrackerSettings, Project, Tag } from './types';
 import type WhereDidTheTimeGoPlugin from '../main';
 
 export class TimeTrackerSettingTab extends PluginSettingTab {
@@ -169,6 +169,33 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                     this.renderProjectsList(projectsContainer);
                 }));
+
+        // Tags Section
+        containerEl.createEl('h2', { text: 'Tags' });
+        containerEl.createEl('p', {
+            text: 'Define predefined tags for quick selection when creating entries.',
+            cls: 'setting-item-description'
+        });
+
+        // Tag list
+        const tagsContainer = containerEl.createDiv('tags-container');
+        this.renderTagsList(tagsContainer);
+
+        // Add new tag button
+        new Setting(containerEl)
+            .addButton(button => button
+                .setButtonText('Add Tag')
+                .setCta()
+                .onClick(async () => {
+                    const newTag: Tag = {
+                        id: `tag-${Date.now()}`,
+                        name: 'new-tag',
+                        color: this.getRandomColor(),
+                    };
+                    this.plugin.settings.tags.push(newTag);
+                    await this.plugin.saveSettings();
+                    this.renderTagsList(tagsContainer);
+                }));
     }
 
     private renderProjectsList(container: HTMLElement): void {
@@ -223,6 +250,52 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 projectSetting.settingEl.addClass('is-archived');
                 projectSetting.setDesc('(Archived)');
             }
+        });
+    }
+
+    private renderTagsList(container: HTMLElement): void {
+        container.empty();
+
+        if (this.plugin.settings.tags.length === 0) {
+            container.createEl('p', {
+                text: 'No tags defined yet. Add tags to quickly select them when creating entries.',
+                cls: 'setting-item-description'
+            });
+            return;
+        }
+
+        this.plugin.settings.tags.forEach((tag, index) => {
+            const tagSetting = new Setting(container)
+                .setClass('tag-setting');
+
+            // Color picker (optional)
+            tagSetting.addColorPicker(picker => picker
+                .setValue(tag.color || '#808080')
+                .onChange(async (value) => {
+                    tag.color = value;
+                    await this.plugin.saveSettings();
+                }));
+
+            // Name input
+            tagSetting.addText(text => text
+                .setValue(tag.name)
+                .setPlaceholder('tag-name')
+                .onChange(async (value) => {
+                    // Slugify the tag name
+                    tag.name = this.slugify(value) || 'tag';
+                    tag.id = tag.name;
+                    await this.plugin.saveSettings();
+                }));
+
+            // Delete button
+            tagSetting.addExtraButton(button => button
+                .setIcon('trash')
+                .setTooltip('Delete tag')
+                .onClick(async () => {
+                    this.plugin.settings.tags.splice(index, 1);
+                    await this.plugin.saveSettings();
+                    this.renderTagsList(container);
+                }));
         });
     }
 

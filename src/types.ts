@@ -47,6 +47,18 @@ export interface Project {
 }
 
 /**
+ * A predefined tag for categorizing time entries
+ */
+export interface Tag {
+    /** Unique identifier (slug) */
+    id: string;
+    /** Display name */
+    name: string;
+    /** Optional hex color */
+    color?: string;
+}
+
+/**
  * Plugin settings stored in Obsidian's data.json
  */
 export interface TimeTrackerSettings {
@@ -72,6 +84,8 @@ export interface TimeTrackerSettings {
     descriptionMaxLength: number;
     /** List of configured projects */
     projects: Project[];
+    /** List of predefined tags */
+    tags: Tag[];
 }
 
 /**
@@ -91,6 +105,7 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     projects: [
         { id: 'default', name: 'Default', color: '#4f46e5', archived: false },
     ],
+    tags: [],
 };
 
 /**

@@ -526,6 +526,11 @@ export class TimelineView extends ItemView {
                     for (const tag of entry.tags.slice(0, 3)) {
                         const chip = meta.createSpan('entry-chip tag-chip');
                         chip.setText(`#${tag}`);
+                        // Apply tag color if defined
+                        const tagColor = this.getTagColor(tag);
+                        if (tagColor) {
+                            chip.style.setProperty('--tag-color', tagColor);
+                        }
                     }
                 }
 
@@ -801,6 +806,14 @@ export class TimelineView extends ItemView {
         if (!projectId) return '#4f46e5';
         const project = this.settings.projects.find(p => p.id === projectId || p.name === projectId);
         return project?.color || '#4f46e5';
+    }
+
+    /**
+     * Get color for a tag from settings
+     */
+    private getTagColor(tagName: string): string | undefined {
+        const tag = this.settings.tags.find(t => t.name === tagName || t.id === tagName);
+        return tag?.color;
     }
 
     /**

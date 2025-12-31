@@ -59,7 +59,8 @@ const context = await esbuild.context({
             name: 'copy-to-vault',
             setup(build) {
                 build.onEnd(async () => {
-                    if (!prod && TEST_VAULT_PATH) {
+                    // Always copy to test vault (both dev and prod)
+                    if (TEST_VAULT_PATH) {
                         const pluginDir = path.join(TEST_VAULT_PATH, ".obsidian", "plugins", PLUGIN_ID);
 
                         try {
