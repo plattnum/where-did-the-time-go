@@ -38,11 +38,23 @@
     background: var(--tt-bg-secondary);
 }
 
+.timeline-header-title {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
 .timeline-header-title h2 {
     margin: 0;
     font-size: 1.1em;
     font-weight: 600;
     color: var(--tt-text);
+}
+
+.timeline-visible-date {
+    font-size: 0.9em;
+    color: var(--tt-text-muted);
+    font-weight: 400;
 }
 
 .timeline-header-controls {
@@ -132,6 +144,7 @@
     transition: all 0.15s ease;
     overflow: hidden;
     box-shadow: var(--tt-shadow);
+    z-index: 5;
 
     /* Project color bar on left */
     border-left: 4px solid var(--project-color, var(--tt-accent));
@@ -212,6 +225,58 @@
     border-radius: var(--tt-radius);
 }
 
+/* Day header */
+.timeline-day-header {
+    position: absolute;
+    left: 0;
+    right: 0;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--tt-text);
+    background: var(--tt-bg-secondary);
+    border-bottom: 2px solid var(--tt-border);
+    z-index: 10;
+}
+
+.timeline-day-header.is-today {
+    background: color-mix(in srgb, var(--tt-accent) 10%, var(--tt-bg-secondary));
+    border-bottom-color: var(--tt-accent);
+    color: var(--tt-accent);
+}
+
+/* Current time indicator */
+.timeline-now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--tt-accent);
+    z-index: 15;
+}
+
+.timeline-now-line::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: -3px;
+    width: 8px;
+    height: 8px;
+    background: var(--tt-accent);
+    border-radius: 50%;
+}
+
+/* Primary button style */
+.timeline-btn-primary {
+    background: var(--tt-accent);
+    color: white;
+    border-color: var(--tt-accent);
+}
+
+.timeline-btn-primary:hover {
+    opacity: 0.9;
+}
+
 /* Scrollbar styling */
 .timeline-container::-webkit-scrollbar {
     width: 8px;
@@ -228,4 +293,91 @@
 
 .timeline-container::-webkit-scrollbar-thumb:hover {
     background: var(--tt-text-muted);
+}
+
+/* Entry Modal Styles */
+.time-tracker-entry-modal {
+    padding: 16px;
+}
+
+.time-tracker-entry-modal h2 {
+    margin: 0 0 16px 0;
+    font-size: 1.2em;
+    color: var(--text-normal);
+}
+
+.time-tracker-entry-modal .setting-item {
+    border-top: none;
+    padding: 8px 0;
+}
+
+.time-tracker-entry-modal .time-row {
+    display: flex;
+    gap: 16px;
+}
+
+.time-tracker-entry-modal .time-row .setting-item {
+    flex: 1;
+}
+
+.time-tracker-entry-modal .duration-input {
+    text-align: center;
+    font-family: var(--font-monospace);
+}
+
+.time-tracker-entry-modal .setting-item-info {
+    flex: 0 0 80px;
+}
+
+.time-tracker-entry-modal .setting-item-control {
+    flex: 1;
+}
+
+.time-tracker-entry-modal input[type="time"] {
+    width: 100%;
+}
+
+.time-tracker-entry-modal textarea {
+    width: 100%;
+    resize: vertical;
+}
+
+.time-tracker-entry-modal .modal-button-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.time-tracker-entry-modal .button-spacer {
+    flex: 1;
+}
+
+.time-tracker-entry-modal button {
+    padding: 8px 16px;
+}
+
+.time-tracker-entry-modal button.mod-warning {
+    background: var(--background-modifier-error);
+    color: var(--text-on-accent);
+}
+
+.time-tracker-entry-modal button.mod-warning:hover {
+    background: var(--background-modifier-error-hover);
+}
+
+/* Drag selection */
+.timeline-drag-selection {
+    position: absolute;
+    /* Position to align with entries area (after ruler) */
+    left: 68px; /* ruler width (60px) + margin (8px) */
+    right: 16px;
+    background: color-mix(in srgb, var(--tt-accent) 20%, transparent);
+    border: 2px solid var(--tt-accent);
+    border-radius: var(--tt-radius);
+    pointer-events: none;
+    z-index: 20;
+    min-height: 10px;
 }

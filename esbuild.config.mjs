@@ -88,4 +88,17 @@ if (prod) {
     process.exit(0);
 } else {
     await context.watch();
+
+    // Watch styles.css separately since it's not part of the JS build graph
+    const pluginDir = path.join(TEST_VAULT_PATH, ".obsidian", "plugins", PLUGIN_ID);
+    fs.watch("styles.css", (eventType) => {
+        if (eventType === "change") {
+            try {
+                fs.copyFileSync("styles.css", path.join(pluginDir, "styles.css"));
+                console.log("styles.css copied to vault");
+            } catch (e) {
+                console.error("Failed to copy styles.css:", e);
+            }
+        }
+    });
 }

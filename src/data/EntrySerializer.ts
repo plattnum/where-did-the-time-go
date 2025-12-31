@@ -5,7 +5,7 @@ import { EntryParser } from './EntryParser';
  * Serializes time entries to markdown format
  *
  * Output format:
- * - [start:: 09:15] [end:: 10:40] Description text [project:: name] [tags:: a, b] [[linked note]]
+ * - [start:: 2024-01-15 09:15] [end:: 2024-01-15 10:40] Description text [project:: name] [tags:: a, b] [[linked note]]
  */
 export class EntrySerializer {
     /**
@@ -14,20 +14,14 @@ export class EntrySerializer {
     static serializeEntry(entry: TimeEntry): string {
         const parts: string[] = [];
 
-        // Start and end times (required)
-        parts.push(`[start:: ${entry.start}]`);
+        // Format start and end with explicit date+time
+        const startDateStr = EntryParser.getDateString(entry.startDateTime);
+        const startTimeStr = EntryParser.formatTime(entry.startDateTime);
+        parts.push(`[start:: ${startDateStr} ${startTimeStr}]`);
 
-        // Handle next-day end time
-        let endStr = entry.end;
-        if (entry.endDateTime.getDate() !== entry.startDateTime.getDate()) {
-            const daysDiff = Math.floor(
-                (entry.endDateTime.getTime() - entry.startDateTime.getTime()) / (24 * 60 * 60 * 1000)
-            );
-            if (daysDiff > 0 || entry.endDateTime.getDate() > entry.startDateTime.getDate()) {
-                endStr = `${entry.end}+1`;
-            }
-        }
-        parts.push(`[end:: ${endStr}]`);
+        const endDateStr = EntryParser.getDateString(entry.endDateTime);
+        const endTimeStr = EntryParser.formatTime(entry.endDateTime);
+        parts.push(`[end:: ${endDateStr} ${endTimeStr}]`);
 
         // Description
         if (entry.description) {

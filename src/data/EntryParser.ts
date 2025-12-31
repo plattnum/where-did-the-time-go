@@ -3,9 +3,12 @@ import type { TimeEntry, ParsedMonth } from '../types';
 /**
  * Parses time entries from markdown content
  *
- * Expected format:
+ * Format:
  * ## 2024-01-15
- * - [start:: 09:15] [end:: 10:40] Description text [project:: name] [tags:: a, b] [[linked note]]
+ * - [start:: 2024-01-15 09:15] [end:: 2024-01-15 10:40] Description text [project:: name] [tags:: a, b] [[linked note]]
+ *
+ * Entries spanning midnight:
+ * - [start:: 2024-01-15 22:00] [end:: 2024-01-16 03:00] Late night work
  */
 export class EntryParser {
     // Match date headers like "## 2024-01-15"
@@ -64,8 +67,9 @@ export class EntryParser {
 
     /**
      * Parse a single entry line (without the leading "- ")
+     * Note: headingDate is kept for API compatibility but not used - dates are in the start/end fields
      */
-    static parseEntryLine(line: string, date: string, lineNumber: number): TimeEntry | null {
+    static parseEntryLine(line: string, _headingDate: string, lineNumber: number): TimeEntry | null {
         console.log('EntryParser: Parsing line:', line);
 
         // Extract all inline fields
@@ -74,23 +78,19 @@ export class EntryParser {
 
         // Extract inline fields [key:: value] using matchAll to avoid regex state issues
         const matches = Array.from(line.matchAll(this.INLINE_FIELD_PATTERN));
-        console.log('EntryParser: Matches found:', matches.length, matches);
+        console.log('EntryParser: Matches found:', matches.length);
 
         for (const match of matches) {
-            console.log('EntryParser: Match:', match[1], '=', match[2]);
             fields.set(match[1].toLowerCase(), match[2].trim());
             remainingText = remainingText.replace(match[0], '');
         }
 
-        console.log('EntryParser: Fields map:', Object.fromEntries(fields));
-
         // Must have start and end times
         const startStr = fields.get('start');
         const endStr = fields.get('end');
-        console.log('EntryParser: start=', startStr, 'end=', endStr);
 
         if (!startStr || !endStr) {
-            console.log('EntryParser: Missing start or end, returning null');
+            console.log('EntryParser: Missing start or end, skipping');
             return null;
         }
 
@@ -111,16 +111,23 @@ export class EntryParser {
             ? tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0)
             : undefined;
 
-        // Parse times and create Date objects
-        const { startDateTime, endDateTime } = this.parseTimeRange(date, startStr, endStr);
+        // Parse start and end with explicit date+time format
+        const { startDateTime, endDateTime, startDate, endDate } = this.parseDateTimeFields(startStr, endStr);
+
+        // The entry's date is the start date (for organizing under headings)
+        const entryDate = startDate;
 
         // Calculate duration
         const durationMinutes = Math.round((endDateTime.getTime() - startDateTime.getTime()) / 60000);
 
+        // Extract just the time portion for display
+        const startTime = this.formatTime(startDateTime);
+        const endTime = this.formatTime(endDateTime);
+
         return {
-            date,
-            start: startStr.replace(/\+\d+$/, ''), // Remove +1 suffix for display
-            end: endStr.replace(/\+\d+$/, ''),
+            date: entryDate,
+            start: startTime,
+            end: endTime,
             description,
             project: fields.get('project'),
             tags,
@@ -133,21 +140,31 @@ export class EntryParser {
     }
 
     /**
-     * Parse time strings into Date objects, handling +N notation for next day
+     * Parse start and end fields with explicit date+time format: "YYYY-MM-DD HH:mm"
      */
-    static parseTimeRange(date: string, startStr: string, endStr: string): { startDateTime: Date; endDateTime: Date } {
-        const [year, month, day] = date.split('-').map(Number);
+    static parseDateTimeFields(
+        startStr: string,
+        endStr: string
+    ): { startDateTime: Date; endDateTime: Date; startDate: string; endDate: string } {
+        // Parse "YYYY-MM-DD HH:mm" format
+        const startMatch = startStr.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
+        const endMatch = endStr.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
 
-        // Parse start time
-        const startTime = this.parseTime(startStr);
-        const startDateTime = new Date(year, month - 1, day, startTime.hours, startTime.minutes);
+        if (!startMatch || !endMatch) {
+            throw new Error(`Invalid date+time format. Expected "YYYY-MM-DD HH:mm". Got start="${startStr}", end="${endStr}"`);
+        }
 
-        // Parse end time (may have +N suffix for days offset)
-        const endDaysOffset = this.extractDaysOffset(endStr);
-        const endTime = this.parseTime(endStr.replace(/\+\d+$/, ''));
-        const endDateTime = new Date(year, month - 1, day + endDaysOffset, endTime.hours, endTime.minutes);
+        const startDate = startMatch[1];
+        const startTime = this.parseTime(startMatch[2]);
+        const [sy, sm, sd] = startDate.split('-').map(Number);
+        const startDateTime = new Date(sy, sm - 1, sd, startTime.hours, startTime.minutes);
 
-        return { startDateTime, endDateTime };
+        const endDate = endMatch[1];
+        const endTime = this.parseTime(endMatch[2]);
+        const [ey, em, ed] = endDate.split('-').map(Number);
+        const endDateTime = new Date(ey, em - 1, ed, endTime.hours, endTime.minutes);
+
+        return { startDateTime, endDateTime, startDate, endDate };
     }
 
     /**
@@ -159,11 +176,10 @@ export class EntryParser {
     }
 
     /**
-     * Extract +N days offset from time string (e.g., "01:30+1" returns 1)
+     * Format a Date to HH:mm string
      */
-    private static extractDaysOffset(timeStr: string): number {
-        const match = timeStr.match(/\+(\d+)$/);
-        return match ? parseInt(match[1]) : 0;
+    static formatTime(date: Date): string {
+        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
     }
 
     /**

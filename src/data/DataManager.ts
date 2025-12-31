@@ -101,14 +101,12 @@ export class DataManager {
         }
 
         const filePath = this.getMonthFilePath(monthStr);
-        console.log('DataManager: Looking for file at', filePath);
+        console.log('DataManager: Loading file', filePath);
 
         const file = this.vault.getAbstractFileByPath(filePath);
-        console.log('DataManager: File found?', !!file);
 
         if (!file || !(file instanceof TFile)) {
-            // No file exists, return empty month
-            console.log('DataManager: No file found, returning empty month');
+            console.log('DataManager: File not found');
             const emptyMonth: ParsedMonth = {
                 month: monthStr,
                 entries: [],
@@ -118,10 +116,8 @@ export class DataManager {
         }
 
         const content = await this.vault.read(file);
-        console.log('DataManager: File content length', content.length);
-
         const parsed = EntryParser.parseMonthFile(content, monthStr);
-        console.log('DataManager: Parsed entries count', parsed.entries.length);
+        console.log('DataManager: Parsed', parsed.entries.length, 'entries');
 
         // Cache the result
         this.cache.set(monthStr, parsed);
@@ -137,8 +133,11 @@ export class DataManager {
         const monthsToLoad = new Set<string>();
 
         // Determine which months we need to load
+        const endMonth = EntryParser.getMonthString(endDate);
         const current = new Date(startDate);
-        while (current <= endDate) {
+        current.setDate(1); // Start from first of month
+
+        while (EntryParser.getMonthString(current) <= endMonth) {
             monthsToLoad.add(EntryParser.getMonthString(current));
             current.setMonth(current.getMonth() + 1);
         }
@@ -183,9 +182,8 @@ export class DataManager {
         const monthStr = entry.date.substring(0, 7); // YYYY-MM
         const file = await this.getOrCreateMonthFile(monthStr);
 
-        // Create full entry object
-        const { startDateTime, endDateTime } = EntryParser.parseTimeRange(
-            entry.date,
+        // Create full entry object - start and end contain full date+time
+        const { startDateTime, endDateTime } = EntryParser.parseDateTimeFields(
             entry.start,
             entry.end
         );
@@ -222,8 +220,7 @@ export class DataManager {
      * Update an existing entry
      */
     async updateEntry(oldEntry: TimeEntry, newEntry: Partial<TimeEntry>): Promise<TimeEntry> {
-        const monthStr = oldEntry.date.substring(0, 7);
-        const file = await this.getOrCreateMonthFile(monthStr);
+        const oldMonthStr = oldEntry.date.substring(0, 7);
 
         // Merge old and new entry data
         const updatedEntry: TimeEntry = {
@@ -231,10 +228,9 @@ export class DataManager {
             ...newEntry,
         };
 
-        // Recalculate datetime if times changed
+        // Recalculate datetime if times changed - start and end contain full date+time
         if (newEntry.start || newEntry.end || newEntry.date) {
-            const { startDateTime, endDateTime } = EntryParser.parseTimeRange(
-                updatedEntry.date,
+            const { startDateTime, endDateTime } = EntryParser.parseDateTimeFields(
                 updatedEntry.start,
                 updatedEntry.end
             );
@@ -245,20 +241,43 @@ export class DataManager {
             );
         }
 
-        // Check for overlaps (excluding self)
+        const newMonthStr = updatedEntry.date.substring(0, 7);
+        const dateChanged = oldEntry.date !== updatedEntry.date;
+
+        // Check for overlaps (excluding self if same date)
         const existingEntries = await this.loadEntriesForDate(updatedEntry.startDateTime);
-        const otherEntries = existingEntries.filter(e => e.lineNumber !== oldEntry.lineNumber);
+        const otherEntries = dateChanged
+            ? existingEntries // All entries on new date are "other"
+            : existingEntries.filter(e => e.lineNumber !== oldEntry.lineNumber);
         if (this.hasOverlap(updatedEntry, otherEntries)) {
             throw new Error('Entry overlaps with an existing time entry');
         }
 
-        // Update file content
-        const content = await this.vault.read(file);
-        const newContent = EntrySerializer.updateEntryInContent(content, oldEntry, updatedEntry);
-        await this.vault.modify(file, newContent);
+        if (dateChanged) {
+            // Date changed - need to delete from old location and add to new location
+            console.log('Date changed from', oldEntry.date, 'to', updatedEntry.date);
 
-        // Invalidate cache
-        this.invalidateMonth(monthStr);
+            // Delete from old file
+            const oldFile = await this.getOrCreateMonthFile(oldMonthStr);
+            const oldContent = await this.vault.read(oldFile);
+            const contentAfterDelete = EntrySerializer.deleteEntryFromContent(oldContent, oldEntry);
+            await this.vault.modify(oldFile, contentAfterDelete);
+            this.invalidateMonth(oldMonthStr);
+
+            // Add to new file (might be same file if same month, different day)
+            const newFile = await this.getOrCreateMonthFile(newMonthStr);
+            const newContent = await this.vault.read(newFile);
+            const contentAfterAdd = EntrySerializer.addEntryToContent(newContent, updatedEntry);
+            await this.vault.modify(newFile, contentAfterAdd);
+            this.invalidateMonth(newMonthStr);
+        } else {
+            // Same date - just update in place
+            const file = await this.getOrCreateMonthFile(oldMonthStr);
+            const content = await this.vault.read(file);
+            const newContent = EntrySerializer.updateEntryInContent(content, oldEntry, updatedEntry);
+            await this.vault.modify(file, newContent);
+            this.invalidateMonth(oldMonthStr);
+        }
 
         new Notice('Time entry updated');
 
