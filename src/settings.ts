@@ -108,6 +108,18 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
+            .setName('Description max length')
+            .setDesc('Maximum characters for entry descriptions (0 = no limit)')
+            .addText(text => text
+                .setValue(this.plugin.settings.descriptionMaxLength.toString())
+                .setPlaceholder('200')
+                .onChange(async (value) => {
+                    const num = parseInt(value) || 0;
+                    this.plugin.settings.descriptionMaxLength = Math.max(0, num);
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
             .setName('Week start')
             .setDesc('First day of the week')
             .addDropdown(dropdown => dropdown

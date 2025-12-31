@@ -28,12 +28,21 @@ export class TimelineView extends ItemView {
     private dayHeight: number = 0; // Calculated as 24 * hourHeight
     private resizeObserver: ResizeObserver | null = null;
 
-    // Drag selection state
+    // Drag selection state (for creating new entries)
     private isDragging: boolean = false;
     private dragStartY: number = 0;
     private dragCurrentY: number = 0;
     private dragStartDate: Date | null = null;
     private selectionEl: HTMLElement | null = null;
+
+    // Entry drag state (for moving/resizing existing entries)
+    private entryDragMode: 'none' | 'move' | 'resize-top' | 'resize-bottom' = 'none';
+    private entryDragEntry: TimeEntry | null = null;
+    private entryDragCard: HTMLElement | null = null;
+    private entryDragStartY: number = 0;
+    private entryDragOriginalTop: number = 0;
+    private entryDragOriginalHeight: number = 0;
+    private entryDragDidMove: boolean = false; // Track if actual drag happened
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -420,10 +429,19 @@ export class TimelineView extends ItemView {
         const card = this.entriesContainer.createDiv('timeline-entry-card');
         card.style.top = `${top}px`;
         card.style.height = `${height}px`;
+        card.dataset.entryDate = entry.date;
+        card.dataset.entryLine = String(entry.lineNumber);
 
         // Project color
         const projectColor = this.getProjectColor(entry.project);
         card.style.setProperty('--project-color', projectColor);
+
+        // Resize handle - top
+        const resizeTop = card.createDiv('entry-resize-handle entry-resize-top');
+        resizeTop.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            this.startEntryDrag(e, entry, card, 'resize-top');
+        });
 
         // Header
         const header = card.createDiv('entry-card-header');
@@ -451,11 +469,175 @@ export class TimelineView extends ItemView {
         const duration = meta.createSpan('entry-duration');
         duration.setText(this.formatDuration(entry.durationMinutes));
 
-        // Click to edit
+        // Resize handle - bottom
+        const resizeBottom = card.createDiv('entry-resize-handle entry-resize-bottom');
+        resizeBottom.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            this.startEntryDrag(e, entry, card, 'resize-bottom');
+        });
+
+        // Mousedown on card body for move (but not on resize handles)
+        card.addEventListener('mousedown', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('entry-resize-handle')) return;
+            e.stopPropagation();
+            this.startEntryDrag(e, entry, card, 'move');
+        });
+
+        // Click to edit (only if we didn't drag)
         card.addEventListener('click', (e) => {
+            if (this.entryDragDidMove) {
+                this.entryDragDidMove = false;
+                return;
+            }
             e.stopPropagation();
             this.openEditModal(entry);
         });
+    }
+
+    /**
+     * Start dragging an entry (move or resize)
+     */
+    private startEntryDrag(e: MouseEvent, entry: TimeEntry, card: HTMLElement, mode: 'move' | 'resize-top' | 'resize-bottom'): void {
+        e.preventDefault();
+        this.entryDragMode = mode;
+        this.entryDragEntry = entry;
+        this.entryDragCard = card;
+        this.entryDragStartY = e.clientY;
+        this.entryDragOriginalTop = parseFloat(card.style.top);
+        this.entryDragOriginalHeight = parseFloat(card.style.height);
+
+        card.addClass('is-dragging');
+        document.addEventListener('mousemove', this.handleEntryDragMove);
+        document.addEventListener('mouseup', this.handleEntryDragEnd);
+    }
+
+    /**
+     * Handle entry drag movement
+     */
+    private handleEntryDragMove = (e: MouseEvent): void => {
+        if (this.entryDragMode === 'none' || !this.entryDragCard) return;
+
+        const deltaY = e.clientY - this.entryDragStartY;
+
+        // Mark that actual dragging occurred
+        if (Math.abs(deltaY) > 3) {
+            this.entryDragDidMove = true;
+        }
+
+        if (this.entryDragMode === 'move') {
+            // Move the whole card
+            const newTop = this.entryDragOriginalTop + deltaY;
+            this.entryDragCard.style.top = `${newTop}px`;
+        } else if (this.entryDragMode === 'resize-top') {
+            // Resize from top - adjust both top and height
+            const newTop = this.entryDragOriginalTop + deltaY;
+            const newHeight = this.entryDragOriginalHeight - deltaY;
+            if (newHeight >= 30) { // Minimum height
+                this.entryDragCard.style.top = `${newTop}px`;
+                this.entryDragCard.style.height = `${newHeight}px`;
+            }
+        } else if (this.entryDragMode === 'resize-bottom') {
+            // Resize from bottom - just adjust height
+            const newHeight = this.entryDragOriginalHeight + deltaY;
+            if (newHeight >= 30) { // Minimum height
+                this.entryDragCard.style.height = `${newHeight}px`;
+            }
+        }
+    };
+
+    /**
+     * End entry drag and save changes
+     */
+    private handleEntryDragEnd = async (e: MouseEvent): Promise<void> => {
+        document.removeEventListener('mousemove', this.handleEntryDragMove);
+        document.removeEventListener('mouseup', this.handleEntryDragEnd);
+
+        if (this.entryDragMode === 'none' || !this.entryDragCard || !this.entryDragEntry) {
+            this.cleanupEntryDrag();
+            return;
+        }
+
+        const deltaY = e.clientY - this.entryDragStartY;
+
+        // If barely moved, treat as click (will open edit modal)
+        if (Math.abs(deltaY) < 5) {
+            this.cleanupEntryDrag();
+            return;
+        }
+
+        // Calculate new times based on drag
+        const entry = this.entryDragEntry;
+        const card = this.entryDragCard;
+
+        const newTop = parseFloat(card.style.top);
+        const newHeight = parseFloat(card.style.height);
+
+        // Convert pixel positions to times
+        const newStartMinutes = (newTop / this.settings.hourHeight) * 60;
+        const newDurationMinutes = (newHeight / this.settings.hourHeight) * 60;
+        const newEndMinutes = newStartMinutes + newDurationMinutes;
+
+        // Calculate which day the entry is now on
+        const dayIndex = Math.floor(newTop / this.dayHeight);
+        const minutesInDay = newStartMinutes - (dayIndex * 24 * 60);
+
+        // Get the actual date for this position
+        const newDate = new Date(this.centerDate);
+        newDate.setDate(newDate.getDate() + dayIndex - this.visibleDaysBuffer);
+
+        // Calculate start and end times
+        const startHours = Math.floor(minutesInDay / 60) % 24;
+        const startMins = Math.round(minutesInDay % 60 / 15) * 15; // Round to 15 min
+        const endTotalMins = minutesInDay + newDurationMinutes;
+        const endHours = Math.floor(endTotalMins / 60) % 24;
+        const endMins = Math.round(endTotalMins % 60 / 15) * 15;
+
+        // Determine end date (might be next day if spans midnight)
+        const endDate = new Date(newDate);
+        if (endTotalMins >= 24 * 60) {
+            endDate.setDate(endDate.getDate() + 1);
+        }
+
+        const newStartTime = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`;
+        const newEndTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+        const newDateStr = EntryParser.getDateString(newDate);
+        const endDateStr = EntryParser.getDateString(endDate);
+
+        // Build full datetime strings (required by updateEntry)
+        const fullStart = `${newDateStr} ${newStartTime}`;
+        const fullEnd = `${endDateStr} ${newEndTime}`;
+
+        console.log('Drag complete:', { newDateStr, fullStart, fullEnd });
+
+        try {
+            await this.dataManager.updateEntry(entry, {
+                date: newDateStr,
+                start: fullStart,
+                end: fullEnd,
+            });
+            await this.refresh();
+        } catch (err) {
+            console.error('Failed to update entry after drag:', err);
+            // Revert visual position
+            card.style.top = `${this.entryDragOriginalTop}px`;
+            card.style.height = `${this.entryDragOriginalHeight}px`;
+        }
+
+        this.cleanupEntryDrag();
+    };
+
+    /**
+     * Clean up entry drag state
+     */
+    private cleanupEntryDrag(): void {
+        if (this.entryDragCard) {
+            this.entryDragCard.removeClass('is-dragging');
+        }
+        this.entryDragMode = 'none';
+        this.entryDragEntry = null;
+        this.entryDragCard = null;
+        // Note: Don't reset entryDragDidMove here - it's reset in the click handler
     }
 
     /**

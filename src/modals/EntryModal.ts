@@ -204,18 +204,70 @@ export class EntryModal extends Modal {
                 });
             });
 
-        // Description
-        new Setting(contentEl)
+        // Description (single line - no newlines allowed)
+        const descSetting = new Setting(contentEl)
             .setName('Description')
-            .setDesc('What did you work on?')
-            .addTextArea((text) => {
-                text.setValue(this.descriptionValue);
-                text.setPlaceholder('Enter description...');
-                text.inputEl.rows = 3;
-                text.onChange((value) => {
-                    this.descriptionValue = value;
-                });
+            .setDesc('What did you work on? (single line, use linked note for details)');
+
+        // Character counter element
+        const maxLen = this.settings.descriptionMaxLength;
+        const counterEl = descSetting.descEl.createSpan('description-counter');
+        const updateCounter = (len: number) => {
+            if (maxLen > 0) {
+                counterEl.setText(` (${len}/${maxLen})`);
+                counterEl.toggleClass('is-over-limit', len > maxLen);
+                counterEl.toggleClass('is-near-limit', len > maxLen * 0.8 && len <= maxLen);
+            } else {
+                counterEl.setText(` (${len} chars)`);
+            }
+        };
+        updateCounter(this.descriptionValue.length);
+
+        descSetting.addTextArea((text) => {
+            text.setValue(this.descriptionValue);
+            text.setPlaceholder('Enter description...');
+            text.inputEl.rows = 3;
+
+            // Block Enter key from creating newlines
+            text.inputEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                }
             });
+
+            // Strip newlines on paste and enforce limit
+            text.inputEl.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pastedText = e.clipboardData?.getData('text') || '';
+                let cleanedText = pastedText.replace(/[\r\n]+/g, ' ').trim();
+                const input = e.target as HTMLTextAreaElement;
+                const start = input.selectionStart;
+                const end = input.selectionEnd;
+                const current = input.value;
+                let newValue = current.substring(0, start) + cleanedText + current.substring(end);
+
+                // Enforce max length
+                if (maxLen > 0 && newValue.length > maxLen) {
+                    newValue = newValue.substring(0, maxLen);
+                }
+
+                input.value = newValue;
+                input.selectionStart = input.selectionEnd = Math.min(start + cleanedText.length, newValue.length);
+                this.descriptionValue = newValue;
+                updateCounter(newValue.length);
+            });
+
+            text.onChange((value) => {
+                // Strip newlines and enforce limit
+                let cleaned = value.replace(/[\r\n]+/g, ' ');
+                if (maxLen > 0 && cleaned.length > maxLen) {
+                    cleaned = cleaned.substring(0, maxLen);
+                    text.setValue(cleaned);
+                }
+                this.descriptionValue = cleaned;
+                updateCounter(cleaned.length);
+            });
+        });
 
         // Tags
         new Setting(contentEl)

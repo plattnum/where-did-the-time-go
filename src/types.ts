@@ -68,6 +68,8 @@ export interface TimeTrackerSettings {
     weekStart: 'monday' | 'sunday';
     /** Auto-create folder if missing */
     autoCreateFolder: boolean;
+    /** Max characters for description (0 = no limit) */
+    descriptionMaxLength: number;
     /** List of configured projects */
     projects: Project[];
 }
@@ -85,6 +87,7 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     use24HourFormat: true,
     weekStart: 'monday',
     autoCreateFolder: true,
+    descriptionMaxLength: 200,
     projects: [
         { id: 'default', name: 'Default', color: '#4f46e5', archived: false },
     ],
