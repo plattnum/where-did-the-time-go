@@ -233,16 +233,10 @@
     padding: 8px 12px;
     font-size: 13px;
     font-weight: 600;
-    color: var(--tt-text);
-    background: var(--tt-bg-secondary);
-    border-bottom: 2px solid var(--tt-border);
-    z-index: 10;
-}
-
-.timeline-day-header.is-today {
-    background: color-mix(in srgb, var(--tt-accent) 10%, var(--tt-bg-secondary));
-    border-bottom-color: var(--tt-accent);
     color: var(--tt-accent);
+    background: color-mix(in srgb, var(--tt-accent) 10%, var(--tt-bg-secondary));
+    border-bottom: 2px solid var(--tt-accent);
+    z-index: 10;
 }
 
 /* Current time indicator */
