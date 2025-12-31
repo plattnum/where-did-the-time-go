@@ -436,6 +436,19 @@ export class TimelineView extends ItemView {
         const projectColor = this.getProjectColor(entry.project);
         card.style.setProperty('--project-color', projectColor);
 
+        // Layout tiers based on duration:
+        // - Very compact (≤30 min): Single line with description in header
+        // - Compact (31-60 min): Two rows but no meta
+        // - Expanded (>60 min): Full layout with meta and note row
+        const isVeryCompact = totalDurationMinutes <= 30;
+        const isCompact = height < 80;
+
+        if (isVeryCompact) {
+            card.addClass('is-very-compact');
+        } else if (isCompact) {
+            card.addClass('is-compact');
+        }
+
         // Resize handle - top
         const resizeTop = card.createDiv('entry-resize-handle entry-resize-top');
         resizeTop.addEventListener('mousedown', (e) => {
@@ -443,31 +456,91 @@ export class TimelineView extends ItemView {
             this.startEntryDrag(e, entry, card, 'resize-top');
         });
 
-        // Header
-        const header = card.createDiv('entry-card-header');
-        const title = header.createDiv('entry-card-title');
-        title.setText(entry.description || '(No description)');
+        // Build tooltip (always useful for truncated content)
+        const tooltipParts = [
+            entry.description || '(No description)',
+            `${entry.start} – ${entry.end} (${this.formatDuration(entry.durationMinutes)})`,
+        ];
+        if (entry.project) tooltipParts.push(`Project: ${entry.project}`);
+        if (entry.tags?.length) tooltipParts.push(`Tags: ${entry.tags.join(', ')}`);
+        if (entry.linkedNote) tooltipParts.push(`Note: ${entry.linkedNote}`);
+        card.setAttribute('title', tooltipParts.join('\n'));
 
-        const time = header.createDiv('entry-card-time');
-        time.setText(`${entry.start} – ${entry.end}`);
+        if (isVeryCompact) {
+            // Single-line layout: Time | Duration | Description | Note Icon
+            const header = card.createDiv('entry-card-header');
 
-        // Meta
-        const meta = card.createDiv('entry-card-meta');
+            const timeInfo = header.createSpan('entry-card-time');
+            timeInfo.setText(`${entry.start} – ${entry.end}`);
 
-        if (entry.project) {
-            const chip = meta.createSpan('entry-chip project-chip');
-            chip.setText(entry.project);
-        }
+            const duration = header.createSpan('entry-card-duration');
+            duration.setText(this.formatDuration(entry.durationMinutes));
 
-        if (entry.tags && entry.tags.length > 0) {
-            for (const tag of entry.tags.slice(0, 3)) {
-                const chip = meta.createSpan('entry-chip tag-chip');
-                chip.setText(`#${tag}`);
+            // Description inline (will truncate with CSS)
+            const desc = header.createSpan('entry-card-inline-desc');
+            desc.setText(entry.description || '');
+
+            // Note icon at end
+            if (entry.linkedNote) {
+                const noteIcon = header.createSpan('entry-linked-icon');
+                noteIcon.setText('📄');
+                noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
+                noteIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openLinkedNote(entry.linkedNote!);
+                });
+            }
+        } else {
+            // Multi-row layout
+            const header = card.createDiv('entry-card-header');
+            const timeInfo = header.createDiv('entry-card-time');
+            timeInfo.setText(`${entry.start} – ${entry.end}`);
+            const duration = header.createSpan('entry-card-duration');
+            duration.setText(this.formatDuration(entry.durationMinutes));
+
+            // Note icon in header for compact cards
+            if (isCompact && entry.linkedNote) {
+                const noteIcon = header.createSpan('entry-linked-icon');
+                noteIcon.setText('📄');
+                noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
+                noteIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openLinkedNote(entry.linkedNote!);
+                });
+            }
+
+            // Description row
+            const descRow = card.createDiv('entry-card-description');
+            descRow.setText(entry.description || '(No description)');
+
+            // Expanded layout: Meta row + Linked note row
+            if (!isCompact) {
+                const meta = card.createDiv('entry-card-meta');
+
+                if (entry.project) {
+                    const chip = meta.createSpan('entry-chip project-chip');
+                    chip.setText(entry.project);
+                }
+
+                if (entry.tags && entry.tags.length > 0) {
+                    for (const tag of entry.tags.slice(0, 3)) {
+                        const chip = meta.createSpan('entry-chip tag-chip');
+                        chip.setText(`#${tag}`);
+                    }
+                }
+
+                // Linked note on its own row for expanded cards
+                if (entry.linkedNote) {
+                    const noteRow = card.createDiv('entry-card-note-row');
+                    const noteLink = noteRow.createSpan('entry-linked-note');
+                    noteLink.setText(`📄 ${this.getNoteName(entry.linkedNote)}`);
+                    noteLink.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.openLinkedNote(entry.linkedNote!);
+                    });
+                }
             }
         }
-
-        const duration = meta.createSpan('entry-duration');
-        duration.setText(this.formatDuration(entry.durationMinutes));
 
         // Resize handle - bottom
         const resizeBottom = card.createDiv('entry-resize-handle entry-resize-bottom');
@@ -576,7 +649,6 @@ export class TimelineView extends ItemView {
         // Convert pixel positions to times
         const newStartMinutes = (newTop / this.settings.hourHeight) * 60;
         const newDurationMinutes = (newHeight / this.settings.hourHeight) * 60;
-        const newEndMinutes = newStartMinutes + newDurationMinutes;
 
         // Calculate which day the entry is now on
         const dayIndex = Math.floor(newTop / this.dayHeight);
@@ -729,6 +801,28 @@ export class TimelineView extends ItemView {
         if (!projectId) return '#4f46e5';
         const project = this.settings.projects.find(p => p.id === projectId || p.name === projectId);
         return project?.color || '#4f46e5';
+    }
+
+    /**
+     * Get just the note name from a full path
+     */
+    private getNoteName(notePath: string): string {
+        const parts = notePath.split('/');
+        return parts[parts.length - 1];
+    }
+
+    /**
+     * Open a linked note in Obsidian
+     */
+    private openLinkedNote(notePath: string): void {
+        // Add .md if not present
+        const fullPath = notePath.endsWith('.md') ? notePath : `${notePath}.md`;
+        const file = this.app.vault.getAbstractFileByPath(fullPath);
+        if (file) {
+            this.app.workspace.openLinkText(notePath, '', false);
+        } else {
+            console.warn('Linked note not found:', fullPath);
+        }
     }
 
     // Modal methods
@@ -905,7 +999,7 @@ export class TimelineView extends ItemView {
     /**
      * Handle drag cancel (mouse leaves container)
      */
-    private handleDragCancel(e: MouseEvent): void {
+    private handleDragCancel(_e: MouseEvent): void {
         if (this.isDragging) {
             this.cleanupDrag();
         }

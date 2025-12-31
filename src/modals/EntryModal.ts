@@ -1,4 +1,4 @@
-import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponent } from 'obsidian';
+import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponent, Notice, FuzzySuggestModal, TFile } from 'obsidian';
 import { TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
 import { EntryParser } from '../data/EntryParser';
@@ -282,16 +282,42 @@ export class EntryModal extends Modal {
             });
 
         // Linked note
-        new Setting(contentEl)
+        const linkedNoteSetting = new Setting(contentEl)
             .setName('Linked Note')
-            .setDesc('Path to linked note (without [[]])')
-            .addText((text) => {
-                text.setValue(this.linkedNoteValue);
-                text.setPlaceholder('path/to/note');
-                text.onChange((value) => {
-                    this.linkedNoteValue = value;
-                });
+            .setDesc('Path to linked note (without [[]])');
+
+        let linkedNoteInput: TextComponent;
+        linkedNoteSetting.addText((text) => {
+            linkedNoteInput = text;
+            text.setValue(this.linkedNoteValue);
+            text.setPlaceholder('path/to/note');
+            text.onChange((value) => {
+                this.linkedNoteValue = value;
             });
+        });
+
+        // Browse existing notes button
+        linkedNoteSetting.addButton((btn) => {
+            btn.setButtonText('Browse')
+                .setTooltip('Select an existing note')
+                .onClick(() => {
+                    new NoteSuggestModal(this.app, (file) => {
+                        // Remove .md extension for the link
+                        const path = file.path.replace(/\.md$/, '');
+                        linkedNoteInput.setValue(path);
+                        this.linkedNoteValue = path;
+                    }).open();
+                });
+        });
+
+        // Create new note button
+        linkedNoteSetting.addButton((btn) => {
+            btn.setButtonText('Create New')
+                .setTooltip('Create a new linked note')
+                .onClick(() => {
+                    this.showCreateNoteInput(contentEl, linkedNoteInput);
+                });
+        });
 
         // Button row
         const buttonRow = contentEl.createDiv('modal-button-row');
@@ -550,5 +576,139 @@ export class EntryModal extends Modal {
         }
 
         return 0;
+    }
+
+    /**
+     * Show the create note input UI
+     */
+    private showCreateNoteInput(contentEl: HTMLElement, linkedNoteInput: TextComponent): void {
+        // Create inline input row
+        const createNoteRow = contentEl.createDiv('create-note-row');
+
+        const maxLength = 80;
+        const defaultName = `${this.startDateValue}-`;
+
+        // Full filename input (user can edit everything including date)
+        const nameInput = createNoteRow.createEl('input', {
+            type: 'text',
+            placeholder: 'note-name',
+            cls: 'create-note-slug',
+            value: defaultName,
+        });
+        nameInput.maxLength = maxLength;
+
+        // Character counter
+        const counterSpan = createNoteRow.createSpan('create-note-counter');
+        counterSpan.setText(`${defaultName.length}/${maxLength}`);
+
+        nameInput.addEventListener('input', () => {
+            // Sanitize: only allow lowercase, numbers, hyphens
+            const cursorPos = nameInput.selectionStart || 0;
+            nameInput.value = nameInput.value
+                .toLowerCase()
+                .replace(/[^a-z0-9-]/g, '-')
+                .replace(/-+/g, '-');
+            nameInput.selectionStart = nameInput.selectionEnd = Math.min(cursorPos, nameInput.value.length);
+            counterSpan.setText(`${nameInput.value.length}/${maxLength}`);
+        });
+
+        // Create button
+        const createBtn = createNoteRow.createEl('button', {
+            text: 'Create',
+            cls: 'mod-cta',
+        });
+
+        // Cancel button
+        const cancelBtn = createNoteRow.createEl('button', {
+            text: 'Cancel',
+        });
+
+        createBtn.addEventListener('click', async () => {
+            const noteName = nameInput.value.trim().replace(/^-+|-+$/g, '');
+            if (!noteName) {
+                new Notice('Please enter a note name');
+                return;
+            }
+
+            try {
+                const notePath = await this.createLinkedNote(noteName);
+                linkedNoteInput.setValue(notePath);
+                this.linkedNoteValue = notePath;
+                createNoteRow.remove();
+                new Notice('Note created!');
+            } catch (err) {
+                new Notice(`Failed to create note: ${err}`);
+            }
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            createNoteRow.remove();
+        });
+
+        // Focus the input and position cursor at end
+        nameInput.focus();
+        nameInput.selectionStart = nameInput.selectionEnd = nameInput.value.length;
+    }
+
+    /**
+     * Create a linked note in the Notes subfolder
+     */
+    private async createLinkedNote(slug: string): Promise<string> {
+        const vault = this.app.vault;
+        const notesFolder = `${this.settings.timeTrackingFolder}/Notes`;
+        const notePath = `${notesFolder}/${slug}.md`;
+
+        // Ensure Notes subfolder exists
+        const folder = vault.getAbstractFileByPath(notesFolder);
+        if (!folder) {
+            await vault.createFolder(notesFolder);
+        }
+
+        // Check if note already exists
+        const existing = vault.getAbstractFileByPath(notePath);
+        if (existing) {
+            throw new Error('Note already exists');
+        }
+
+        // Create note with template content
+        const content = this.generateNoteTemplate(slug);
+        await vault.create(notePath, content);
+
+        // Return path without .md extension for the linkedNote field
+        return `${notesFolder}/${slug}`;
+    }
+
+    /**
+     * Generate template content for a new linked note
+     * Loosely coupled - no properties that would need updating if entry changes
+     */
+    private generateNoteTemplate(_noteName: string): string {
+        // Just a blank note - user can add whatever they want
+        return '';
+    }
+}
+
+/**
+ * Modal for selecting an existing note via fuzzy search
+ */
+class NoteSuggestModal extends FuzzySuggestModal<TFile> {
+    private onSelect: (file: TFile) => void;
+
+    constructor(app: App, onSelect: (file: TFile) => void) {
+        super(app);
+        this.onSelect = onSelect;
+        this.setPlaceholder('Search for a note...');
+    }
+
+    getItems(): TFile[] {
+        return this.app.vault.getMarkdownFiles();
+    }
+
+    getItemText(file: TFile): string {
+        return file.path;
+    }
+
+    onChooseItem(file: TFile, _evt: MouseEvent | KeyboardEvent): void {
+        this.onSelect(file);
     }
 }

@@ -139,8 +139,8 @@
     background: var(--tt-card-bg);
     border-radius: var(--tt-radius);
     border: 1px solid var(--tt-border);
-    padding: 8px 12px;
-    cursor: pointer;
+    padding: 6px 10px;
+    cursor: grab;
     transition: all 0.15s ease;
     overflow: hidden;
     box-shadow: var(--tt-shadow);
@@ -148,6 +148,11 @@
 
     /* Project color bar on left */
     border-left: 4px solid var(--project-color, var(--tt-accent));
+
+    /* Flexbox layout for content */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .timeline-entry-card:hover {
@@ -188,40 +193,61 @@
     transition: none !important; /* Disable transitions during drag for smooth performance */
 }
 
-.timeline-entry-card {
-    cursor: grab;
-}
-
+/* Header row: Time + Duration together */
 .entry-card-header {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
-}
-
-.entry-card-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--tt-text);
-    flex: 1;
-    /* Allow wrapping instead of truncating */
-    white-space: normal;
-    word-wrap: break-word;
-    line-height: 1.4;
+    flex-shrink: 0;
 }
 
 .entry-card-time {
-    font-size: 11px;
-    color: var(--tt-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tt-text);
     white-space: nowrap;
 }
 
+.entry-card-duration {
+    font-size: 10px;
+    color: var(--tt-text-muted);
+    background: var(--tt-bg-secondary);
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+/* Linked note icon for compact cards */
+.entry-linked-icon {
+    margin-left: auto;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s ease;
+}
+
+.entry-linked-icon:hover {
+    opacity: 1;
+}
+
+/* Description row */
+.entry-card-description {
+    font-size: 12px;
+    color: var(--tt-text);
+    line-height: 1.4;
+    word-wrap: break-word;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Meta row (project, tags) - expanded cards only */
 .entry-card-meta {
     display: flex;
     align-items: center;
     gap: 6px;
     flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .entry-chip {
@@ -239,10 +265,103 @@
     color: var(--project-color, var(--tt-accent));
 }
 
-.entry-duration {
-    font-size: 10px;
+.tag-chip {
+    font-style: italic;
+}
+
+/* Note row - expanded cards only */
+.entry-card-note-row {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.entry-linked-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--tt-accent);
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--tt-accent) 10%, transparent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.entry-linked-note:hover {
+    background: color-mix(in srgb, var(--tt-accent) 20%, transparent);
+    text-decoration: underline;
+}
+
+/* Very compact cards (≤30 min) - single line layout */
+.timeline-entry-card.is-very-compact {
+    padding: 2px 8px;
+    gap: 0;
+    justify-content: center;
+}
+
+.timeline-entry-card.is-very-compact .entry-card-header {
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: 100%;
+}
+
+.timeline-entry-card.is-very-compact .entry-card-time {
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.timeline-entry-card.is-very-compact .entry-card-duration {
+    font-size: 9px;
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+
+/* Inline description for very compact cards */
+.entry-card-inline-desc {
+    flex: 1;
+    font-size: 11px;
     color: var(--tt-text-muted);
-    margin-left: auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0; /* Allow flex item to shrink below content size */
+}
+
+.timeline-entry-card.is-very-compact .entry-linked-icon {
+    flex-shrink: 0;
+}
+
+/* Compact cards (31-60 min) - two row layout */
+.timeline-entry-card.is-compact {
+    padding: 4px 8px;
+    gap: 2px;
+}
+
+.timeline-entry-card.is-compact .entry-card-header {
+    gap: 6px;
+}
+
+.timeline-entry-card.is-compact .entry-card-time {
+    font-size: 11px;
+}
+
+.timeline-entry-card.is-compact .entry-card-duration {
+    font-size: 9px;
+    padding: 0 4px;
+}
+
+.timeline-entry-card.is-compact .entry-card-description {
+    font-size: 11px;
+    line-height: 1.3;
+    /* Truncate with ellipsis for compact cards */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* Settings tab styles */
@@ -411,6 +530,39 @@
 .description-counter.is-over-limit {
     color: var(--text-error);
     font-weight: 600;
+}
+
+/* Create linked note row */
+.create-note-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--background-secondary);
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.create-note-slug {
+    flex: 1;
+    font-family: var(--font-monospace);
+    font-size: 13px;
+    padding: 6px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background: var(--background-primary);
+}
+
+.create-note-counter {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.create-note-row button {
+    padding: 6px 12px;
+    font-size: 13px;
 }
 
 /* Drag selection */
