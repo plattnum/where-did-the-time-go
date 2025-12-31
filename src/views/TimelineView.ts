@@ -924,7 +924,18 @@ export class TimelineView extends ItemView {
         // Only left mouse button
         if (e.button !== 0) return;
 
+        // Prevent multiple drags - if already dragging, ignore
+        if (this.isDragging) return;
+
+        // Set dragging flag immediately to prevent race conditions
         this.isDragging = true;
+
+        // Clean up any stale selection element (safety measure)
+        if (this.selectionEl) {
+            this.selectionEl.remove();
+            this.selectionEl = null;
+        }
+
         const rect = this.timelineInner.getBoundingClientRect();
         this.dragStartY = e.clientY - rect.top;
         this.dragCurrentY = this.dragStartY;
@@ -937,7 +948,6 @@ export class TimelineView extends ItemView {
         // Create selection element on timelineInner (so positioning matches our Y calculations)
         this.selectionEl = this.timelineInner.createDiv('timeline-drag-selection');
         this.updateSelectionElement();
-        console.log('Drag started, selection element created');
 
         e.preventDefault();
     }
@@ -1017,7 +1027,6 @@ export class TimelineView extends ItemView {
 
         this.selectionEl.style.top = `${minY}px`;
         this.selectionEl.style.height = `${height}px`;
-        console.log('Selection element updated: top=', minY, 'height=', height);
     }
 
     /**
