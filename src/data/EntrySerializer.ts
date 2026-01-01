@@ -15,6 +15,24 @@ export class EntrySerializer {
 ⚠️ WARNING: This file is managed by the "Where Did The Time Go" plugin.
 Do not edit manually - your changes may be overwritten.
 Use the Timeline view to create, edit, or delete entries.
+
+FILE STRUCTURE:
+- One file per month, named YYYY-MM.md
+- Entries grouped under date headers: ## YYYY-MM-DD
+- Entries sorted chronologically within each date
+
+ENTRY FORMAT:
+- [start:: YYYY-MM-DD HH:MM] [end:: YYYY-MM-DD HH:MM] Description [project:: name] [tags:: a, b] [[linked note]]
+
+FIELDS:
+- start (required): Start date and time
+- end (required): End date and time (may be next day for overnight entries)
+- Description: Free text describing the activity
+- project (optional): Project name for grouping
+- tags (optional): Comma-separated tags for categorization
+- [[linked note]] (optional): Obsidian wikilink to related note
+
+Uses Dataview-compatible inline field syntax [key:: value].
 %%
 
 `;
