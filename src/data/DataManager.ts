@@ -127,12 +127,18 @@ export class DataManager {
 
     /**
      * Load entries for a date range
+     * Returns entries that OVERLAP with the range (not just start within)
      */
     async loadDateRange(startDate: Date, endDate: Date): Promise<TimeEntry[]> {
         const entries: TimeEntry[] = [];
         const monthsToLoad = new Set<string>();
 
         // Determine which months we need to load
+        // Include month before startDate in case an entry started there and spans into our range
+        const monthBefore = new Date(startDate);
+        monthBefore.setMonth(monthBefore.getMonth() - 1);
+        monthsToLoad.add(EntryParser.getMonthString(monthBefore));
+
         const endMonth = EntryParser.getMonthString(endDate);
         const current = new Date(startDate);
         current.setDate(1); // Start from first of month
@@ -148,13 +154,28 @@ export class DataManager {
             entries.push(...parsed.entries);
         }
 
-        // Filter to date range and sort
+        // Filter to entries that OVERLAP with the date range
+        // An entry overlaps if: entryStart < rangeEnd AND entryEnd > rangeStart
         return entries
             .filter(e =>
-                e.startDateTime >= startDate &&
-                e.startDateTime <= endDate
+                e.startDateTime < endDate &&
+                e.endDateTime > startDate
             )
             .sort((a, b) => a.startDateTime.getTime() - b.startDateTime.getTime());
+    }
+
+    /**
+     * Calculate effective duration of an entry within a date range
+     * Handles entries that span midnight by only counting time within the range
+     */
+    getEffectiveDuration(entry: TimeEntry, rangeStart: Date, rangeEnd: Date): number {
+        // Clamp entry times to the range
+        const effectiveStart = entry.startDateTime < rangeStart ? rangeStart : entry.startDateTime;
+        const effectiveEnd = entry.endDateTime > rangeEnd ? rangeEnd : entry.endDateTime;
+
+        // Calculate duration in minutes
+        const durationMs = effectiveEnd.getTime() - effectiveStart.getTime();
+        return Math.max(0, Math.round(durationMs / 60000));
     }
 
     /**

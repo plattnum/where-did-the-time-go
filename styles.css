@@ -666,3 +666,316 @@
 .tag-checkbox-label.is-selected .tag-checkmark {
     opacity: 1;
 }
+
+/* ===== Reports View Styles ===== */
+
+/* CSS Variables - adapt to Obsidian theme */
+.time-tracker-reports {
+    --tt-bg: var(--background-primary);
+    --tt-bg-secondary: var(--background-secondary);
+    --tt-text: var(--text-normal);
+    --tt-text-muted: var(--text-muted);
+    --tt-border: var(--background-modifier-border);
+    --tt-border-hover: var(--interactive-accent);
+    --tt-accent: var(--interactive-accent);
+    --tt-card-bg: var(--background-primary-alt);
+    --tt-radius: 8px;
+    --tt-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.theme-dark .time-tracker-reports {
+    --tt-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Main container */
+.time-tracker-reports {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Header */
+.reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--tt-border);
+    background: var(--tt-bg-secondary);
+}
+
+.reports-header-title h2 {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--tt-text);
+}
+
+.reports-header-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.reports-btn {
+    padding: 6px 12px;
+    border-radius: var(--tt-radius);
+    background: var(--tt-bg);
+    border: 1px solid var(--tt-border);
+    color: var(--tt-text);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s ease;
+}
+
+.reports-btn:hover {
+    background: var(--tt-bg-secondary);
+    border-color: var(--tt-accent);
+}
+
+/* Content area */
+.reports-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+/* Range selector */
+.reports-range-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.reports-range-btn {
+    padding: 8px 16px;
+    border-radius: var(--tt-radius);
+    background: var(--tt-bg);
+    border: 1px solid var(--tt-border);
+    color: var(--tt-text);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s ease;
+}
+
+.reports-range-btn:hover {
+    background: var(--tt-bg-secondary);
+    border-color: var(--tt-accent);
+}
+
+.reports-range-btn.is-active {
+    background: var(--tt-accent);
+    color: white;
+    border-color: var(--tt-accent);
+}
+
+/* Custom date inputs */
+.reports-custom-dates {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--tt-bg-secondary);
+    border-radius: var(--tt-radius);
+}
+
+.reports-custom-dates label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--tt-text);
+}
+
+.reports-custom-dates input[type="date"] {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--tt-border);
+    background: var(--tt-bg);
+    color: var(--tt-text);
+}
+
+/* Summary section */
+.reports-summary {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--tt-bg-secondary);
+    border-radius: var(--tt-radius);
+}
+
+.reports-range-label {
+    font-size: 14px;
+    color: var(--tt-text-muted);
+    margin-right: auto;
+}
+
+.reports-total-card,
+.reports-summary-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 20px;
+    background: var(--tt-bg);
+    border-radius: var(--tt-radius);
+    border: 1px solid var(--tt-border);
+}
+
+.reports-total-card {
+    border-color: var(--tt-accent);
+    background: color-mix(in srgb, var(--tt-accent) 10%, var(--tt-bg));
+}
+
+.reports-total-label,
+.reports-summary-label {
+    font-size: 11px;
+    color: var(--tt-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.reports-total-value,
+.reports-summary-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--tt-text);
+}
+
+.reports-total-value {
+    color: var(--tt-accent);
+}
+
+/* Reports table */
+.reports-table-container {
+    overflow-x: auto;
+}
+
+.reports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.reports-table th {
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 600;
+    color: var(--tt-text-muted);
+    border-bottom: 2px solid var(--tt-border);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.reports-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--tt-border);
+    color: var(--tt-text);
+}
+
+.reports-col-hours,
+.reports-col-percent {
+    text-align: right;
+    width: 100px;
+}
+
+.reports-col-bar {
+    width: 200px;
+}
+
+/* Project row */
+.reports-project-row {
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.reports-project-row:hover {
+    background: var(--tt-bg-secondary);
+}
+
+.reports-project-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+}
+
+.reports-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.reports-expand-icon {
+    font-size: 10px;
+    color: var(--tt-text-muted);
+    width: 16px;
+}
+
+/* Visual bar */
+.reports-bar {
+    height: 8px;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.reports-bar-tag {
+    height: 6px;
+    opacity: 0.7;
+}
+
+/* Tag row (nested under project) */
+.reports-tag-row {
+    background: var(--tt-bg-secondary);
+}
+
+.reports-tag-row:hover {
+    background: color-mix(in srgb, var(--tt-bg-secondary) 80%, var(--tt-accent));
+}
+
+.reports-tag-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 48px;
+    font-size: 13px;
+    color: var(--tt-text-muted);
+}
+
+.reports-tag-name .reports-color-dot {
+    width: 8px;
+    height: 8px;
+}
+
+/* Empty state */
+.reports-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--tt-text-muted);
+    font-size: 14px;
+}
+
+/* Scrollbar styling */
+.reports-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.reports-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.reports-content::-webkit-scrollbar-thumb {
+    background: var(--tt-border);
+    border-radius: 4px;
+}
+
+.reports-content::-webkit-scrollbar-thumb:hover {
+    background: var(--tt-text-muted);
+}

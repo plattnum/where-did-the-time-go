@@ -124,3 +124,43 @@ export interface ParsedMonth {
  * View type identifier for the timeline view
  */
 export const VIEW_TYPE_TIMELINE = 'where-did-the-time-go-timeline';
+
+/**
+ * View type identifier for the reports view
+ */
+export const VIEW_TYPE_REPORTS = 'where-did-the-time-go-reports';
+
+/**
+ * Time range preset options for reports
+ */
+export type TimeRangePreset = 'today' | 'yesterday' | 'this-week' | 'last-week' | 'this-month' | 'last-month' | 'custom';
+
+/**
+ * Report data for a single project
+ */
+export interface ProjectReport {
+    /** Project name */
+    project: string;
+    /** Project color */
+    color: string;
+    /** Total minutes for this project */
+    totalMinutes: number;
+    /** Percentage of total time */
+    percentage: number;
+    /** Breakdown by tag */
+    tagBreakdown: TagReport[];
+}
+
+/**
+ * Report data for a single tag within a project
+ */
+export interface TagReport {
+    /** Tag name */
+    tag: string;
+    /** Tag color (if defined) */
+    color?: string;
+    /** Total minutes for this tag */
+    totalMinutes: number;
+    /** Percentage of project time */
+    percentageOfProject: number;
+}
