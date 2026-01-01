@@ -79,8 +79,8 @@ export class DataManager {
         let file = this.vault.getAbstractFileByPath(filePath);
 
         if (!file) {
-            // Create the file with initial content
-            file = await this.vault.create(filePath, '');
+            // Create the file with warning header
+            file = await this.vault.create(filePath, EntrySerializer.FILE_HEADER);
         }
 
         if (!(file instanceof TFile)) {

@@ -9,6 +9,16 @@ import { EntryParser } from './EntryParser';
  */
 export class EntrySerializer {
     /**
+     * Warning header added to the top of monthly files
+     */
+    static readonly FILE_HEADER = `%%
+⚠️ WARNING: This file is managed by the "Where Did The Time Go" plugin.
+Do not edit manually - your changes may be overwritten.
+Use the Timeline view to create, edit, or delete entries.
+%%
+
+`;
+    /**
      * Serialize a single entry to a markdown line
      */
     static serializeEntry(entry: TimeEntry): string {
