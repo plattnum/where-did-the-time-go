@@ -377,15 +377,7 @@ export class DataManager {
             new Date(now.getFullYear(), now.getMonth() - 1, 1)
         );
 
-        for (const monthStr of [thisMonth, lastMonth]) {
-            const parsed = await this.loadMonth(monthStr);
-            for (const entry of parsed.entries) {
-                if (entry.tags) {
-                    entry.tags.forEach(tag => tags.add(tag));
-                }
-            }
-        }
-
-        return Array.from(tags).sort();
+        // Tags feature removed - return empty array
+        return [];
     }
 }

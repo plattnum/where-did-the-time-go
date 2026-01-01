@@ -1,9 +1,11 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import type { TimeTrackerSettings, Project, Tag, Activity } from './types';
+import type { TimeTrackerSettings, Project, Activity, Client } from './types';
 import type WhereDidTheTimeGoPlugin from '../main';
+import { ClientModal } from './modals/ClientModal';
 
 export class TimeTrackerSettingTab extends PluginSettingTab {
     plugin: WhereDidTheTimeGoPlugin;
+    private expandedClients: Set<string> = new Set();
 
     constructor(app: App, plugin: WhereDidTheTimeGoPlugin) {
         super(app, plugin);
@@ -131,256 +133,255 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        // Projects Section
-        containerEl.createEl('h2', { text: 'Projects' });
+        // Clients Section
+        containerEl.createEl('h2', { text: 'Clients' });
+        containerEl.createEl('p', {
+            text: 'Define clients for billing. Projects can be assigned to clients for invoicing.',
+            cls: 'setting-item-description'
+        });
 
-        new Setting(containerEl)
-            .setName('Default project')
-            .setDesc('Pre-selected project when creating new entries')
-            .addDropdown(dropdown => {
-                dropdown.addOption('', '(None)');
-                this.plugin.settings.projects
-                    .filter(p => !p.archived)
-                    .forEach(p => dropdown.addOption(p.id, p.name));
-                dropdown.setValue(this.plugin.settings.defaultProject);
-                dropdown.onChange(async (value) => {
-                    this.plugin.settings.defaultProject = value;
-                    await this.plugin.saveSettings();
-                });
-            });
+        // Client list
+        const clientsContainer = containerEl.createDiv('clients-container');
+        this.renderClientsList(clientsContainer);
 
-        // Project list
-        const projectsContainer = containerEl.createDiv('projects-container');
-        this.renderProjectsList(projectsContainer);
-
-        // Add new project button
+        // Add new client button
         new Setting(containerEl)
             .addButton(button => button
-                .setButtonText('Add Project')
+                .setButtonText('Add Client')
                 .setCta()
-                .onClick(async () => {
+                .onClick(() => {
+                    const modal = new ClientModal(
+                        this.app,
+                        { mode: 'create' },
+                        async (client) => {
+                            this.plugin.settings.clients.push(client);
+                            await this.plugin.saveSettings();
+                            this.renderClientsList(clientsContainer);
+                        }
+                    );
+                    modal.open();
+                }));
+    }
+
+    private renderClientsList(container: HTMLElement): void {
+        container.empty();
+
+        if (this.plugin.settings.clients.length === 0) {
+            container.createEl('p', {
+                text: 'No clients defined yet. Add a client to start tracking billable time.',
+                cls: 'setting-item-description'
+            });
+            return;
+        }
+
+        this.plugin.settings.clients.forEach((client, clientIndex) => {
+            const isExpanded = this.expandedClients.has(client.id);
+
+            // Client card container
+            const clientCard = container.createDiv('client-card');
+            if (client.archived) clientCard.addClass('is-archived');
+
+            // Client header row (clickable to expand)
+            const clientHeader = clientCard.createDiv('client-header');
+            clientHeader.addEventListener('click', () => {
+                if (isExpanded) {
+                    this.expandedClients.delete(client.id);
+                } else {
+                    this.expandedClients.add(client.id);
+                }
+                this.renderClientsList(container);
+            });
+
+            // Expand icon
+            const expandIcon = clientHeader.createSpan('client-expand-icon');
+            expandIcon.setText(isExpanded ? '▼' : '▶');
+
+            // Color dot
+            const colorDot = clientHeader.createSpan('client-color-dot');
+            colorDot.style.backgroundColor = client.color;
+
+            // Client name
+            clientHeader.createSpan({ text: client.name, cls: 'client-name' });
+
+            // Rate badge
+            const rateDisplay = client.rateType === 'hourly'
+                ? `${client.currency} ${client.rate}/hr`
+                : `${client.currency} ${client.rate}/day`;
+            clientHeader.createSpan({ text: rateDisplay, cls: 'client-rate-badge' });
+
+            // Edit button (stops propagation)
+            const editBtn = clientHeader.createEl('button', { cls: 'client-edit-btn' });
+            editBtn.setText('Edit');
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const modal = new ClientModal(
+                    this.app,
+                    { mode: 'edit', client },
+                    async (updatedClient) => {
+                        this.plugin.settings.clients[clientIndex] = updatedClient;
+                        await this.plugin.saveSettings();
+                        this.renderClientsList(container);
+                    },
+                    async () => {
+                        // Delete client - also delete orphaned projects/activities
+                        this.plugin.settings.projects = this.plugin.settings.projects.filter(
+                            p => p.clientId !== client.id
+                        );
+                        this.plugin.settings.activities = this.plugin.settings.activities.filter(
+                            a => a.clientId !== client.id
+                        );
+                        this.plugin.settings.clients.splice(clientIndex, 1);
+                        await this.plugin.saveSettings();
+                        this.renderClientsList(container);
+                    }
+                );
+                modal.open();
+            });
+
+            // Expanded content: Projects and Activities
+            if (isExpanded) {
+                const expandedContent = clientCard.createDiv('client-expanded');
+
+                // Projects section
+                const projectsSection = expandedContent.createDiv('client-section');
+                const projectsHeader = projectsSection.createDiv('client-section-header');
+                projectsHeader.createSpan({ text: 'Projects', cls: 'client-section-title' });
+
+                const addProjectBtn = projectsHeader.createEl('button', { text: '+ Add', cls: 'client-add-btn' });
+                addProjectBtn.addEventListener('click', async () => {
                     const newProject: Project = {
                         id: `project-${Date.now()}`,
                         name: 'New Project',
                         color: this.getRandomColor(),
                         archived: false,
+                        clientId: client.id,
                     };
                     this.plugin.settings.projects.push(newProject);
                     await this.plugin.saveSettings();
-                    this.renderProjectsList(projectsContainer);
-                }));
-
-        // Tags Section
-        containerEl.createEl('h2', { text: 'Tags' });
-        containerEl.createEl('p', {
-            text: 'Define predefined tags for quick selection when creating entries.',
-            cls: 'setting-item-description'
-        });
-
-        // Tag list
-        const tagsContainer = containerEl.createDiv('tags-container');
-        this.renderTagsList(tagsContainer);
-
-        // Add new tag button
-        new Setting(containerEl)
-            .addButton(button => button
-                .setButtonText('Add Tag')
-                .setCta()
-                .onClick(async () => {
-                    const newTag: Tag = {
-                        id: `tag-${Date.now()}`,
-                        name: 'new-tag',
-                        color: this.getRandomColor(),
-                    };
-                    this.plugin.settings.tags.push(newTag);
-                    await this.plugin.saveSettings();
-                    this.renderTagsList(tagsContainer);
-                }));
-
-        // Activities Section
-        containerEl.createEl('h2', { text: 'Activities' });
-        containerEl.createEl('p', {
-            text: 'Define activity types to classify your work (e.g., feat, fix, meeting). Each entry can have one activity.',
-            cls: 'setting-item-description'
-        });
-
-        new Setting(containerEl)
-            .setName('Default activity')
-            .setDesc('Pre-selected activity when creating new entries')
-            .addDropdown(dropdown => {
-                dropdown.addOption('', '(None)');
-                this.plugin.settings.activities.forEach(a => dropdown.addOption(a.id, a.name));
-                dropdown.setValue(this.plugin.settings.defaultActivity);
-                dropdown.onChange(async (value) => {
-                    this.plugin.settings.defaultActivity = value;
-                    await this.plugin.saveSettings();
+                    this.renderClientsList(container);
                 });
-            });
 
-        // Activity list
-        const activitiesContainer = containerEl.createDiv('activities-container');
-        this.renderActivitiesList(activitiesContainer);
+                // List projects for this client
+                const clientProjects = this.plugin.settings.projects.filter(p => p.clientId === client.id);
+                if (clientProjects.length === 0) {
+                    projectsSection.createEl('p', { text: 'No projects yet', cls: 'client-empty-text' });
+                } else {
+                    const projectsList = projectsSection.createDiv('client-items-list');
+                    clientProjects.forEach((project, projectIndex) => {
+                        const actualIndex = this.plugin.settings.projects.indexOf(project);
+                        this.renderProjectItem(projectsList, project, actualIndex, container);
+                    });
+                }
 
-        // Add new activity button
-        new Setting(containerEl)
-            .addButton(button => button
-                .setButtonText('Add Activity')
-                .setCta()
-                .onClick(async () => {
+                // Activities section
+                const activitiesSection = expandedContent.createDiv('client-section');
+                const activitiesHeader = activitiesSection.createDiv('client-section-header');
+                activitiesHeader.createSpan({ text: 'Activities', cls: 'client-section-title' });
+
+                const addActivityBtn = activitiesHeader.createEl('button', { text: '+ Add', cls: 'client-add-btn' });
+                addActivityBtn.addEventListener('click', async () => {
                     const newActivity: Activity = {
                         id: `activity-${Date.now()}`,
                         name: 'New Activity',
                         color: this.getRandomColor(),
+                        clientId: client.id,
                     };
                     this.plugin.settings.activities.push(newActivity);
                     await this.plugin.saveSettings();
-                    this.renderActivitiesList(activitiesContainer);
-                }));
-    }
+                    this.renderClientsList(container);
+                });
 
-    private renderProjectsList(container: HTMLElement): void {
-        container.empty();
-
-        this.plugin.settings.projects.forEach((project, index) => {
-            const projectSetting = new Setting(container)
-                .setClass('project-setting');
-
-            // Color picker
-            projectSetting.addColorPicker(picker => picker
-                .setValue(project.color)
-                .onChange(async (value) => {
-                    project.color = value;
-                    await this.plugin.saveSettings();
-                }));
-
-            // Name input
-            projectSetting.addText(text => text
-                .setValue(project.name)
-                .onChange(async (value) => {
-                    project.name = value;
-                    // Update ID to be a slug of the name
-                    project.id = this.slugify(value);
-                    await this.plugin.saveSettings();
-                }));
-
-            // Archive toggle
-            projectSetting.addToggle(toggle => toggle
-                .setTooltip(project.archived ? 'Unarchive' : 'Archive')
-                .setValue(!project.archived)
-                .onChange(async (value) => {
-                    project.archived = !value;
-                    await this.plugin.saveSettings();
-                    this.renderProjectsList(container);
-                }));
-
-            // Delete button (only if not the last project)
-            if (this.plugin.settings.projects.length > 1) {
-                projectSetting.addExtraButton(button => button
-                    .setIcon('trash')
-                    .setTooltip('Delete project')
-                    .onClick(async () => {
-                        this.plugin.settings.projects.splice(index, 1);
-                        await this.plugin.saveSettings();
-                        this.renderProjectsList(container);
-                    }));
-            }
-
-            // Visual indicator if archived
-            if (project.archived) {
-                projectSetting.settingEl.addClass('is-archived');
-                projectSetting.setDesc('(Archived)');
+                // List activities for this client
+                const clientActivities = this.plugin.settings.activities.filter(a => a.clientId === client.id);
+                if (clientActivities.length === 0) {
+                    activitiesSection.createEl('p', { text: 'No activities yet', cls: 'client-empty-text' });
+                } else {
+                    const activitiesList = activitiesSection.createDiv('client-items-list');
+                    clientActivities.forEach((activity) => {
+                        const actualIndex = this.plugin.settings.activities.indexOf(activity);
+                        this.renderActivityItem(activitiesList, activity, actualIndex, container);
+                    });
+                }
             }
         });
     }
 
-    private renderTagsList(container: HTMLElement): void {
-        container.empty();
+    /**
+     * Render a single project item within a client
+     */
+    private renderProjectItem(container: HTMLElement, project: Project, index: number, parentContainer: HTMLElement): void {
+        const item = container.createDiv('client-item');
+        if (project.archived) item.addClass('is-archived');
 
-        if (this.plugin.settings.tags.length === 0) {
-            container.createEl('p', {
-                text: 'No tags defined yet. Add tags to quickly select them when creating entries.',
-                cls: 'setting-item-description'
-            });
-            return;
-        }
+        // Color picker
+        const colorPicker = item.createEl('input', { type: 'color', cls: 'client-item-color' });
+        colorPicker.value = project.color;
+        colorPicker.addEventListener('change', async () => {
+            project.color = colorPicker.value;
+            await this.plugin.saveSettings();
+        });
 
-        this.plugin.settings.tags.forEach((tag, index) => {
-            const tagSetting = new Setting(container)
-                .setClass('tag-setting');
+        // Name input
+        const nameInput = item.createEl('input', { type: 'text', cls: 'client-item-name' });
+        nameInput.value = project.name;
+        nameInput.addEventListener('change', async () => {
+            project.name = nameInput.value;
+            project.id = this.slugify(nameInput.value);
+            await this.plugin.saveSettings();
+        });
 
-            // Color picker (optional)
-            tagSetting.addColorPicker(picker => picker
-                .setValue(tag.color || '#808080')
-                .onChange(async (value) => {
-                    tag.color = value;
-                    await this.plugin.saveSettings();
-                }));
+        // Archive toggle
+        const archiveBtn = item.createEl('button', {
+            text: project.archived ? '↩' : '📦',
+            cls: 'client-item-btn',
+        });
+        archiveBtn.title = project.archived ? 'Unarchive' : 'Archive';
+        archiveBtn.addEventListener('click', async () => {
+            project.archived = !project.archived;
+            await this.plugin.saveSettings();
+            this.renderClientsList(parentContainer);
+        });
 
-            // Name input
-            tagSetting.addText(text => text
-                .setValue(tag.name)
-                .setPlaceholder('tag-name')
-                .onChange(async (value) => {
-                    // Slugify the tag name
-                    tag.name = this.slugify(value) || 'tag';
-                    tag.id = tag.name;
-                    await this.plugin.saveSettings();
-                }));
-
-            // Delete button
-            tagSetting.addExtraButton(button => button
-                .setIcon('trash')
-                .setTooltip('Delete tag')
-                .onClick(async () => {
-                    this.plugin.settings.tags.splice(index, 1);
-                    await this.plugin.saveSettings();
-                    this.renderTagsList(container);
-                }));
+        // Delete button
+        const deleteBtn = item.createEl('button', { text: '🗑', cls: 'client-item-btn' });
+        deleteBtn.title = 'Delete';
+        deleteBtn.addEventListener('click', async () => {
+            this.plugin.settings.projects.splice(index, 1);
+            await this.plugin.saveSettings();
+            this.renderClientsList(parentContainer);
         });
     }
 
-    private renderActivitiesList(container: HTMLElement): void {
-        container.empty();
+    /**
+     * Render a single activity item within a client
+     */
+    private renderActivityItem(container: HTMLElement, activity: Activity, index: number, parentContainer: HTMLElement): void {
+        const item = container.createDiv('client-item');
 
-        if (this.plugin.settings.activities.length === 0) {
-            container.createEl('p', {
-                text: 'No activities defined yet. Add activities to classify your work.',
-                cls: 'setting-item-description'
-            });
-            return;
-        }
+        // Color picker
+        const colorPicker = item.createEl('input', { type: 'color', cls: 'client-item-color' });
+        colorPicker.value = activity.color;
+        colorPicker.addEventListener('change', async () => {
+            activity.color = colorPicker.value;
+            await this.plugin.saveSettings();
+        });
 
-        this.plugin.settings.activities.forEach((activity, index) => {
-            const activitySetting = new Setting(container)
-                .setClass('activity-setting');
+        // Name input
+        const nameInput = item.createEl('input', { type: 'text', cls: 'client-item-name' });
+        nameInput.value = activity.name;
+        nameInput.addEventListener('change', async () => {
+            activity.name = nameInput.value;
+            activity.id = this.slugify(nameInput.value);
+            await this.plugin.saveSettings();
+        });
 
-            // Color picker
-            activitySetting.addColorPicker(picker => picker
-                .setValue(activity.color)
-                .onChange(async (value) => {
-                    activity.color = value;
-                    await this.plugin.saveSettings();
-                }));
-
-            // Name input
-            activitySetting.addText(text => text
-                .setValue(activity.name)
-                .setPlaceholder('Activity name')
-                .onChange(async (value) => {
-                    activity.name = value || 'Activity';
-                    activity.id = this.slugify(value) || `activity-${Date.now()}`;
-                    await this.plugin.saveSettings();
-                }));
-
-            // Delete button
-            activitySetting.addExtraButton(button => button
-                .setIcon('trash')
-                .setTooltip('Delete activity')
-                .onClick(async () => {
-                    this.plugin.settings.activities.splice(index, 1);
-                    await this.plugin.saveSettings();
-                    this.renderActivitiesList(container);
-                }));
+        // Delete button
+        const deleteBtn = item.createEl('button', { text: '🗑', cls: 'client-item-btn' });
+        deleteBtn.title = 'Delete';
+        deleteBtn.addEventListener('click', async () => {
+            this.plugin.settings.activities.splice(index, 1);
+            await this.plugin.saveSettings();
+            this.renderClientsList(parentContainer);
         });
     }
 

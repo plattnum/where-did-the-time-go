@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf } from 'obsidian';
-import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport } from '../types';
+import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport, ClientReport } from '../types';
 import { DataManager } from '../data/DataManager';
 import { EntryParser } from '../data/EntryParser';
 
@@ -16,6 +16,7 @@ export class ReportsView extends ItemView {
     private customEndDate: Date | null = null;
     private projectReports: ProjectReport[] = [];
     private activityReports: ActivityReport[] = [];
+    private clientReports: ClientReport[] = [];
     private totalMinutes: number = 0;
 
     // DOM references
@@ -25,9 +26,12 @@ export class ReportsView extends ItemView {
     private summaryContainer: HTMLElement;
     private reportsContainer: HTMLElement;
     private activityContainer: HTMLElement;
+    private clientContainer: HTMLElement;
 
-    // Expanded projects (for tag breakdown)
+    // Expanded projects (for activity breakdown)
     private expandedProjects: Set<string> = new Set();
+    // Expanded clients (for project breakdown)
+    private expandedClients: Set<string> = new Set();
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -100,6 +104,9 @@ export class ReportsView extends ItemView {
 
         // Activity breakdown section
         this.activityContainer = this.contentContainer.createDiv('reports-table-container');
+
+        // Client breakdown section
+        this.clientContainer = this.contentContainer.createDiv('reports-table-container');
     }
 
     /**
@@ -295,11 +302,13 @@ export class ReportsView extends ItemView {
         // Calculate reports with effective durations (handles midnight-spanning)
         this.calculateReports(entries, start, end);
         this.calculateActivityReports(entries, start, end);
+        this.calculateClientReports(entries, start, end);
 
         // Render the results
         this.renderSummary(start, end);
         this.renderReportsTable();
         this.renderActivityTable();
+        this.renderClientTable();
     }
 
     /**
@@ -598,6 +607,238 @@ export class ReportsView extends ItemView {
         }
     }
 
+    /**
+     * Calculate client reports from entries
+     * Groups time by client (using entry.client directly)
+     */
+    private calculateClientReports(entries: TimeEntry[], rangeStart: Date, rangeEnd: Date): void {
+        // Only calculate if there are clients defined
+        if (this.settings.clients.length === 0) {
+            this.clientReports = [];
+            return;
+        }
+
+        // Map: clientId -> { minutes, projectMinutes: Map<projectName, minutes> }
+        const clientMap = new Map<string, { minutes: number; projectMinutes: Map<string, number> }>();
+
+        for (const entry of entries) {
+            const effectiveMinutes = this.dataManager.getEffectiveDuration(entry, rangeStart, rangeEnd);
+            if (effectiveMinutes <= 0) continue;
+
+            const projectName = entry.project || '(No Project)';
+
+            // Use client directly from entry (client is required on entries)
+            const clientId = entry.client;
+
+            if (!clientMap.has(clientId)) {
+                clientMap.set(clientId, { minutes: 0, projectMinutes: new Map() });
+            }
+
+            const clientData = clientMap.get(clientId)!;
+            clientData.minutes += effectiveMinutes;
+
+            const currentProjectMinutes = clientData.projectMinutes.get(projectName) || 0;
+            clientData.projectMinutes.set(projectName, currentProjectMinutes + effectiveMinutes);
+        }
+
+        // Convert to ClientReport array
+        this.clientReports = [];
+
+        let totalClientMinutes = 0;
+        for (const [, data] of clientMap) {
+            totalClientMinutes += data.minutes;
+        }
+
+        for (const [clientId, data] of clientMap) {
+            const client = this.settings.clients.find(c => c.id === clientId);
+            if (!client) continue;
+
+            const percentage = totalClientMinutes > 0
+                ? (data.minutes / totalClientMinutes) * 100
+                : 0;
+
+            // Calculate billable amount
+            let billableAmount = 0;
+            if (client.rateType === 'hourly') {
+                billableAmount = client.rate * (data.minutes / 60);
+            } else {
+                // Daily rate: 8 hours = 1 day
+                billableAmount = client.rate * (data.minutes / 480);
+            }
+
+            // Build project breakdown
+            const projectBreakdown: ProjectReport[] = [];
+            for (const [projectName, projectMinutes] of data.projectMinutes) {
+                const projectColor = this.getProjectColor(projectName);
+                projectBreakdown.push({
+                    project: projectName,
+                    color: projectColor,
+                    totalMinutes: projectMinutes,
+                    percentage: data.minutes > 0 ? (projectMinutes / data.minutes) * 100 : 0,
+                    activityBreakdown: [],
+                });
+            }
+            projectBreakdown.sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+            this.clientReports.push({
+                clientId,
+                name: client.name,
+                color: client.color,
+                rate: client.rate,
+                currency: client.currency,
+                rateType: client.rateType,
+                totalMinutes: data.minutes,
+                billableAmount,
+                percentage,
+                projectBreakdown,
+            });
+        }
+
+        // Sort clients by time descending
+        this.clientReports.sort((a, b) => b.totalMinutes - a.totalMinutes);
+    }
+
+    /**
+     * Render the client breakdown table
+     */
+    private renderClientTable(): void {
+        this.clientContainer.empty();
+
+        // Only show if there are client reports
+        if (this.clientReports.length === 0) {
+            return;
+        }
+
+        // Section header
+        const header = this.clientContainer.createDiv('reports-section-header');
+        header.createEl('h3', { text: 'By Client' });
+
+        const table = this.clientContainer.createEl('table', { cls: 'reports-table' });
+
+        // Header
+        const thead = table.createEl('thead');
+        const headerRow = thead.createEl('tr');
+        headerRow.createEl('th', { text: 'Client' });
+        headerRow.createEl('th', { text: 'Hours', cls: 'reports-col-hours' });
+        headerRow.createEl('th', { text: 'Billable', cls: 'reports-col-billable' });
+        headerRow.createEl('th', { text: '%', cls: 'reports-col-percent' });
+        headerRow.createEl('th', { text: '', cls: 'reports-col-bar' });
+
+        // Body
+        const tbody = table.createEl('tbody');
+
+        for (const report of this.clientReports) {
+            const row = tbody.createEl('tr', { cls: 'reports-client-row' });
+            row.addEventListener('click', () => this.toggleClientExpand(report.clientId));
+
+            // Client name with color indicator
+            const nameCell = row.createEl('td', { cls: 'reports-client-name' });
+            const colorDot = nameCell.createSpan('reports-color-dot');
+            colorDot.style.backgroundColor = report.color;
+
+            const expandIcon = nameCell.createSpan('reports-expand-icon');
+            expandIcon.setText(this.expandedClients.has(report.clientId) ? '▼' : '▶');
+
+            nameCell.createSpan({ text: report.name });
+
+            // Hours
+            row.createEl('td', {
+                text: this.formatDuration(report.totalMinutes),
+                cls: 'reports-col-hours',
+            });
+
+            // Billable amount
+            row.createEl('td', {
+                text: this.formatCurrency(report.billableAmount, report.currency),
+                cls: 'reports-col-billable',
+            });
+
+            // Percentage
+            row.createEl('td', {
+                text: `${report.percentage.toFixed(1)}%`,
+                cls: 'reports-col-percent',
+            });
+
+            // Visual bar
+            const barCell = row.createEl('td', { cls: 'reports-col-bar' });
+            const bar = barCell.createDiv('reports-bar');
+            bar.style.width = `${report.percentage}%`;
+            bar.style.backgroundColor = report.color;
+
+            // Project breakdown rows (if expanded)
+            if (this.expandedClients.has(report.clientId)) {
+                for (const projectReport of report.projectBreakdown) {
+                    const projectRow = tbody.createEl('tr', { cls: 'reports-project-nested-row' });
+
+                    // Project name (indented)
+                    const projectNameCell = projectRow.createEl('td', { cls: 'reports-project-nested-name' });
+                    const projectDot = projectNameCell.createSpan('reports-color-dot');
+                    projectDot.style.backgroundColor = projectReport.color;
+                    projectNameCell.createSpan({ text: projectReport.project });
+
+                    // Hours
+                    projectRow.createEl('td', {
+                        text: this.formatDuration(projectReport.totalMinutes),
+                        cls: 'reports-col-hours',
+                    });
+
+                    // Empty billable cell
+                    projectRow.createEl('td', { cls: 'reports-col-billable' });
+
+                    // Percentage (of client)
+                    projectRow.createEl('td', {
+                        text: `${projectReport.percentage.toFixed(1)}%`,
+                        cls: 'reports-col-percent',
+                    });
+
+                    // Visual bar (relative to client)
+                    const projectBarCell = projectRow.createEl('td', { cls: 'reports-col-bar' });
+                    const projectBar = projectBarCell.createDiv('reports-bar reports-bar-nested');
+                    projectBar.style.width = `${projectReport.percentage}%`;
+                    projectBar.style.backgroundColor = projectReport.color;
+                }
+            }
+        }
+
+        // Total row
+        const totalRow = tbody.createEl('tr', { cls: 'reports-total-row' });
+        totalRow.createEl('td', { text: 'Total', cls: 'reports-total-label' });
+
+        let totalMinutes = 0;
+        let totalBillable = 0;
+        for (const report of this.clientReports) {
+            totalMinutes += report.totalMinutes;
+            totalBillable += report.billableAmount;
+        }
+
+        totalRow.createEl('td', {
+            text: this.formatDuration(totalMinutes),
+            cls: 'reports-col-hours',
+        });
+
+        // Use first client's currency for total (could be mixed currencies)
+        const currency = this.clientReports[0]?.currency || 'USD';
+        totalRow.createEl('td', {
+            text: this.formatCurrency(totalBillable, currency),
+            cls: 'reports-col-billable',
+        });
+
+        totalRow.createEl('td', { text: '', cls: 'reports-col-percent' });
+        totalRow.createEl('td', { text: '', cls: 'reports-col-bar' });
+    }
+
+    /**
+     * Toggle client expansion to show/hide project breakdown
+     */
+    private toggleClientExpand(clientId: string): void {
+        if (this.expandedClients.has(clientId)) {
+            this.expandedClients.delete(clientId);
+        } else {
+            this.expandedClients.add(clientId);
+        }
+        this.renderClientTable();
+    }
+
     // Helper methods
 
     private formatDuration(minutes: number): string {
@@ -606,6 +847,15 @@ export class ReportsView extends ItemView {
         if (hours === 0) return `${mins}m`;
         if (mins === 0) return `${hours}h`;
         return `${hours}h ${mins}m`;
+    }
+
+    private formatCurrency(amount: number, currency: string): string {
+        return new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency: currency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(amount);
     }
 
     private formatDateRange(start: Date, end: Date): string {

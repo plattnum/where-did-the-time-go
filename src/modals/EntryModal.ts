@@ -39,11 +39,17 @@ export class EntryModal extends Modal {
     private endTimeValue: string;
     private durationValue: string; // e.g., "1h 30m" or "90m"
     private descriptionValue: string;
+    private clientValue: string;
     private projectValue: string;
     private activityValue: string;
-    private selectedTags: Set<string>; // Predefined tags that are selected
-    private customTagsValue: string; // Additional custom tags
     private linkedNoteValue: string;
+
+    // Dropdown references for cascading updates
+    private projectDropdown: DropdownComponent | null = null;
+    private activityDropdown: DropdownComponent | null = null;
+
+    // Cleanup handlers
+    private cleanupHandlers: (() => void)[] = [];
 
     // Input references for updating
     private endDateInput: TextComponent | null = null;
@@ -72,15 +78,9 @@ export class EntryModal extends Modal {
             this.endTimeValue = data.entry.end;
             this.durationValue = this.formatDurationMinutes(data.entry.durationMinutes);
             this.descriptionValue = data.entry.description;
+            this.clientValue = data.entry.client;
             this.projectValue = this.resolveProjectName(data.entry.project);
             this.activityValue = this.resolveActivityName(data.entry.activity);
-
-            // Split existing tags into predefined and custom
-            const existingTags = data.entry.tags || [];
-            const predefinedTagNames = new Set(this.settings.tags.map(t => t.name));
-            this.selectedTags = new Set(existingTags.filter(t => predefinedTagNames.has(t)));
-            this.customTagsValue = existingTags.filter(t => !predefinedTagNames.has(t)).join(', ');
-
             this.linkedNoteValue = data.entry.linkedNote || '';
         } else {
             // Create mode defaults
@@ -110,10 +110,11 @@ export class EntryModal extends Modal {
 
             this.durationValue = this.calculateDurationFromDates();
             this.descriptionValue = '';
+            // Default to first active client
+            const activeClients = this.settings.clients.filter(c => !c.archived);
+            this.clientValue = activeClients.length > 0 ? activeClients[0].id : '';
             this.projectValue = this.resolveProjectName(this.settings.defaultProject);
             this.activityValue = this.resolveActivityName(this.settings.defaultActivity);
-            this.selectedTags = new Set();
-            this.customTagsValue = '';
             this.linkedNoteValue = '';
         }
     }
@@ -131,7 +132,7 @@ export class EntryModal extends Modal {
         const startRow = contentEl.createDiv('time-row');
 
         new Setting(startRow)
-            .setName('Start Date')
+            .setName('Start')
             .addText((text) => {
                 text.setValue(this.startDateValue);
                 text.inputEl.type = 'date';
@@ -139,10 +140,7 @@ export class EntryModal extends Modal {
                     this.startDateValue = value;
                     this.recalculateDuration();
                 });
-            });
-
-        new Setting(startRow)
-            .setName('Start Time')
+            })
             .addText((text) => {
                 text.setValue(this.startTimeValue);
                 text.inputEl.type = 'time';
@@ -152,37 +150,9 @@ export class EntryModal extends Modal {
                 });
             });
 
-        // End row: Date and Time
-        const endRow = contentEl.createDiv('time-row');
-
-        new Setting(endRow)
-            .setName('End Date')
-            .addText((text) => {
-                this.endDateInput = text;
-                text.setValue(this.endDateValue);
-                text.inputEl.type = 'date';
-                text.onChange((value) => {
-                    this.endDateValue = value;
-                    this.recalculateDuration();
-                });
-            });
-
-        new Setting(endRow)
-            .setName('End Time')
-            .addText((text) => {
-                this.endTimeInput = text;
-                text.setValue(this.endTimeValue);
-                text.inputEl.type = 'time';
-                text.onChange((value) => {
-                    this.endTimeValue = value;
-                    this.recalculateDuration();
-                });
-            });
-
-        // Duration (calculated, also editable)
+        // Duration row (between start and end)
         new Setting(contentEl)
             .setName('Duration')
-            .setDesc('e.g., 1h 30m, 90m, 1.5h - editing this updates end date/time')
             .addText((text) => {
                 this.durationInput = text;
                 text.setValue(this.durationValue);
@@ -194,80 +164,97 @@ export class EntryModal extends Modal {
                 });
             });
 
-        // Project dropdown (before description)
+        // End row: Date and Time
+        const endRow = contentEl.createDiv('time-row');
+
+        new Setting(endRow)
+            .setName('End')
+            .addText((text) => {
+                this.endDateInput = text;
+                text.setValue(this.endDateValue);
+                text.inputEl.type = 'date';
+                text.onChange((value) => {
+                    this.endDateValue = value;
+                    this.recalculateDuration();
+                });
+            })
+            .addText((text) => {
+                this.endTimeInput = text;
+                text.setValue(this.endTimeValue);
+                text.inputEl.type = 'time';
+                text.onChange((value) => {
+                    this.endTimeValue = value;
+                    this.recalculateDuration();
+                });
+            });
+
+        // Client dropdown (required)
+        new Setting(contentEl)
+            .setName('Client')
+            .addDropdown((dropdown) => {
+                for (const client of this.settings.clients) {
+                    if (!client.archived) {
+                        dropdown.addOption(client.id, client.name);
+                    }
+                }
+                dropdown.setValue(this.clientValue);
+                dropdown.onChange((value) => {
+                    this.clientValue = value;
+                    this.updateProjectDropdown();
+                    this.updateActivityDropdown();
+                });
+            });
+
+        // Project dropdown
         new Setting(contentEl)
             .setName('Project')
             .addDropdown((dropdown) => {
-                // Add empty option
-                dropdown.addOption('', '(No project)');
-
-                // Add active projects - use NAME as both value and display
-                // This preserves case in the markdown file
-                for (const project of this.settings.projects) {
-                    if (!project.archived) {
-                        dropdown.addOption(project.name, project.name);
-                    }
-                }
-
+                this.projectDropdown = dropdown;
+                this.populateProjectDropdown(dropdown);
                 dropdown.setValue(this.projectValue);
                 dropdown.onChange((value) => {
                     this.projectValue = value;
                 });
             });
 
-        // Activity dropdown (single selection - mutually exclusive classification)
-        if (this.settings.activities.length > 0) {
-            new Setting(contentEl)
-                .setName('Activity')
-                .setDesc('Work type classification (feat, fix, meeting, etc.)')
-                .addDropdown((dropdown) => {
-                    // Add empty option
-                    dropdown.addOption('', '(No activity)');
-
-                    // Add activities - use NAME as both value and display
-                    for (const activity of this.settings.activities) {
-                        dropdown.addOption(activity.name, activity.name);
-                    }
-
-                    dropdown.setValue(this.activityValue);
-                    dropdown.onChange((value) => {
-                        this.activityValue = value;
-                    });
+        // Activity dropdown
+        new Setting(contentEl)
+            .setName('Activity')
+            .addDropdown((dropdown) => {
+                this.activityDropdown = dropdown;
+                this.populateActivityDropdown(dropdown);
+                dropdown.setValue(this.activityValue);
+                dropdown.onChange((value) => {
+                    this.activityValue = value;
                 });
-        }
+            });
 
-        // Description (single line - no newlines allowed)
-        const descSetting = new Setting(contentEl)
-            .setName('Description')
-            .setDesc('What did you work on? (single line, use linked note for details)');
-
-        // Character counter element
+        // Description with character counter in label
         const maxLen = this.settings.descriptionMaxLength;
-        const counterEl = descSetting.descEl.createSpan('description-counter');
+        const descSetting = new Setting(contentEl);
+
+        // Create label with counter
+        const descLabel = descSetting.nameEl;
+        descLabel.setText('Description ');
+        const counterEl = descLabel.createSpan('description-counter');
         const updateCounter = (len: number) => {
             if (maxLen > 0) {
-                counterEl.setText(` (${len}/${maxLen})`);
+                counterEl.setText(`(${len}/${maxLen})`);
                 counterEl.toggleClass('is-over-limit', len > maxLen);
                 counterEl.toggleClass('is-near-limit', len > maxLen * 0.8 && len <= maxLen);
-            } else {
-                counterEl.setText(` (${len} chars)`);
             }
         };
         updateCounter(this.descriptionValue.length);
 
         descSetting.addTextArea((text) => {
             text.setValue(this.descriptionValue);
-            text.setPlaceholder('Enter description...');
-            text.inputEl.rows = 3;
+            text.setPlaceholder('What did you work on?');
+            text.inputEl.rows = 2;
 
-            // Block Enter key from creating newlines
             text.inputEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                }
+                if (e.key === 'Enter') e.preventDefault();
             });
 
-            // Strip newlines on paste and enforce limit
             text.inputEl.addEventListener('paste', (e) => {
                 e.preventDefault();
                 const pastedText = e.clipboardData?.getData('text') || '';
@@ -277,12 +264,9 @@ export class EntryModal extends Modal {
                 const end = input.selectionEnd;
                 const current = input.value;
                 let newValue = current.substring(0, start) + cleanedText + current.substring(end);
-
-                // Enforce max length
                 if (maxLen > 0 && newValue.length > maxLen) {
                     newValue = newValue.substring(0, maxLen);
                 }
-
                 input.value = newValue;
                 input.selectionStart = input.selectionEnd = Math.min(start + cleanedText.length, newValue.length);
                 this.descriptionValue = newValue;
@@ -290,7 +274,6 @@ export class EntryModal extends Modal {
             });
 
             text.onChange((value) => {
-                // Strip newlines and enforce limit
                 let cleaned = value.replace(/[\r\n]+/g, ' ');
                 if (maxLen > 0 && cleaned.length > maxLen) {
                     cleaned = cleaned.substring(0, maxLen);
@@ -301,86 +284,9 @@ export class EntryModal extends Modal {
             });
         });
 
-        // Tags section
-        const tagsSection = contentEl.createDiv('tags-section');
-
-        // Header
-        const tagsHeader = new Setting(tagsSection)
-            .setName('Tags')
-            .setDesc(this.settings.tags.length > 0
-                ? 'Select predefined tags or add custom ones'
-                : 'Add comma-separated tags (configure predefined tags in settings)');
-
-        // Predefined tags as checkboxes (if any exist)
-        if (this.settings.tags.length > 0) {
-            const checkboxContainer = tagsSection.createDiv('tag-checkboxes');
-
-            // Sort tags alphabetically
-            const sortedTags = [...this.settings.tags].sort((a, b) =>
-                a.name.localeCompare(b.name)
-            );
-
-            for (const tag of sortedTags) {
-                const isSelected = this.selectedTags.has(tag.name);
-                const label = checkboxContainer.createEl('label', {
-                    cls: `tag-checkbox-label${isSelected ? ' is-selected' : ''}`
-                });
-
-                // Hidden checkbox for form semantics
-                const checkbox = label.createEl('input', { type: 'checkbox' });
-                checkbox.checked = isSelected;
-
-                // Color indicator
-                const colorDot = label.createSpan('tag-color-dot');
-                colorDot.style.backgroundColor = tag.color || '#808080';
-
-                // Tag name
-                label.createSpan({ text: tag.name, cls: 'tag-name' });
-
-                // Checkmark indicator
-                label.createSpan({ text: '✓', cls: 'tag-checkmark' });
-
-                // Click handler
-                label.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (this.selectedTags.has(tag.name)) {
-                        this.selectedTags.delete(tag.name);
-                        label.removeClass('is-selected');
-                        checkbox.checked = false;
-                    } else {
-                        this.selectedTags.add(tag.name);
-                        label.addClass('is-selected');
-                        checkbox.checked = true;
-                    }
-                });
-            }
-
-            // Custom tags input for additional tags
-            new Setting(tagsSection)
-                .setName('Other tags')
-                .setDesc('Comma-separated additional tags')
-                .addText((text) => {
-                    text.setValue(this.customTagsValue);
-                    text.setPlaceholder('custom, tags');
-                    text.onChange((value) => {
-                        this.customTagsValue = value;
-                    });
-                });
-        } else {
-            // No predefined tags - just show text input
-            tagsHeader.addText((text) => {
-                text.setValue(this.customTagsValue);
-                text.setPlaceholder('meeting, planning, dev');
-                text.onChange((value) => {
-                    this.customTagsValue = value;
-                });
-            });
-        }
-
         // Linked note
         const linkedNoteSetting = new Setting(contentEl)
-            .setName('Linked Note')
-            .setDesc('Path to linked note (without [[]])');
+            .setName('Linked Note');
 
         let linkedNoteInput: TextComponent;
         linkedNoteSetting.addText((text) => {
@@ -445,6 +351,12 @@ export class EntryModal extends Modal {
     }
 
     onClose(): void {
+        // Run cleanup handlers
+        for (const handler of this.cleanupHandlers) {
+            handler();
+        }
+        this.cleanupHandlers = [];
+
         const { contentEl } = this;
         contentEl.empty();
     }
@@ -459,19 +371,18 @@ export class EntryModal extends Modal {
             return;
         }
 
+        // Validate client is selected
+        if (!this.clientValue) {
+            new Notice('Please select a client');
+            return;
+        }
+
         // Validate date format
         if (!/^\d{4}-\d{2}-\d{2}$/.test(this.startDateValue) ||
             !/^\d{4}-\d{2}-\d{2}$/.test(this.endDateValue)) {
             console.error('EntryModal: Invalid date format');
             return;
         }
-
-        // Combine predefined and custom tags
-        const customTags = this.customTagsValue
-            .split(',')
-            .map((t) => t.trim())
-            .filter((t) => t.length > 0);
-        const tags = [...this.selectedTags, ...customTags];
 
         // Format start and end with explicit date+time: "YYYY-MM-DD HH:mm"
         const startForStorage = `${this.startDateValue} ${this.startTimeValue}`;
@@ -491,9 +402,9 @@ export class EntryModal extends Modal {
                     start: startForStorage,
                     end: endForStorage,
                     description: this.descriptionValue,
+                    client: this.clientValue,
                     project: this.projectValue || undefined,
                     activity: this.activityValue || undefined,
-                    tags: tags.length > 0 ? tags : undefined,
                     linkedNote: this.linkedNoteValue || undefined,
                 });
             } else {
@@ -503,9 +414,9 @@ export class EntryModal extends Modal {
                     start: startForStorage,
                     end: endForStorage,
                     description: this.descriptionValue,
+                    client: this.clientValue,
                     project: this.projectValue || undefined,
                     activity: this.activityValue || undefined,
-                    tags: tags.length > 0 ? tags : undefined,
                     linkedNote: this.linkedNoteValue || undefined,
                 });
             }
@@ -803,6 +714,78 @@ export class EntryModal extends Modal {
     private generateNoteTemplate(_noteName: string): string {
         // Just a blank note - user can add whatever they want
         return '';
+    }
+
+    /**
+     * Populate project dropdown with projects for the selected client
+     */
+    private populateProjectDropdown(dropdown: DropdownComponent): void {
+        // Clear existing options
+        dropdown.selectEl.empty();
+
+        // Add empty option
+        dropdown.addOption('', '(No project)');
+
+        // Add projects belonging to the selected client
+        for (const project of this.settings.projects) {
+            if (!project.archived && project.clientId === this.clientValue) {
+                dropdown.addOption(project.name, project.name);
+            }
+        }
+    }
+
+    /**
+     * Update project dropdown when client changes
+     */
+    private updateProjectDropdown(): void {
+        if (!this.projectDropdown) return;
+
+        this.populateProjectDropdown(this.projectDropdown);
+
+        // Reset selection if current project doesn't belong to new client
+        const currentProject = this.settings.projects.find(
+            p => p.name === this.projectValue && p.clientId === this.clientValue
+        );
+        if (!currentProject) {
+            this.projectValue = '';
+        }
+        this.projectDropdown.setValue(this.projectValue);
+    }
+
+    /**
+     * Populate activity dropdown with activities for the selected client
+     */
+    private populateActivityDropdown(dropdown: DropdownComponent): void {
+        // Clear existing options
+        dropdown.selectEl.empty();
+
+        // Add empty option
+        dropdown.addOption('', '(No activity)');
+
+        // Add activities belonging to the selected client
+        for (const activity of this.settings.activities) {
+            if (activity.clientId === this.clientValue) {
+                dropdown.addOption(activity.name, activity.name);
+            }
+        }
+    }
+
+    /**
+     * Update activity dropdown when client changes
+     */
+    private updateActivityDropdown(): void {
+        if (!this.activityDropdown) return;
+
+        this.populateActivityDropdown(this.activityDropdown);
+
+        // Reset selection if current activity doesn't belong to new client
+        const currentActivity = this.settings.activities.find(
+            a => a.name === this.activityValue && a.clientId === this.clientValue
+        );
+        if (!currentActivity) {
+            this.activityValue = '';
+        }
+        this.activityDropdown.setValue(this.activityValue);
     }
 }
 
