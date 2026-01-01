@@ -194,6 +194,32 @@ export class TimelineView extends ItemView {
             cls: 'timeline-btn',
         });
         nextBtn.addEventListener('click', () => this.navigateDays(1));
+
+        // Jump to date - calendar button
+        const jumpBtn = controls.createEl('button', {
+            cls: 'timeline-btn timeline-jump-btn',
+        });
+        jumpBtn.setAttribute('title', 'Jump to date');
+        jumpBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`;
+
+        // Hidden date picker - outside button, visually hidden
+        const hiddenDatePicker = controls.createEl('input', {
+            type: 'date',
+            cls: 'timeline-date-picker-hidden',
+        });
+        hiddenDatePicker.value = this.formatDateForInput(this.centerDate);
+        hiddenDatePicker.addEventListener('change', () => {
+            const dateValue = hiddenDatePicker.value;
+            if (dateValue) {
+                const [year, month, day] = dateValue.split('-').map(Number);
+                const selectedDate = new Date(year, month - 1, day);
+                this.scrollToDate(selectedDate);
+            }
+        });
+
+        jumpBtn.addEventListener('click', () => {
+            (hiddenDatePicker as any).showPicker?.() || hiddenDatePicker.click();
+        });
     }
 
     /**
@@ -272,22 +298,29 @@ export class TimelineView extends ItemView {
      */
     private formatVisibleDateRange(startDate: Date, endDate: Date): string {
         const sameDay = startDate.toDateString() === endDate.toDateString();
-
-        const formatOptions: Intl.DateTimeFormatOptions = {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-        };
+        const sameMonth = startDate.getMonth() === endDate.getMonth() &&
+                          startDate.getFullYear() === endDate.getFullYear();
 
         if (sameDay) {
-            // Single day: "Sun, 4 Jan 2026"
-            return startDate.toLocaleDateString(undefined, formatOptions);
+            // Single day: "Mon, Aug 10, 2026"
+            return startDate.toLocaleDateString(undefined, {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+            });
+        } else if (sameMonth) {
+            // Same month: "Mon 10 – Tue 11 Aug 2026"
+            const startWd = startDate.toLocaleDateString(undefined, { weekday: 'short' });
+            const endWd = endDate.toLocaleDateString(undefined, { weekday: 'short' });
+            const month = startDate.toLocaleDateString(undefined, { month: 'short' });
+            const year = startDate.getFullYear();
+            return `${startWd} ${startDate.getDate()} – ${endWd} ${endDate.getDate()} ${month} ${year}`;
         } else {
-            // Range: "Sun 4 - Mon 5 Jan 2026"
-            const startDay = startDate.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
-            const endFormatted = endDate.toLocaleDateString(undefined, formatOptions);
-            return `${startDay} - ${endFormatted}`;
+            // Different months: "Mon, Aug 10 – Tue, Sep 1, 2026"
+            const startPart = startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+            const endPart = endDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            return `${startPart} – ${endPart}`;
         }
     }
 
@@ -800,6 +833,13 @@ export class TimelineView extends ItemView {
         if (hours === 0) return `${mins}m`;
         if (mins === 0) return `${hours}h`;
         return `${hours}h ${mins}m`;
+    }
+
+    private formatDateForInput(date: Date): string {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     private getProjectColor(projectId?: string): string {

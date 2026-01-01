@@ -59,7 +59,9 @@
 
 .timeline-header-controls {
     display: flex;
+    align-items: center;
     gap: 8px;
+    flex-wrap: nowrap;
 }
 
 .timeline-btn {
@@ -429,6 +431,30 @@
 
 .timeline-btn-primary:hover {
     opacity: 0.9;
+}
+
+/* Jump to date button */
+.timeline-btn.timeline-jump-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 6px;
+}
+
+.timeline-jump-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.timeline-header-controls .timeline-date-picker-hidden {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
 }
 
 /* Scrollbar styling */
