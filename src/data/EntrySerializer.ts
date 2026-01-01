@@ -5,7 +5,7 @@ import { EntryParser } from './EntryParser';
  * Serializes time entries to markdown format
  *
  * Output format:
- * - [start:: 2024-01-15 09:15] [end:: 2024-01-15 10:40] Description text [project:: name] [tags:: a, b] [[linked note]]
+ * - [start:: 2024-01-15 09:15] [end:: 2024-01-15 10:40] Description text [project:: name] [activity:: feat] [tags:: a, b] [[linked note]]
  */
 export class EntrySerializer {
     /**
@@ -22,13 +22,14 @@ FILE STRUCTURE:
 - Entries sorted chronologically within each date
 
 ENTRY FORMAT:
-- [start:: YYYY-MM-DD HH:MM] [end:: YYYY-MM-DD HH:MM] Description [project:: name] [tags:: a, b] [[linked note]]
+- [start:: YYYY-MM-DD HH:MM] [end:: YYYY-MM-DD HH:MM] Description [project:: name] [activity:: type] [tags:: a, b] [[linked note]]
 
 FIELDS:
 - start (required): Start date and time
 - end (required): End date and time (may be next day for overnight entries)
 - Description: Free text describing the activity
 - project (optional): Project name for grouping
+- activity (optional): Work type classification (feat, fix, meeting, etc.)
 - tags (optional): Comma-separated tags for categorization
 - [[linked note]] (optional): Obsidian wikilink to related note
 
@@ -59,6 +60,11 @@ Uses Dataview-compatible inline field syntax [key:: value].
         // Project (optional)
         if (entry.project) {
             parts.push(`[project:: ${entry.project}]`);
+        }
+
+        // Activity (optional)
+        if (entry.activity) {
+            parts.push(`[activity:: ${entry.activity}]`);
         }
 
         // Tags (optional)

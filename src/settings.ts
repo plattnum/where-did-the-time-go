@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import type { TimeTrackerSettings, Project, Tag } from './types';
+import type { TimeTrackerSettings, Project, Tag, Activity } from './types';
 import type WhereDidTheTimeGoPlugin from '../main';
 
 export class TimeTrackerSettingTab extends PluginSettingTab {
@@ -196,6 +196,46 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                     this.renderTagsList(tagsContainer);
                 }));
+
+        // Activities Section
+        containerEl.createEl('h2', { text: 'Activities' });
+        containerEl.createEl('p', {
+            text: 'Define activity types to classify your work (e.g., feat, fix, meeting). Each entry can have one activity.',
+            cls: 'setting-item-description'
+        });
+
+        new Setting(containerEl)
+            .setName('Default activity')
+            .setDesc('Pre-selected activity when creating new entries')
+            .addDropdown(dropdown => {
+                dropdown.addOption('', '(None)');
+                this.plugin.settings.activities.forEach(a => dropdown.addOption(a.id, a.name));
+                dropdown.setValue(this.plugin.settings.defaultActivity);
+                dropdown.onChange(async (value) => {
+                    this.plugin.settings.defaultActivity = value;
+                    await this.plugin.saveSettings();
+                });
+            });
+
+        // Activity list
+        const activitiesContainer = containerEl.createDiv('activities-container');
+        this.renderActivitiesList(activitiesContainer);
+
+        // Add new activity button
+        new Setting(containerEl)
+            .addButton(button => button
+                .setButtonText('Add Activity')
+                .setCta()
+                .onClick(async () => {
+                    const newActivity: Activity = {
+                        id: `activity-${Date.now()}`,
+                        name: 'New Activity',
+                        color: this.getRandomColor(),
+                    };
+                    this.plugin.settings.activities.push(newActivity);
+                    await this.plugin.saveSettings();
+                    this.renderActivitiesList(activitiesContainer);
+                }));
     }
 
     private renderProjectsList(container: HTMLElement): void {
@@ -295,6 +335,51 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     this.plugin.settings.tags.splice(index, 1);
                     await this.plugin.saveSettings();
                     this.renderTagsList(container);
+                }));
+        });
+    }
+
+    private renderActivitiesList(container: HTMLElement): void {
+        container.empty();
+
+        if (this.plugin.settings.activities.length === 0) {
+            container.createEl('p', {
+                text: 'No activities defined yet. Add activities to classify your work.',
+                cls: 'setting-item-description'
+            });
+            return;
+        }
+
+        this.plugin.settings.activities.forEach((activity, index) => {
+            const activitySetting = new Setting(container)
+                .setClass('activity-setting');
+
+            // Color picker
+            activitySetting.addColorPicker(picker => picker
+                .setValue(activity.color)
+                .onChange(async (value) => {
+                    activity.color = value;
+                    await this.plugin.saveSettings();
+                }));
+
+            // Name input
+            activitySetting.addText(text => text
+                .setValue(activity.name)
+                .setPlaceholder('Activity name')
+                .onChange(async (value) => {
+                    activity.name = value || 'Activity';
+                    activity.id = this.slugify(value) || `activity-${Date.now()}`;
+                    await this.plugin.saveSettings();
+                }));
+
+            // Delete button
+            activitySetting.addExtraButton(button => button
+                .setIcon('trash')
+                .setTooltip('Delete activity')
+                .onClick(async () => {
+                    this.plugin.settings.activities.splice(index, 1);
+                    await this.plugin.saveSettings();
+                    this.renderActivitiesList(container);
                 }));
         });
     }

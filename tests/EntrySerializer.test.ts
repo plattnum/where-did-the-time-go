@@ -37,6 +37,13 @@ describe('EntrySerializer', () => {
             expect(result).toBe('- [start:: 2025-01-15 09:00] [end:: 2025-01-15 10:00] Test task [tags:: dev, meeting]');
         });
 
+        it('should serialize entry with activity', () => {
+            const entry = createEntry({ activity: 'feat' });
+            const result = EntrySerializer.serializeEntry(entry);
+
+            expect(result).toBe('- [start:: 2025-01-15 09:00] [end:: 2025-01-15 10:00] Test task [activity:: feat]');
+        });
+
         it('should serialize entry with linked note', () => {
             const entry = createEntry({ linkedNote: 'Notes/my-note' });
             const result = EntrySerializer.serializeEntry(entry);
@@ -47,13 +54,14 @@ describe('EntrySerializer', () => {
         it('should serialize a full entry with all fields', () => {
             const entry = createEntry({
                 project: 'Work',
+                activity: 'feat',
                 tags: ['dev', 'urgent'],
                 linkedNote: 'Notes/task',
             });
             const result = EntrySerializer.serializeEntry(entry);
 
             expect(result).toBe(
-                '- [start:: 2025-01-15 09:00] [end:: 2025-01-15 10:00] Test task [project:: Work] [tags:: dev, urgent] [[Notes/task]]'
+                '- [start:: 2025-01-15 09:00] [end:: 2025-01-15 10:00] Test task [project:: Work] [activity:: feat] [tags:: dev, urgent] [[Notes/task]]'
             );
         });
 
@@ -175,6 +183,7 @@ describe('EntrySerializer', () => {
         it('should serialize and parse back to same data', () => {
             const original = createEntry({
                 project: 'TestProject',
+                activity: 'feat',
                 tags: ['tag1', 'tag2'],
                 linkedNote: 'Notes/test',
             });
@@ -193,6 +202,7 @@ describe('EntrySerializer', () => {
             expect(parsed!.end).toBe(original.end);
             expect(parsed!.description).toBe(original.description);
             expect(parsed!.project).toBe(original.project);
+            expect(parsed!.activity).toBe(original.activity);
             expect(parsed!.tags).toEqual(original.tags);
             expect(parsed!.linkedNote).toBe(original.linkedNote);
         });

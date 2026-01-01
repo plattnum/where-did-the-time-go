@@ -495,6 +495,7 @@ export class TimelineView extends ItemView {
             `${entry.start} – ${entry.end} (${this.formatDuration(entry.durationMinutes)})`,
         ];
         if (entry.project) tooltipParts.push(`Project: ${entry.project}`);
+        if (entry.activity) tooltipParts.push(`Activity: ${entry.activity}`);
         if (entry.tags?.length) tooltipParts.push(`Tags: ${entry.tags.join(', ')}`);
         if (entry.linkedNote) tooltipParts.push(`Note: ${entry.linkedNote}`);
         card.setAttribute('title', tooltipParts.join('\n'));
@@ -553,6 +554,16 @@ export class TimelineView extends ItemView {
                 if (entry.project) {
                     const chip = meta.createSpan('entry-chip project-chip');
                     chip.setText(entry.project);
+                }
+
+                if (entry.activity) {
+                    const chip = meta.createSpan('entry-chip activity-chip');
+                    chip.setText(entry.activity);
+                    // Apply activity color if defined
+                    const activityColor = this.getActivityColor(entry.activity);
+                    if (activityColor) {
+                        chip.style.setProperty('--activity-color', activityColor);
+                    }
                 }
 
                 if (entry.tags && entry.tags.length > 0) {
@@ -854,6 +865,14 @@ export class TimelineView extends ItemView {
     private getTagColor(tagName: string): string | undefined {
         const tag = this.settings.tags.find(t => t.name === tagName || t.id === tagName);
         return tag?.color;
+    }
+
+    /**
+     * Get color for an activity from settings
+     */
+    private getActivityColor(activityName: string): string | undefined {
+        const activity = this.settings.activities.find(a => a.name === activityName || a.id === activityName);
+        return activity?.color;
     }
 
     /**

@@ -40,6 +40,7 @@ export class EntryModal extends Modal {
     private durationValue: string; // e.g., "1h 30m" or "90m"
     private descriptionValue: string;
     private projectValue: string;
+    private activityValue: string;
     private selectedTags: Set<string>; // Predefined tags that are selected
     private customTagsValue: string; // Additional custom tags
     private linkedNoteValue: string;
@@ -72,6 +73,7 @@ export class EntryModal extends Modal {
             this.durationValue = this.formatDurationMinutes(data.entry.durationMinutes);
             this.descriptionValue = data.entry.description;
             this.projectValue = this.resolveProjectName(data.entry.project);
+            this.activityValue = this.resolveActivityName(data.entry.activity);
 
             // Split existing tags into predefined and custom
             const existingTags = data.entry.tags || [];
@@ -109,6 +111,7 @@ export class EntryModal extends Modal {
             this.durationValue = this.calculateDurationFromDates();
             this.descriptionValue = '';
             this.projectValue = this.resolveProjectName(this.settings.defaultProject);
+            this.activityValue = this.resolveActivityName(this.settings.defaultActivity);
             this.selectedTags = new Set();
             this.customTagsValue = '';
             this.linkedNoteValue = '';
@@ -211,6 +214,27 @@ export class EntryModal extends Modal {
                     this.projectValue = value;
                 });
             });
+
+        // Activity dropdown (single selection - mutually exclusive classification)
+        if (this.settings.activities.length > 0) {
+            new Setting(contentEl)
+                .setName('Activity')
+                .setDesc('Work type classification (feat, fix, meeting, etc.)')
+                .addDropdown((dropdown) => {
+                    // Add empty option
+                    dropdown.addOption('', '(No activity)');
+
+                    // Add activities - use NAME as both value and display
+                    for (const activity of this.settings.activities) {
+                        dropdown.addOption(activity.name, activity.name);
+                    }
+
+                    dropdown.setValue(this.activityValue);
+                    dropdown.onChange((value) => {
+                        this.activityValue = value;
+                    });
+                });
+        }
 
         // Description (single line - no newlines allowed)
         const descSetting = new Setting(contentEl)
@@ -468,6 +492,7 @@ export class EntryModal extends Modal {
                     end: endForStorage,
                     description: this.descriptionValue,
                     project: this.projectValue || undefined,
+                    activity: this.activityValue || undefined,
                     tags: tags.length > 0 ? tags : undefined,
                     linkedNote: this.linkedNoteValue || undefined,
                 });
@@ -479,6 +504,7 @@ export class EntryModal extends Modal {
                     end: endForStorage,
                     description: this.descriptionValue,
                     project: this.projectValue || undefined,
+                    activity: this.activityValue || undefined,
                     tags: tags.length > 0 ? tags : undefined,
                     linkedNote: this.linkedNoteValue || undefined,
                 });
@@ -553,6 +579,25 @@ export class EntryModal extends Modal {
 
         // Return as-is if no match found
         return projectIdOrName;
+    }
+
+    /**
+     * Resolve an activity ID or name to the actual activity name
+     * Handles both lowercase ID format and display name format
+     */
+    private resolveActivityName(activityIdOrName?: string): string {
+        if (!activityIdOrName) return '';
+
+        // First try exact match by name
+        const byName = this.settings.activities.find(a => a.name === activityIdOrName);
+        if (byName) return byName.name;
+
+        // Then try match by ID (for lowercased slugs)
+        const byId = this.settings.activities.find(a => a.id === activityIdOrName);
+        if (byId) return byId.name;
+
+        // Return as-is if no match found
+        return activityIdOrName;
     }
 
     /**

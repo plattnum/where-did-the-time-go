@@ -30,6 +30,14 @@ describe('EntryParser', () => {
             expect(entry!.tags).toEqual(['dev', 'meeting']);
         });
 
+        it('should parse an entry with activity', () => {
+            const line = '[start:: 2025-01-15 09:00] [end:: 2025-01-15 10:00] Feature work [activity:: feat]';
+            const entry = EntryParser.parseEntryLine(line, '2025-01-15', 1);
+
+            expect(entry).not.toBeNull();
+            expect(entry!.activity).toBe('feat');
+        });
+
         it('should parse an entry with linked note', () => {
             const line = '[start:: 2025-01-15 09:00] [end:: 2025-01-15 10:00] Task work [[Notes/my-note]]';
             const entry = EntryParser.parseEntryLine(line, '2025-01-15', 1);
@@ -39,7 +47,7 @@ describe('EntryParser', () => {
         });
 
         it('should parse a full entry with all fields', () => {
-            const line = '[start:: 2025-01-15 09:00] [end:: 2025-01-15 10:00] Full task [project:: Work] [tags:: dev, urgent] [[Notes/task-notes]]';
+            const line = '[start:: 2025-01-15 09:00] [end:: 2025-01-15 10:00] Full task [project:: Work] [activity:: feat] [tags:: dev, urgent] [[Notes/task-notes]]';
             const entry = EntryParser.parseEntryLine(line, '2025-01-15', 1);
 
             expect(entry).not.toBeNull();
@@ -48,6 +56,7 @@ describe('EntryParser', () => {
             expect(entry!.end).toBe('10:00');
             expect(entry!.description).toBe('Full task');
             expect(entry!.project).toBe('Work');
+            expect(entry!.activity).toBe('feat');
             expect(entry!.tags).toEqual(['dev', 'urgent']);
             expect(entry!.linkedNote).toBe('Notes/task-notes');
             expect(entry!.durationMinutes).toBe(60);

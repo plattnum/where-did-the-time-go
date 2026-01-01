@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf } from 'obsidian';
-import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, TagReport } from '../types';
+import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport } from '../types';
 import { DataManager } from '../data/DataManager';
 import { EntryParser } from '../data/EntryParser';
 
@@ -15,6 +15,7 @@ export class ReportsView extends ItemView {
     private customStartDate: Date | null = null;
     private customEndDate: Date | null = null;
     private projectReports: ProjectReport[] = [];
+    private activityReports: ActivityReport[] = [];
     private totalMinutes: number = 0;
 
     // DOM references
@@ -23,6 +24,7 @@ export class ReportsView extends ItemView {
     private customDateInputs: HTMLElement;
     private summaryContainer: HTMLElement;
     private reportsContainer: HTMLElement;
+    private activityContainer: HTMLElement;
 
     // Expanded projects (for tag breakdown)
     private expandedProjects: Set<string> = new Set();
@@ -93,8 +95,11 @@ export class ReportsView extends ItemView {
         // Summary section
         this.summaryContainer = this.contentContainer.createDiv('reports-summary');
 
-        // Reports table
+        // Reports table (By Project)
         this.reportsContainer = this.contentContainer.createDiv('reports-table-container');
+
+        // Activity breakdown section
+        this.activityContainer = this.contentContainer.createDiv('reports-table-container');
     }
 
     /**
@@ -289,19 +294,21 @@ export class ReportsView extends ItemView {
 
         // Calculate reports with effective durations (handles midnight-spanning)
         this.calculateReports(entries, start, end);
+        this.calculateActivityReports(entries, start, end);
 
         // Render the results
         this.renderSummary(start, end);
         this.renderReportsTable();
+        this.renderActivityTable();
     }
 
     /**
-     * Calculate project and tag reports from entries
+     * Calculate project and activity reports from entries
      * Uses effective duration to handle midnight-spanning entries correctly
      */
     private calculateReports(entries: TimeEntry[], rangeStart: Date, rangeEnd: Date): void {
-        // Group by project
-        const projectMap = new Map<string, { minutes: number; tagMap: Map<string, number> }>();
+        // Group by project, with activity breakdown within each project
+        const projectMap = new Map<string, { minutes: number; activityMap: Map<string, number> }>();
 
         this.totalMinutes = 0;
 
@@ -315,24 +322,17 @@ export class ReportsView extends ItemView {
             const projectName = entry.project || '(No Project)';
 
             if (!projectMap.has(projectName)) {
-                projectMap.set(projectName, { minutes: 0, tagMap: new Map() });
+                projectMap.set(projectName, { minutes: 0, activityMap: new Map() });
             }
 
             const projectData = projectMap.get(projectName)!;
             projectData.minutes += effectiveMinutes;
             this.totalMinutes += effectiveMinutes;
 
-            // Track tags within this project
-            if (entry.tags && entry.tags.length > 0) {
-                for (const tag of entry.tags) {
-                    const current = projectData.tagMap.get(tag) || 0;
-                    projectData.tagMap.set(tag, current + effectiveMinutes);
-                }
-            } else {
-                // Track untagged time
-                const current = projectData.tagMap.get('(No Tags)') || 0;
-                projectData.tagMap.set('(No Tags)', current + effectiveMinutes);
-            }
+            // Track activity within this project (mutually exclusive - each entry has 0 or 1 activity)
+            const activityName = entry.activity || '(No Activity)';
+            const current = projectData.activityMap.get(activityName) || 0;
+            projectData.activityMap.set(activityName, current + effectiveMinutes);
         }
 
         // Convert to ProjectReport array
@@ -344,34 +344,75 @@ export class ReportsView extends ItemView {
                 ? (data.minutes / this.totalMinutes) * 100
                 : 0;
 
-            // Build tag breakdown
-            const tagBreakdown: TagReport[] = [];
-            for (const [tagName, tagMinutes] of data.tagMap) {
-                const tagColor = this.getTagColor(tagName);
-                tagBreakdown.push({
-                    tag: tagName,
-                    color: tagColor,
-                    totalMinutes: tagMinutes,
+            // Build activity breakdown (percentages add up to 100% since activities are mutually exclusive)
+            const activityBreakdown: ProjectActivityBreakdown[] = [];
+            for (const [activityName, activityMinutes] of data.activityMap) {
+                const activityColor = this.getActivityColor(activityName);
+                activityBreakdown.push({
+                    activity: activityName,
+                    color: activityColor,
+                    totalMinutes: activityMinutes,
                     percentageOfProject: data.minutes > 0
-                        ? (tagMinutes / data.minutes) * 100
+                        ? (activityMinutes / data.minutes) * 100
                         : 0,
                 });
             }
 
-            // Sort tags by time descending
-            tagBreakdown.sort((a, b) => b.totalMinutes - a.totalMinutes);
+            // Sort activities by time descending
+            activityBreakdown.sort((a, b) => b.totalMinutes - a.totalMinutes);
 
             this.projectReports.push({
                 project: projectName,
                 color: projectColor,
                 totalMinutes: data.minutes,
                 percentage,
-                tagBreakdown,
+                activityBreakdown,
             });
         }
 
         // Sort projects by time descending
         this.projectReports.sort((a, b) => b.totalMinutes - a.totalMinutes);
+    }
+
+    /**
+     * Calculate activity reports from entries
+     * Activities are mutually exclusive so percentages add up to 100%
+     */
+    private calculateActivityReports(entries: TimeEntry[], rangeStart: Date, rangeEnd: Date): void {
+        const activityMap = new Map<string, number>();
+
+        for (const entry of entries) {
+            // Calculate effective duration within the query range
+            const effectiveMinutes = this.dataManager.getEffectiveDuration(entry, rangeStart, rangeEnd);
+
+            if (effectiveMinutes <= 0) continue;
+
+            const activityName = entry.activity || '(No Activity)';
+
+            const current = activityMap.get(activityName) || 0;
+            activityMap.set(activityName, current + effectiveMinutes);
+        }
+
+        // Convert to ActivityReport array
+        this.activityReports = [];
+
+        for (const [activityName, minutes] of activityMap) {
+            const activityColor = this.getActivityColor(activityName);
+            const percentage = this.totalMinutes > 0
+                ? (minutes / this.totalMinutes) * 100
+                : 0;
+
+            this.activityReports.push({
+                activity: activityName,
+                name: activityName,
+                color: activityColor,
+                totalMinutes: minutes,
+                percentage,
+            });
+        }
+
+        // Sort activities by time descending
+        this.activityReports.sort((a, b) => b.totalMinutes - a.totalMinutes);
     }
 
     /**
@@ -386,7 +427,6 @@ export class ReportsView extends ItemView {
 
         // Total hours
         const totalCard = this.summaryContainer.createDiv('reports-total-card');
-        const totalHours = this.totalMinutes / 60;
         totalCard.createDiv({ text: 'Total Time', cls: 'reports-total-label' });
         totalCard.createDiv({ text: this.formatDuration(this.totalMinutes), cls: 'reports-total-value' });
 
@@ -456,43 +496,41 @@ export class ReportsView extends ItemView {
             bar.style.width = `${report.percentage}%`;
             bar.style.backgroundColor = report.color;
 
-            // Tag breakdown rows (if expanded)
+            // Activity breakdown rows (if expanded)
             if (this.expandedProjects.has(report.project)) {
-                for (const tagReport of report.tagBreakdown) {
-                    const tagRow = tbody.createEl('tr', { cls: 'reports-tag-row' });
+                for (const activityReport of report.activityBreakdown) {
+                    const activityRow = tbody.createEl('tr', { cls: 'reports-activity-nested-row' });
 
-                    // Tag name (indented)
-                    const tagNameCell = tagRow.createEl('td', { cls: 'reports-tag-name' });
-                    if (tagReport.color) {
-                        const tagDot = tagNameCell.createSpan('reports-color-dot');
-                        tagDot.style.backgroundColor = tagReport.color;
-                    }
-                    tagNameCell.createSpan({ text: `#${tagReport.tag}` });
+                    // Activity name (indented)
+                    const activityNameCell = activityRow.createEl('td', { cls: 'reports-activity-nested-name' });
+                    const activityDot = activityNameCell.createSpan('reports-color-dot');
+                    activityDot.style.backgroundColor = activityReport.color;
+                    activityNameCell.createSpan({ text: activityReport.activity });
 
                     // Hours
-                    tagRow.createEl('td', {
-                        text: this.formatDuration(tagReport.totalMinutes),
+                    activityRow.createEl('td', {
+                        text: this.formatDuration(activityReport.totalMinutes),
                         cls: 'reports-col-hours',
                     });
 
-                    // Percentage (of project)
-                    tagRow.createEl('td', {
-                        text: `${tagReport.percentageOfProject.toFixed(1)}%`,
+                    // Percentage (of project - adds up to 100%)
+                    activityRow.createEl('td', {
+                        text: `${activityReport.percentageOfProject.toFixed(1)}%`,
                         cls: 'reports-col-percent',
                     });
 
                     // Visual bar (relative to project)
-                    const tagBarCell = tagRow.createEl('td', { cls: 'reports-col-bar' });
-                    const tagBar = tagBarCell.createDiv('reports-bar reports-bar-tag');
-                    tagBar.style.width = `${tagReport.percentageOfProject}%`;
-                    tagBar.style.backgroundColor = tagReport.color || '#666';
+                    const activityBarCell = activityRow.createEl('td', { cls: 'reports-col-bar' });
+                    const activityBar = activityBarCell.createDiv('reports-bar reports-bar-nested');
+                    activityBar.style.width = `${activityReport.percentageOfProject}%`;
+                    activityBar.style.backgroundColor = activityReport.color;
                 }
             }
         }
     }
 
     /**
-     * Toggle project expansion to show/hide tag breakdown
+     * Toggle project expansion to show/hide activity breakdown
      */
     private toggleProjectExpand(project: string): void {
         if (this.expandedProjects.has(project)) {
@@ -501,6 +539,63 @@ export class ReportsView extends ItemView {
             this.expandedProjects.add(project);
         }
         this.renderReportsTable();
+    }
+
+    /**
+     * Render the activity breakdown table
+     */
+    private renderActivityTable(): void {
+        this.activityContainer.empty();
+
+        // Only show if there are activities defined or entries with activities
+        if (this.activityReports.length === 0) {
+            return;
+        }
+
+        // Section header
+        const header = this.activityContainer.createDiv('reports-section-header');
+        header.createEl('h3', { text: 'By Activity' });
+
+        const table = this.activityContainer.createEl('table', { cls: 'reports-table' });
+
+        // Header
+        const thead = table.createEl('thead');
+        const headerRow = thead.createEl('tr');
+        headerRow.createEl('th', { text: 'Activity' });
+        headerRow.createEl('th', { text: 'Hours', cls: 'reports-col-hours' });
+        headerRow.createEl('th', { text: '%', cls: 'reports-col-percent' });
+        headerRow.createEl('th', { text: '', cls: 'reports-col-bar' });
+
+        // Body
+        const tbody = table.createEl('tbody');
+
+        for (const report of this.activityReports) {
+            const row = tbody.createEl('tr', { cls: 'reports-activity-row' });
+
+            // Activity name with color indicator
+            const nameCell = row.createEl('td', { cls: 'reports-activity-name' });
+            const colorDot = nameCell.createSpan('reports-color-dot');
+            colorDot.style.backgroundColor = report.color;
+            nameCell.createSpan({ text: report.name });
+
+            // Hours
+            row.createEl('td', {
+                text: this.formatDuration(report.totalMinutes),
+                cls: 'reports-col-hours',
+            });
+
+            // Percentage
+            row.createEl('td', {
+                text: `${report.percentage.toFixed(1)}%`,
+                cls: 'reports-col-percent',
+            });
+
+            // Visual bar
+            const barCell = row.createEl('td', { cls: 'reports-col-bar' });
+            const bar = barCell.createDiv('reports-bar');
+            bar.style.width = `${report.percentage}%`;
+            bar.style.backgroundColor = report.color;
+        }
     }
 
     // Helper methods
@@ -534,9 +629,9 @@ export class ReportsView extends ItemView {
         return project?.color || '#4f46e5';
     }
 
-    private getTagColor(tagName: string): string | undefined {
-        if (tagName === '(No Tags)') return undefined;
-        const tag = this.settings.tags.find(t => t.name === tagName || t.id === tagName);
-        return tag?.color;
+    private getActivityColor(activityName: string): string {
+        if (activityName === '(No Activity)') return '#666';
+        const activity = this.settings.activities.find(a => a.name === activityName || a.id === activityName);
+        return activity?.color || '#f59e0b';
     }
 }

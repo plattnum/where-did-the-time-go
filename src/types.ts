@@ -16,6 +16,8 @@ export interface TimeEntry {
     description: string;
     /** Optional project name */
     project?: string;
+    /** Optional activity type (feat, fix, meeting, etc.) */
+    activity?: string;
     /** Optional tags array */
     tags?: string[];
     /** Optional wikilink path to linked note */
@@ -59,6 +61,19 @@ export interface Tag {
 }
 
 /**
+ * An activity type for classifying work (feat, fix, meeting, etc.)
+ * Single value per entry, mutually exclusive - enables % breakdowns
+ */
+export interface Activity {
+    /** Unique identifier (slug) */
+    id: string;
+    /** Display name */
+    name: string;
+    /** Hex color for reports/display */
+    color: string;
+}
+
+/**
  * Plugin settings stored in Obsidian's data.json
  */
 export interface TimeTrackerSettings {
@@ -86,6 +101,10 @@ export interface TimeTrackerSettings {
     projects: Project[];
     /** List of predefined tags */
     tags: Tag[];
+    /** List of activity types */
+    activities: Activity[];
+    /** Default activity for new entries */
+    defaultActivity: string;
 }
 
 /**
@@ -106,6 +125,8 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
         { id: 'default', name: 'Default', color: '#4f46e5', archived: false },
     ],
     tags: [],
+    activities: [],
+    defaultActivity: '',
 };
 
 /**
@@ -147,20 +168,36 @@ export interface ProjectReport {
     totalMinutes: number;
     /** Percentage of total time */
     percentage: number;
-    /** Breakdown by tag */
-    tagBreakdown: TagReport[];
+    /** Breakdown by activity within this project */
+    activityBreakdown: ProjectActivityBreakdown[];
 }
 
 /**
- * Report data for a single tag within a project
+ * Report data for a single activity within a project
  */
-export interface TagReport {
-    /** Tag name */
-    tag: string;
-    /** Tag color (if defined) */
-    color?: string;
-    /** Total minutes for this tag */
+export interface ProjectActivityBreakdown {
+    /** Activity name */
+    activity: string;
+    /** Activity color */
+    color: string;
+    /** Total minutes for this activity within the project */
     totalMinutes: number;
     /** Percentage of project time */
     percentageOfProject: number;
+}
+
+/**
+ * Report data for a single activity type
+ */
+export interface ActivityReport {
+    /** Activity id */
+    activity: string;
+    /** Activity display name */
+    name: string;
+    /** Activity color */
+    color: string;
+    /** Total minutes for this activity */
+    totalMinutes: number;
+    /** Percentage of total time */
+    percentage: number;
 }
