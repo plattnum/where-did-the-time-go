@@ -34,6 +34,7 @@ export class TimelineView extends ItemView {
     private dragCurrentY: number = 0;
     private dragStartDate: Date | null = null;
     private selectionEl: HTMLElement | null = null;
+    private dragTooltipEl: HTMLElement | null = null;
 
     // Entry drag state (for moving/resizing existing entries)
     private entryDragMode: 'none' | 'move' | 'resize-top' | 'resize-bottom' = 'none';
@@ -43,6 +44,7 @@ export class TimelineView extends ItemView {
     private entryDragOriginalTop: number = 0;
     private entryDragOriginalHeight: number = 0;
     private entryDragDidMove: boolean = false; // Track if actual drag happened
+    private entryDragTooltipEl: HTMLElement | null = null;
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -129,6 +131,8 @@ export class TimelineView extends ItemView {
 
         // Create entries area (right side)
         this.entriesContainer = this.timelineInner.createDiv('timeline-entries');
+        // Set CSS variable for 15-min grid lines
+        this.entriesContainer.style.setProperty('--tt-hour-height', `${this.settings.hourHeight}px`);
 
         // Load initial data and render
         await this.loadVisibleRange();
@@ -550,6 +554,10 @@ export class TimelineView extends ItemView {
             if (!isCompact) {
                 const meta = card.createDiv('entry-card-meta');
 
+                // Client (always shown - it's required)
+                const clientChip = meta.createSpan('entry-chip client-chip');
+                clientChip.setText(entry.client);
+
                 if (entry.project) {
                     const chip = meta.createSpan('entry-chip project-chip');
                     chip.setText(entry.project);
@@ -617,6 +625,11 @@ export class TimelineView extends ItemView {
         this.entryDragOriginalHeight = parseFloat(card.style.height);
 
         card.addClass('is-dragging');
+
+        // Create tooltip for time feedback
+        this.entryDragTooltipEl = this.timelineInner.createDiv('timeline-drag-tooltip');
+        this.updateEntryDragTooltip();
+
         document.addEventListener('mousemove', this.handleEntryDragMove);
         document.addEventListener('mouseup', this.handleEntryDragEnd);
     }
@@ -653,6 +666,9 @@ export class TimelineView extends ItemView {
                 this.entryDragCard.style.height = `${newHeight}px`;
             }
         }
+
+        // Update tooltip with current times
+        this.updateEntryDragTooltip();
     };
 
     /**
@@ -716,8 +732,6 @@ export class TimelineView extends ItemView {
         const fullStart = `${newDateStr} ${newStartTime}`;
         const fullEnd = `${endDateStr} ${newEndTime}`;
 
-        console.log('Drag complete:', { newDateStr, fullStart, fullEnd });
-
         try {
             await this.dataManager.updateEntry(entry, {
                 date: newDateStr,
@@ -742,10 +756,46 @@ export class TimelineView extends ItemView {
         if (this.entryDragCard) {
             this.entryDragCard.removeClass('is-dragging');
         }
+        if (this.entryDragTooltipEl) {
+            this.entryDragTooltipEl.remove();
+            this.entryDragTooltipEl = null;
+        }
         this.entryDragMode = 'none';
         this.entryDragEntry = null;
         this.entryDragCard = null;
         // Note: Don't reset entryDragDidMove here - it's reset in the click handler
+    }
+
+    /**
+     * Update the entry drag tooltip with current start/end times
+     */
+    private updateEntryDragTooltip(): void {
+        if (!this.entryDragTooltipEl || !this.entryDragCard) return;
+
+        const newTop = parseFloat(this.entryDragCard.style.top);
+        const newHeight = parseFloat(this.entryDragCard.style.height);
+
+        // Convert pixel positions to times
+        const newStartMinutes = (newTop / this.settings.hourHeight) * 60;
+        const newDurationMinutes = (newHeight / this.settings.hourHeight) * 60;
+
+        // Calculate which day and time
+        const dayIndex = Math.floor(newTop / this.dayHeight);
+        const minutesInDay = newStartMinutes - (dayIndex * 24 * 60);
+        const endMinutesInDay = minutesInDay + newDurationMinutes;
+
+        // Round to 15 minutes
+        const startHours = Math.floor(minutesInDay / 60) % 24;
+        const startMins = Math.round(minutesInDay % 60 / 15) * 15;
+        const endHours = Math.floor(endMinutesInDay / 60) % 24;
+        const endMins = Math.round(endMinutesInDay % 60 / 15) * 15;
+
+        const startTime = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`;
+        const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+
+        this.entryDragTooltipEl.setText(`${startTime} – ${endTime}`);
+        // Position tooltip below the card
+        this.entryDragTooltipEl.style.top = `${newTop + newHeight + 8}px`;
     }
 
     /**
@@ -998,6 +1048,9 @@ export class TimelineView extends ItemView {
 
         // Create selection element on timelineInner (so positioning matches our Y calculations)
         this.selectionEl = this.timelineInner.createDiv('timeline-drag-selection');
+
+        // Create tooltip for time feedback
+        this.dragTooltipEl = this.timelineInner.createDiv('timeline-drag-tooltip');
         this.updateSelectionElement();
 
         e.preventDefault();
@@ -1067,7 +1120,7 @@ export class TimelineView extends ItemView {
     }
 
     /**
-     * Update the visual selection element position
+     * Update the visual selection element position and tooltip
      */
     private updateSelectionElement(): void {
         if (!this.selectionEl) return;
@@ -1078,6 +1131,25 @@ export class TimelineView extends ItemView {
 
         this.selectionEl.style.top = `${minY}px`;
         this.selectionEl.style.height = `${height}px`;
+
+        // Update tooltip with time range
+        if (this.dragTooltipEl) {
+            // Calculate times from Y positions
+            const dayIndex = Math.floor(minY / this.dayHeight) - this.visibleDaysBuffer;
+            const dayTopY = (dayIndex + this.visibleDaysBuffer) * this.dayHeight;
+            const startYInDay = minY - dayTopY;
+            const endYInDay = maxY - dayTopY;
+
+            const startHours = startYInDay / this.settings.hourHeight;
+            const endHours = endYInDay / this.settings.hourHeight;
+
+            const startTime = this.roundToTimeString(startHours);
+            const endTime = this.roundToTimeString(endHours);
+
+            this.dragTooltipEl.setText(`${startTime} – ${endTime}`);
+            // Position tooltip near the bottom of selection, offset to the right
+            this.dragTooltipEl.style.top = `${maxY + 8}px`;
+        }
     }
 
     /**
@@ -1088,6 +1160,10 @@ export class TimelineView extends ItemView {
         if (this.selectionEl) {
             this.selectionEl.remove();
             this.selectionEl = null;
+        }
+        if (this.dragTooltipEl) {
+            this.dragTooltipEl.remove();
+            this.dragTooltipEl = null;
         }
         this.dragStartDate = null;
     }

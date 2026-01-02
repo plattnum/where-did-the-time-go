@@ -121,6 +121,16 @@
     position: relative;
     margin-left: 8px;
     margin-right: 16px;
+    /* 15-minute grid lines via CSS gradient - no extra DOM elements */
+    --quarter-height: calc(var(--tt-hour-height, 60px) / 4);
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent calc(var(--quarter-height) - 1px),
+        color-mix(in srgb, var(--tt-border) 40%, transparent) calc(var(--quarter-height) - 1px),
+        color-mix(in srgb, var(--tt-border) 40%, transparent) var(--quarter-height)
+    );
+    background-size: 100% var(--quarter-height);
 }
 
 /* Hour lines */
@@ -260,6 +270,13 @@
     background: var(--tt-bg-secondary);
     border: 1px solid var(--tt-border);
     color: var(--tt-text-muted);
+}
+
+.client-chip {
+    background: color-mix(in srgb, var(--tt-accent) 15%, transparent);
+    border-color: color-mix(in srgb, var(--tt-accent) 30%, transparent);
+    color: var(--tt-accent);
+    font-weight: 600;
 }
 
 .project-chip {
@@ -693,6 +710,22 @@
     pointer-events: none;
     z-index: 20;
     min-height: 10px;
+}
+
+/* Drag tooltip showing time range */
+.timeline-drag-tooltip {
+    position: absolute;
+    left: 68px;
+    padding: 4px 10px;
+    background: var(--tt-accent);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 25;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Tags settings container */
