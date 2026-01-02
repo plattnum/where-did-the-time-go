@@ -5,7 +5,7 @@ import { EntryParser } from './EntryParser';
  * Serializes time entries to markdown format
  *
  * Output format:
- * - [start:: 2024-01-15 09:15] [end:: 2024-01-15 10:40] Description text [project:: name] [activity:: feat] [tags:: a, b] [[linked note]]
+ * - [start:: 2024-01-15 09:15] [end:: 2024-01-15 10:40] Description text [client:: acme] [project:: name] [activity:: feat] [[linked note]]
  */
 export class EntrySerializer {
     /**
@@ -22,15 +22,15 @@ FILE STRUCTURE:
 - Entries sorted chronologically within each date
 
 ENTRY FORMAT:
-- [start:: YYYY-MM-DD HH:MM] [end:: YYYY-MM-DD HH:MM] Description [project:: name] [activity:: type] [tags:: a, b] [[linked note]]
+- [start:: YYYY-MM-DD HH:MM] [end:: YYYY-MM-DD HH:MM] Description [client:: name] [project:: name] [activity:: type] [[linked note]]
 
 FIELDS:
 - start (required): Start date and time
 - end (required): End date and time (may be next day for overnight entries)
 - Description: Free text describing the activity
-- project (optional): Project name for grouping
-- activity (optional): Work type classification (feat, fix, meeting, etc.)
-- tags (optional): Comma-separated tags for categorization
+- client (required): Client for billing
+- project (optional): Project name for grouping (projects belong to clients)
+- activity (optional): Work type classification (activities belong to clients)
 - [[linked note]] (optional): Obsidian wikilink to related note
 
 Uses Dataview-compatible inline field syntax [key:: value].
@@ -57,6 +57,9 @@ Uses Dataview-compatible inline field syntax [key:: value].
             parts.push(entry.description);
         }
 
+        // Client (required)
+        parts.push(`[client:: ${entry.client}]`);
+
         // Project (optional)
         if (entry.project) {
             parts.push(`[project:: ${entry.project}]`);
@@ -65,11 +68,6 @@ Uses Dataview-compatible inline field syntax [key:: value].
         // Activity (optional)
         if (entry.activity) {
             parts.push(`[activity:: ${entry.activity}]`);
-        }
-
-        // Tags (optional)
-        if (entry.tags && entry.tags.length > 0) {
-            parts.push(`[tags:: ${entry.tags.join(', ')}]`);
         }
 
         // Linked note (optional)

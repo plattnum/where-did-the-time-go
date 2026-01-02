@@ -18,8 +18,8 @@ export interface TimeEntry {
     project?: string;
     /** Optional activity type (feat, fix, meeting, etc.) */
     activity?: string;
-    /** Optional tags array */
-    tags?: string[];
+    /** Client for billing (required) */
+    client: string;
     /** Optional wikilink path to linked note */
     linkedNote?: string;
 
@@ -36,6 +36,7 @@ export interface TimeEntry {
 
 /**
  * A project for categorizing time entries
+ * Projects belong to a client
  */
 export interface Project {
     /** Unique identifier (slug) */
@@ -46,23 +47,16 @@ export interface Project {
     color: string;
     /** Whether the project is archived */
     archived: boolean;
-}
-
-/**
- * A predefined tag for categorizing time entries
- */
-export interface Tag {
-    /** Unique identifier (slug) */
-    id: string;
-    /** Display name */
-    name: string;
-    /** Optional hex color */
-    color?: string;
+    /** Client ID this project belongs to (required) */
+    clientId: string;
+    /** Optional rate override (uses client rate if not set) */
+    rateOverride?: number;
 }
 
 /**
  * An activity type for classifying work (feat, fix, meeting, etc.)
  * Single value per entry, mutually exclusive - enables % breakdowns
+ * Activities belong to a client
  */
 export interface Activity {
     /** Unique identifier (slug) */
@@ -71,6 +65,45 @@ export interface Activity {
     name: string;
     /** Hex color for reports/display */
     color: string;
+    /** Client ID this activity belongs to (required) */
+    clientId: string;
+}
+
+/**
+ * A client for billing and invoicing
+ * Projects can optionally belong to a client
+ */
+export interface Client {
+    /** Unique identifier (slug) */
+    id: string;
+    /** Display name */
+    name: string;
+    /** Hex color for UI */
+    color: string;
+    /** Whether the client is archived */
+    archived: boolean;
+
+    // Billing
+    /** Billing rate (e.g., 150) */
+    rate: number;
+    /** Currency code (USD, EUR, GBP, etc.) */
+    currency: string;
+    /** Rate type */
+    rateType: 'hourly' | 'daily';
+
+    // Invoice Details
+    /** Multi-line billing address (use \n for line breaks) */
+    address?: string;
+    /** Invoice recipient email */
+    email?: string;
+    /** VAT/Tax ID number */
+    taxId?: string;
+    /** Payment terms (e.g., "Net 30", "Due on receipt") */
+    paymentTerms?: string;
+
+    // Optional
+    /** Internal notes about client */
+    notes?: string;
 }
 
 /**
@@ -99,12 +132,12 @@ export interface TimeTrackerSettings {
     descriptionMaxLength: number;
     /** List of configured projects */
     projects: Project[];
-    /** List of predefined tags */
-    tags: Tag[];
     /** List of activity types */
     activities: Activity[];
     /** Default activity for new entries */
     defaultActivity: string;
+    /** List of clients for billing */
+    clients: Client[];
 }
 
 /**
@@ -121,10 +154,21 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     weekStart: 'monday',
     autoCreateFolder: true,
     descriptionMaxLength: 200,
-    projects: [
-        { id: 'default', name: 'Default', color: '#4f46e5', archived: false },
+    clients: [
+        {
+            id: 'personal',
+            name: 'Personal',
+            color: '#4f46e5',
+            archived: false,
+            rate: 0,
+            currency: 'USD',
+            rateType: 'hourly',
+            paymentTerms: 'N/A',
+        },
     ],
-    tags: [],
+    projects: [
+        { id: 'default', name: 'Default', color: '#4f46e5', archived: false, clientId: 'personal' },
+    ],
     activities: [],
     defaultActivity: '',
 };
@@ -200,4 +244,30 @@ export interface ActivityReport {
     totalMinutes: number;
     /** Percentage of total time */
     percentage: number;
+}
+
+/**
+ * Report data for a single client
+ */
+export interface ClientReport {
+    /** Client id */
+    clientId: string;
+    /** Client display name */
+    name: string;
+    /** Client color */
+    color: string;
+    /** Billing rate */
+    rate: number;
+    /** Currency code */
+    currency: string;
+    /** Rate type */
+    rateType: 'hourly' | 'daily';
+    /** Total minutes for this client */
+    totalMinutes: number;
+    /** Calculated billable amount (rate * hours or days) */
+    billableAmount: number;
+    /** Percentage of total time */
+    percentage: number;
+    /** Breakdown by project within this client */
+    projectBreakdown: ProjectReport[];
 }

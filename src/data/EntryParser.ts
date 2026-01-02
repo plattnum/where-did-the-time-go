@@ -5,7 +5,7 @@ import type { TimeEntry, ParsedMonth } from '../types';
  *
  * Format:
  * ## 2024-01-15
- * - [start:: 2024-01-15 09:15] [end:: 2024-01-15 10:40] Description text [project:: name] [activity:: feat] [tags:: a, b] [[linked note]]
+ * - [start:: 2024-01-15 09:15] [end:: 2024-01-15 10:40] Description text [client:: acme] [project:: name] [activity:: feat] #tag1 #tag2 [[linked note]]
  *
  * Entries spanning midnight:
  * - [start:: 2024-01-15 22:00] [end:: 2024-01-16 03:00] Late night work [activity:: fix]
@@ -85,12 +85,18 @@ export class EntryParser {
             remainingText = remainingText.replace(match[0], '');
         }
 
-        // Must have start and end times
+        // Must have start, end, and client
         const startStr = fields.get('start');
         const endStr = fields.get('end');
+        const client = fields.get('client');
 
         if (!startStr || !endStr) {
             console.log('EntryParser: Missing start or end, skipping');
+            return null;
+        }
+
+        if (!client) {
+            console.log('EntryParser: Missing client, skipping');
             return null;
         }
 
@@ -104,12 +110,6 @@ export class EntryParser {
 
         // Clean up remaining text to get description
         const description = remainingText.trim();
-
-        // Parse tags (comma-separated)
-        const tagsStr = fields.get('tags');
-        const tags = tagsStr
-            ? tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0)
-            : undefined;
 
         // Parse start and end with explicit date+time format
         const { startDateTime, endDateTime, startDate, endDate } = this.parseDateTimeFields(startStr, endStr);
@@ -129,9 +129,9 @@ export class EntryParser {
             start: startTime,
             end: endTime,
             description,
+            client,
             project: fields.get('project'),
             activity: fields.get('activity'),
-            tags,
             linkedNote,
             startDateTime,
             endDateTime,
