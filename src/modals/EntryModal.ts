@@ -1,7 +1,7 @@
 import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponent, Notice, FuzzySuggestModal, TFile } from 'obsidian';
 import { TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
-import { EntryParser } from '../data/EntryParser';
+import { TableParser } from '../data/TableParser';
 
 /**
  * Mode for the entry modal
@@ -72,9 +72,9 @@ export class EntryModal extends Modal {
         // Initialize form values
         if (data.mode === 'edit' && data.entry) {
             // Use the computed DateTime objects for accuracy
-            this.startDateValue = EntryParser.getDateString(data.entry.startDateTime);
+            this.startDateValue = TableParser.getDateString(data.entry.startDateTime);
             this.startTimeValue = data.entry.start;
-            this.endDateValue = EntryParser.getDateString(data.entry.endDateTime);
+            this.endDateValue = TableParser.getDateString(data.entry.endDateTime);
             this.endTimeValue = data.entry.end;
             this.durationValue = this.formatDurationMinutes(data.entry.durationMinutes);
             this.descriptionValue = data.entry.description;
@@ -85,7 +85,7 @@ export class EntryModal extends Modal {
         } else {
             // Create mode defaults
             const date = data.date || new Date();
-            this.startDateValue = EntryParser.getDateString(date);
+            this.startDateValue = TableParser.getDateString(date);
             this.startTimeValue = data.startTime || this.getCurrentTimeRounded();
 
             // Calculate end date/time
@@ -97,7 +97,7 @@ export class EntryModal extends Modal {
                     // Spans midnight - end date is next day
                     const nextDay = new Date(date);
                     nextDay.setDate(nextDay.getDate() + 1);
-                    this.endDateValue = EntryParser.getDateString(nextDay);
+                    this.endDateValue = TableParser.getDateString(nextDay);
                 } else {
                     this.endDateValue = this.startDateValue;
                 }
@@ -562,7 +562,7 @@ export class EntryModal extends Modal {
         const start = new Date(`${this.startDateValue}T${this.startTimeValue}`);
         const end = new Date(start.getTime() + durationMins * 60000);
 
-        this.endDateValue = EntryParser.getDateString(end);
+        this.endDateValue = TableParser.getDateString(end);
         this.endTimeValue = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
 
         if (this.endDateInput) {

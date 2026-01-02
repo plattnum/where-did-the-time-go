@@ -20,7 +20,7 @@ The dev build automatically copies output to `/Users/plattnum/Obsidian-Vaults/pl
 
 ### Data Flow
 ```
-User → TimelineView/EntryModal → DataManager → EntryParser/Serializer → Markdown files in vault
+User → TimelineView/EntryModal → DataManager → TableParser → Markdown files in vault
 ```
 
 ### Key Layers
@@ -28,8 +28,7 @@ User → TimelineView/EntryModal → DataManager → EntryParser/Serializer → 
 - **Plugin Core** (`main.ts`): Lifecycle, view registration, settings, file watching
 - **Data Layer** (`src/data/`):
   - `DataManager.ts` - CRUD operations, caching, overlap detection
-  - `EntryParser.ts` - Markdown → TimeEntry parsing
-  - `EntrySerializer.ts` - TimeEntry → Markdown
+  - `TableParser.ts` - Markdown table ↔ TimeEntry parsing/serialization (uses unified/remark/mdast)
 - **UI Layer** (`src/views/`, `src/modals/`):
   - `TimelineView.ts` - Calendar with drag-to-create/move/resize
   - `EntryModal.ts` - Entry creation/editing form
@@ -37,10 +36,14 @@ User → TimelineView/EntryModal → DataManager → EntryParser/Serializer → 
 
 ### Markdown Entry Format
 ```markdown
-## 2024-01-15
-- [start:: 2024-01-15 09:15] [end:: 2024-01-15 10:40] Description [project:: name] [tags:: a, b] [[linked note]]
+# 2024-01
+
+| Start            | End              | Description      | Client | Project | Activity | Notes          |
+|------------------|------------------|------------------|--------|---------|----------|----------------|
+| 2024-01-15 09:15 | 2024-01-15 10:40 | Morning standup  | acme   | proj1   | meeting  | [[notes/mtg]]  |
+| 2024-01-15 14:00 | 2024-01-15 17:00 | Feature work     | acme   | proj1   | dev      |                |
 ```
-Uses DataView-compatible inline field syntax `[key:: value]`.
+One table per month file. Uses standard GFM markdown tables, parsed via mdast/remark for robust handling of edge cases (escaped pipes, code spans, etc.).
 
 ### Caching
 - In-memory Map<monthStr, ParsedMonth> cache

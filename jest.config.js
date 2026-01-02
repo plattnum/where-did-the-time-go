@@ -10,9 +10,15 @@ module.exports = {
         '!src/**/*.d.ts',
     ],
     coverageDirectory: 'coverage',
-    // Don't try to transform obsidian module
+    // Transform ESM modules (unified/remark ecosystem)
+    transform: {
+        '^.+\\.tsx?$': ['ts-jest', {
+            useESM: true,
+        }],
+    },
+    extensionsToTreatAsEsm: ['.ts'],
     transformIgnorePatterns: [
-        'node_modules/(?!obsidian)'
+        'node_modules/(?!(unified|remark-parse|remark-gfm|remark-stringify|mdast-util-gfm|mdast-util-gfm-table|mdast-util-to-markdown|mdast-util-from-markdown|micromark|micromark-util-.*|micromark-extension-gfm.*|unist-util-.*|bail|trough|vfile|vfile-message|devlop|ccount|escape-string-regexp|markdown-table|zwitch|longest-streak)/)'
     ],
     // Mock the obsidian module
     moduleNameMapper: {

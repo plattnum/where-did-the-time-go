@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { VIEW_TYPE_TIMELINE, TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
-import { EntryParser } from '../data/EntryParser';
+import { TableParser } from '../data/TableParser';
 import { EntryModal, EntryModalData } from '../modals/EntryModal';
 
 /**
@@ -340,14 +340,14 @@ export class TimelineView extends ItemView {
         // Determine which months need loading
         // We need to include both the start month and end month
         const months = new Set<string>();
-        const startMonth = EntryParser.getMonthString(startDate);
-        const endMonth = EntryParser.getMonthString(endDate);
+        const startMonth = TableParser.getMonthString(startDate);
+        const endMonth = TableParser.getMonthString(endDate);
 
         const current = new Date(startDate);
         current.setDate(1); // Start from first of month to iterate cleanly
 
-        while (EntryParser.getMonthString(current) <= endMonth) {
-            months.add(EntryParser.getMonthString(current));
+        while (TableParser.getMonthString(current) <= endMonth) {
+            months.add(TableParser.getMonthString(current));
             current.setMonth(current.getMonth() + 1);
         }
 
@@ -400,7 +400,7 @@ export class TimelineView extends ItemView {
      * Render a single day with ruler and entries
      */
     private renderDay(date: Date, topOffset: number): void {
-        const dateStr = EntryParser.getDateString(date);
+        const dateStr = TableParser.getDateString(date);
         const isToday = this.isToday(date);
 
         // Day header
@@ -709,8 +709,8 @@ export class TimelineView extends ItemView {
 
         const newStartTime = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`;
         const newEndTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
-        const newDateStr = EntryParser.getDateString(newDate);
-        const endDateStr = EntryParser.getDateString(endDate);
+        const newDateStr = TableParser.getDateString(newDate);
+        const endDateStr = TableParser.getDateString(endDate);
 
         // Build full datetime strings (required by updateEntry)
         const fullStart = `${newDateStr} ${newStartTime}`;

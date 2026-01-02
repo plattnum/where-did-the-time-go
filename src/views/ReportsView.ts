@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport, ClientReport } from '../types';
 import { DataManager } from '../data/DataManager';
-import { EntryParser } from '../data/EntryParser';
+import { TableParser } from '../data/TableParser';
 
 /**
  * Reports view showing time breakdowns by project and tag
@@ -162,7 +162,7 @@ export class ReportsView extends ItemView {
         const startLabel = this.customDateInputs.createEl('label', { text: 'From: ' });
         const startInput = startLabel.createEl('input', { type: 'date' });
         if (this.customStartDate) {
-            startInput.value = EntryParser.getDateString(this.customStartDate);
+            startInput.value = TableParser.getDateString(this.customStartDate);
         }
         startInput.addEventListener('change', (e) => {
             this.customStartDate = new Date((e.target as HTMLInputElement).value);
@@ -172,7 +172,7 @@ export class ReportsView extends ItemView {
         const endLabel = this.customDateInputs.createEl('label', { text: 'To: ' });
         const endInput = endLabel.createEl('input', { type: 'date' });
         if (this.customEndDate) {
-            endInput.value = EntryParser.getDateString(this.customEndDate);
+            endInput.value = TableParser.getDateString(this.customEndDate);
         }
         endInput.addEventListener('change', (e) => {
             this.customEndDate = new Date((e.target as HTMLInputElement).value);
