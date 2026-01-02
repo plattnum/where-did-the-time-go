@@ -13,7 +13,7 @@ export class TimelineView extends ItemView {
 
     // Scroll state
     private centerDate: Date = new Date();
-    private visibleDaysBuffer: number = 7; // Days to render before/after visible area
+    private visibleDaysBuffer: number = 1; // Days to render before/after visible area (prev day, today, next day)
     private loadedMonths: Set<string> = new Set();
     private entriesByDate: Map<string, TimeEntry[]> = new Map();
 
@@ -233,8 +233,8 @@ export class TimelineView extends ItemView {
         // Update the visible date label
         this.updateVisibleDateLabel();
 
-        // Check if we're near the edges and need to re-center
-        const edgeThreshold = this.dayHeight * 3; // 3 days from edge
+        // Edge threshold scales with buffer size (max 3 days, min half a day)
+        const edgeThreshold = this.dayHeight * Math.max(0.5, Math.min(this.visibleDaysBuffer, 3));
 
         if (scrollTop < edgeThreshold) {
             // Near top - shift center date backwards

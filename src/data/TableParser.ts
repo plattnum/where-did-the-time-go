@@ -339,11 +339,12 @@ export class TableParser {
 
     /**
      * Generate a complete month file with header and table
+     * Table is wrapped in %% comments so Obsidian doesn't render it
      */
     static generateMonthFile(entries: TimeEntry[], monthStr: string): string {
         const header = this.getFileHeader();
         const table = this.generateTable(entries);
-        return `${header}\n# ${monthStr}\n\n${table}`;
+        return `${header}\n# ${monthStr}\n\n%%\n${table}%%\n`;
     }
 
     /**

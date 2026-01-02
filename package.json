@@ -9,7 +9,8 @@
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
-    "version": "node version-bump.mjs && git add manifest.json versions.json"
+    "version": "node version-bump.mjs && git add manifest.json versions.json",
+    "generate:stress-test": "node scripts/generate-stress-test.js"
   },
   "keywords": [
     "obsidian",
