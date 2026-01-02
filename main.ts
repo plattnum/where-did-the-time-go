@@ -159,8 +159,8 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
         const timelineLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TIMELINE);
         for (const leaf of timelineLeaves) {
             const view = leaf.view as TimelineView;
-            if (view && view.refresh) {
-                view.refresh();
+            if (view && view.updateSettings) {
+                view.updateSettings(this.settings);
             }
         }
 
@@ -168,8 +168,8 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
         const reportsLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_REPORTS);
         for (const leaf of reportsLeaves) {
             const view = leaf.view as ReportsView;
-            if (view && view.refresh) {
-                view.refresh();
+            if (view && view.updateSettings) {
+                view.updateSettings(this.settings);
             }
         }
     }

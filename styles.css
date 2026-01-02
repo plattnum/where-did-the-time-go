@@ -232,15 +232,39 @@
 
 /* Linked note icon for compact cards */
 .entry-linked-icon {
-    margin-left: auto;
     font-size: 12px;
     cursor: pointer;
     opacity: 0.7;
     transition: opacity 0.15s ease;
+    flex-shrink: 0;
 }
 
 .entry-linked-icon:hover {
     opacity: 1;
+}
+
+/* Edit icon (pencil) */
+.entry-edit-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    padding: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.entry-edit-icon:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--tt-accent) 20%, transparent);
+    color: var(--tt-accent);
+}
+
+.entry-edit-icon svg {
+    display: block;
 }
 
 /* Description row */
@@ -254,48 +278,79 @@
     min-height: 0;
 }
 
-/* Meta row (project, tags) - expanded cards only */
-.entry-card-meta {
+/* Powerline bar - Client >> Project >> Activity */
+.entry-powerline {
+    display: flex;
+    align-items: stretch;
+    margin: 4px -10px -6px -10px; /* Extend to card edges */
+    margin-left: -14px; /* Account for left border */
+    overflow: hidden;
+    border-radius: 0 0 var(--tt-radius) var(--tt-radius);
+    font-size: 11px;
+    min-height: 22px;
+}
+
+.powerline-segment {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-}
-
-.entry-chip {
-    font-size: 12px;
-    padding: 3px 10px;
-    border-radius: 999px;
-    background: var(--tt-bg-secondary);
-    border: 1px solid var(--tt-border);
-    color: var(--tt-text-muted);
-}
-
-.client-chip {
-    background: color-mix(in srgb, var(--tt-accent) 15%, transparent);
-    border-color: color-mix(in srgb, var(--tt-accent) 30%, transparent);
-    color: var(--tt-accent);
-    font-weight: 600;
-}
-
-.project-chip {
-    background: color-mix(in srgb, var(--project-color, var(--tt-accent)) 15%, transparent);
-    border-color: color-mix(in srgb, var(--project-color, var(--tt-accent)) 30%, transparent);
-    color: var(--project-color, var(--tt-accent));
-}
-
-.tag-chip {
-    background: color-mix(in srgb, var(--tag-color, #808080) 15%, transparent);
-    border-color: color-mix(in srgb, var(--tag-color, #808080) 30%, transparent);
-    color: var(--tag-color, var(--tt-text-muted));
-}
-
-.activity-chip {
-    background: color-mix(in srgb, var(--activity-color, #f59e0b) 15%, transparent);
-    border-color: color-mix(in srgb, var(--activity-color, #f59e0b) 30%, transparent);
-    color: var(--activity-color, var(--tt-text-muted));
+    padding: 3px 12px 3px 16px;
+    background: var(--segment-color, var(--tt-bg-secondary));
+    color: white;
     font-weight: 500;
+    white-space: nowrap;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+/* First segment - no left padding adjustment needed */
+.powerline-segment:first-child {
+    padding-left: 12px;
+}
+
+/* Angled separator using CSS triangle */
+.powerline-segment::after {
+    content: '';
+    position: absolute;
+    right: -10px;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 11px 0 11px 10px;
+    border-color: transparent transparent transparent var(--segment-color, var(--tt-bg-secondary));
+    z-index: 1;
+}
+
+/* Last segment - no arrow needed */
+.powerline-segment:last-child::after {
+    display: none;
+}
+
+/* Last segment extends to fill remaining space */
+.powerline-segment:last-child {
+    flex: 1;
+    padding-right: 12px;
+}
+
+/* Client segment - accent color */
+.powerline-client {
+    --segment-color: var(--tt-accent);
+    z-index: 3;
+}
+
+/* Project segment - uses project color */
+.powerline-project {
+    --segment-color: #6366f1;
+    z-index: 2;
+    padding-left: 20px; /* Extra padding for arrow overlap */
+}
+
+/* Activity segment - muted color */
+.powerline-activity {
+    --segment-color: #64748b;
+    z-index: 1;
+    padding-left: 20px;
 }
 
 /* Note row - expanded cards only */

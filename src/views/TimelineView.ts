@@ -43,7 +43,6 @@ export class TimelineView extends ItemView {
     private entryDragStartY: number = 0;
     private entryDragOriginalTop: number = 0;
     private entryDragOriginalHeight: number = 0;
-    private entryDragDidMove: boolean = false; // Track if actual drag happened
     private entryDragTooltipEl: HTMLElement | null = null;
 
     constructor(
@@ -95,20 +94,29 @@ export class TimelineView extends ItemView {
     updateSettings(settings: TimeTrackerSettings): void {
         this.settings = settings;
         this.dayHeight = 24 * this.settings.hourHeight;
-        this.render();
+        // Use refresh() to preserve scroll position (if already rendered)
+        if (this.timelineContainer) {
+            this.refresh();
+        }
     }
 
     async refresh(): Promise<void> {
         console.log('refresh: clearing caches and re-rendering');
-        // Save current scroll position relative to center date
-        const savedCenterDate = new Date(this.centerDate);
+        // Save current scroll position
+        const savedScrollTop = this.timelineContainer?.scrollTop ?? 0;
 
+        // Clear data caches but keep centerDate
         this.loadedMonths.clear();
         this.entriesByDate.clear();
-        await this.render();
 
-        // Restore scroll position to where user was
-        this.scrollToDate(savedCenterDate);
+        // Re-render entries only (not full container rebuild)
+        await this.loadVisibleRange();
+        this.renderVisibleDays();
+
+        // Restore exact scroll position
+        if (this.timelineContainer) {
+            this.timelineContainer.scrollTop = savedScrollTop;
+        }
     }
 
     /**
@@ -504,7 +512,7 @@ export class TimelineView extends ItemView {
         card.setAttribute('title', tooltipParts.join('\n'));
 
         if (isVeryCompact) {
-            // Single-line layout: Time | Duration | Description | Note Icon
+            // Single-line layout: Time | Duration | Description | Note Icon | Edit Icon
             const header = card.createDiv('entry-card-header');
 
             const timeInfo = header.createSpan('entry-card-time');
@@ -517,7 +525,7 @@ export class TimelineView extends ItemView {
             const desc = header.createSpan('entry-card-inline-desc');
             desc.setText(entry.description || '');
 
-            // Note icon at end
+            // Note icon
             if (entry.linkedNote) {
                 const noteIcon = header.createSpan('entry-linked-icon');
                 noteIcon.setText('📄');
@@ -527,6 +535,15 @@ export class TimelineView extends ItemView {
                     this.openLinkedNote(entry.linkedNote!);
                 });
             }
+
+            // Edit icon (pencil) at end
+            const editIcon = header.createSpan('entry-edit-icon');
+            editIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+            editIcon.setAttribute('title', 'Edit entry');
+            editIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openEditModal(entry);
+            });
         } else {
             // Multi-row layout
             const header = card.createDiv('entry-card-header');
@@ -546,30 +563,43 @@ export class TimelineView extends ItemView {
                 });
             }
 
+            // Edit icon (pencil) in header
+            const editIcon = header.createSpan('entry-edit-icon');
+            editIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+            editIcon.setAttribute('title', 'Edit entry');
+            editIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openEditModal(entry);
+            });
+
             // Description row
             const descRow = card.createDiv('entry-card-description');
             descRow.setText(entry.description || '(No description)');
 
-            // Expanded layout: Meta row + Linked note row
+            // Expanded layout: Powerline bar + Linked note row
             if (!isCompact) {
-                const meta = card.createDiv('entry-card-meta');
+                // Powerline-style bar at bottom: Client >> Project >> Activity
+                const powerline = card.createDiv('entry-powerline');
 
-                // Client (always shown - it's required)
-                const clientChip = meta.createSpan('entry-chip client-chip');
-                clientChip.setText(entry.client);
+                // Client segment (always shown - required)
+                const clientSeg = powerline.createSpan('powerline-segment powerline-client');
+                clientSeg.setText(this.getClientName(entry.client));
+                clientSeg.style.setProperty('--segment-color', this.getClientColor(entry.client));
 
+                // Project segment (optional)
                 if (entry.project) {
-                    const chip = meta.createSpan('entry-chip project-chip');
-                    chip.setText(entry.project);
+                    const projectSeg = powerline.createSpan('powerline-segment powerline-project');
+                    projectSeg.setText(this.getProjectName(entry.project));
+                    projectSeg.style.setProperty('--segment-color', this.getProjectColor(entry.project));
                 }
 
+                // Activity segment (optional)
                 if (entry.activity) {
-                    const chip = meta.createSpan('entry-chip activity-chip');
-                    chip.setText(entry.activity);
-                    // Apply activity color if defined
+                    const activitySeg = powerline.createSpan('powerline-segment powerline-activity');
+                    activitySeg.setText(this.getActivityName(entry.activity));
                     const activityColor = this.getActivityColor(entry.activity);
                     if (activityColor) {
-                        chip.style.setProperty('--activity-color', activityColor);
+                        activitySeg.style.setProperty('--segment-color', activityColor);
                     }
                 }
 
@@ -593,22 +623,13 @@ export class TimelineView extends ItemView {
             this.startEntryDrag(e, entry, card, 'resize-bottom');
         });
 
-        // Mousedown on card body for move (but not on resize handles)
+        // Mousedown on card body for move (but not on resize handles or edit icon)
         card.addEventListener('mousedown', (e) => {
             const target = e.target as HTMLElement;
             if (target.classList.contains('entry-resize-handle')) return;
+            if (target.closest('.entry-edit-icon')) return;
             e.stopPropagation();
             this.startEntryDrag(e, entry, card, 'move');
-        });
-
-        // Click to edit (only if we didn't drag)
-        card.addEventListener('click', (e) => {
-            if (this.entryDragDidMove) {
-                this.entryDragDidMove = false;
-                return;
-            }
-            e.stopPropagation();
-            this.openEditModal(entry);
         });
     }
 
@@ -641,11 +662,6 @@ export class TimelineView extends ItemView {
         if (this.entryDragMode === 'none' || !this.entryDragCard) return;
 
         const deltaY = e.clientY - this.entryDragStartY;
-
-        // Mark that actual dragging occurred
-        if (Math.abs(deltaY) > 3) {
-            this.entryDragDidMove = true;
-        }
 
         if (this.entryDragMode === 'move') {
             // Move the whole card
@@ -763,7 +779,6 @@ export class TimelineView extends ItemView {
         this.entryDragMode = 'none';
         this.entryDragEntry = null;
         this.entryDragCard = null;
-        // Note: Don't reset entryDragDidMove here - it's reset in the click handler
     }
 
     /**
@@ -902,6 +917,38 @@ export class TimelineView extends ItemView {
     private getActivityColor(activityName: string): string | undefined {
         const activity = this.settings.activities.find(a => a.name === activityName || a.id === activityName);
         return activity?.color;
+    }
+
+    /**
+     * Get display name for a client from settings
+     */
+    private getClientName(clientId: string): string {
+        const client = this.settings.clients.find(c => c.id === clientId || c.name === clientId);
+        return client?.name || clientId;
+    }
+
+    /**
+     * Get color for a client from settings
+     */
+    private getClientColor(clientId: string): string {
+        const client = this.settings.clients.find(c => c.id === clientId || c.name === clientId);
+        return client?.color || '#4f46e5';
+    }
+
+    /**
+     * Get display name for a project from settings
+     */
+    private getProjectName(projectId: string): string {
+        const project = this.settings.projects.find(p => p.id === projectId || p.name === projectId);
+        return project?.name || projectId;
+    }
+
+    /**
+     * Get display name for an activity from settings
+     */
+    private getActivityName(activityId: string): string {
+        const activity = this.settings.activities.find(a => a.id === activityId || a.name === activityId);
+        return activity?.name || activityId;
     }
 
     /**
