@@ -249,32 +249,10 @@ export class EntryModal extends Modal {
         descSetting.addTextArea((text) => {
             text.setValue(this.descriptionValue);
             text.setPlaceholder('What did you work on?');
-            text.inputEl.rows = 2;
-
-            text.inputEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') e.preventDefault();
-            });
-
-            text.inputEl.addEventListener('paste', (e) => {
-                e.preventDefault();
-                const pastedText = e.clipboardData?.getData('text') || '';
-                let cleanedText = pastedText.replace(/[\r\n]+/g, ' ').trim();
-                const input = e.target as HTMLTextAreaElement;
-                const start = input.selectionStart;
-                const end = input.selectionEnd;
-                const current = input.value;
-                let newValue = current.substring(0, start) + cleanedText + current.substring(end);
-                if (maxLen > 0 && newValue.length > maxLen) {
-                    newValue = newValue.substring(0, maxLen);
-                }
-                input.value = newValue;
-                input.selectionStart = input.selectionEnd = Math.min(start + cleanedText.length, newValue.length);
-                this.descriptionValue = newValue;
-                updateCounter(newValue.length);
-            });
+            text.inputEl.rows = 3;
 
             text.onChange((value) => {
-                let cleaned = value.replace(/[\r\n]+/g, ' ');
+                let cleaned = value;
                 if (maxLen > 0 && cleaned.length > maxLen) {
                     cleaned = cleaned.substring(0, maxLen);
                     text.setValue(cleaned);

@@ -477,21 +477,17 @@ export class TimelineView extends ItemView {
         card.dataset.entryDate = entry.date;
         card.dataset.entryLine = String(entry.lineNumber);
 
-        // Project color
-        const projectColor = this.getProjectColor(entry.project);
-        card.style.setProperty('--project-color', projectColor);
+        // Client color for left edge (ties in with powerline)
+        const clientColor = this.getClientColor(entry.client);
+        card.style.setProperty('--client-color', clientColor);
 
         // Layout tiers based on duration:
-        // - Very compact (≤30 min): Single line with description in header
-        // - Compact (31-60 min): Two rows but no meta
-        // - Expanded (>60 min): Full layout with meta and note row
-        const isVeryCompact = totalDurationMinutes <= 30;
-        const isCompact = height < 80;
+        // - Very compact (≤15 min): Single line header only, no powerline
+        // - Normal (>15 min): Header + description + powerline
+        const isVeryCompact = totalDurationMinutes <= 15;
 
         if (isVeryCompact) {
             card.addClass('is-very-compact');
-        } else if (isCompact) {
-            card.addClass('is-compact');
         }
 
         // Resize handle - top
@@ -512,7 +508,7 @@ export class TimelineView extends ItemView {
         card.setAttribute('title', tooltipParts.join('\n'));
 
         if (isVeryCompact) {
-            // Single-line layout: Time | Duration | Description | Note Icon | Edit Icon
+            // Single-line layout: Time | Duration | Note Icon | Edit Icon
             const header = card.createDiv('entry-card-header');
 
             const timeInfo = header.createSpan('entry-card-time');
@@ -521,14 +517,10 @@ export class TimelineView extends ItemView {
             const duration = header.createSpan('entry-card-duration');
             duration.setText(this.formatDuration(entry.durationMinutes));
 
-            // Description inline (will truncate with CSS)
-            const desc = header.createSpan('entry-card-inline-desc');
-            desc.setText(entry.description || '');
-
-            // Note icon
+            // Note icon (if linked)
             if (entry.linkedNote) {
                 const noteIcon = header.createSpan('entry-linked-icon');
-                noteIcon.setText('📄');
+                noteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
                 noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
                 noteIcon.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -552,10 +544,10 @@ export class TimelineView extends ItemView {
             const duration = header.createSpan('entry-card-duration');
             duration.setText(this.formatDuration(entry.durationMinutes));
 
-            // Note icon in header for compact cards
-            if (isCompact && entry.linkedNote) {
+            // Note icon in header (all layouts)
+            if (entry.linkedNote) {
                 const noteIcon = header.createSpan('entry-linked-icon');
-                noteIcon.setText('📄');
+                noteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
                 noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
                 noteIcon.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -572,46 +564,38 @@ export class TimelineView extends ItemView {
                 this.openEditModal(entry);
             });
 
-            // Description row
+            // Description row (supports multiline via <br>)
             const descRow = card.createDiv('entry-card-description');
-            descRow.setText(entry.description || '(No description)');
+            const descText = entry.description || '(No description)';
+            // Escape HTML but preserve line breaks
+            descRow.innerHTML = descText
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>');
 
-            // Expanded layout: Powerline bar + Linked note row
-            if (!isCompact) {
-                // Powerline-style bar at bottom: Client >> Project >> Activity
-                const powerline = card.createDiv('entry-powerline');
+            // Powerline-style bar at bottom: Client >> Project >> Activity
+            const powerline = card.createDiv('entry-powerline');
 
-                // Client segment (always shown - required)
-                const clientSeg = powerline.createSpan('powerline-segment powerline-client');
-                clientSeg.setText(this.getClientName(entry.client));
-                clientSeg.style.setProperty('--segment-color', this.getClientColor(entry.client));
+            // Client segment (always shown - required)
+            const clientSeg = powerline.createSpan('powerline-segment powerline-client');
+            clientSeg.setText(this.getClientName(entry.client));
+            clientSeg.style.setProperty('--segment-color', this.getClientColor(entry.client));
 
-                // Project segment (optional)
-                if (entry.project) {
-                    const projectSeg = powerline.createSpan('powerline-segment powerline-project');
-                    projectSeg.setText(this.getProjectName(entry.project));
-                    projectSeg.style.setProperty('--segment-color', this.getProjectColor(entry.project));
-                }
+            // Project segment (optional)
+            if (entry.project) {
+                const projectSeg = powerline.createSpan('powerline-segment powerline-project');
+                projectSeg.setText(this.getProjectName(entry.project));
+                projectSeg.style.setProperty('--segment-color', this.getProjectColor(entry.project));
+            }
 
-                // Activity segment (optional)
-                if (entry.activity) {
-                    const activitySeg = powerline.createSpan('powerline-segment powerline-activity');
-                    activitySeg.setText(this.getActivityName(entry.activity));
-                    const activityColor = this.getActivityColor(entry.activity);
-                    if (activityColor) {
-                        activitySeg.style.setProperty('--segment-color', activityColor);
-                    }
-                }
-
-                // Linked note on its own row for expanded cards
-                if (entry.linkedNote) {
-                    const noteRow = card.createDiv('entry-card-note-row');
-                    const noteLink = noteRow.createSpan('entry-linked-note');
-                    noteLink.setText(`📄 ${this.getNoteName(entry.linkedNote)}`);
-                    noteLink.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.openLinkedNote(entry.linkedNote!);
-                    });
+            // Activity segment (optional)
+            if (entry.activity) {
+                const activitySeg = powerline.createSpan('powerline-segment powerline-activity');
+                activitySeg.setText(this.getActivityName(entry.activity));
+                const activityColor = this.getActivityColor(entry.activity);
+                if (activityColor) {
+                    activitySeg.style.setProperty('--segment-color', activityColor);
                 }
             }
         }

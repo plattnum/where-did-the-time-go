@@ -174,7 +174,7 @@ export class TableParser {
             date,
             start,
             end,
-            description: getValue('description'),
+            description: this.parseDescription(getValue('description')),
             client,
             project: getValue('project') || undefined,
             activity: getValue('activity') || undefined,
@@ -297,7 +297,7 @@ export class TableParser {
                 children: [
                     this.createCell(this.formatDateTime(entry.startDateTime)),
                     this.createCell(this.formatDateTime(entry.endDateTime)),
-                    this.createCell(entry.description),
+                    this.createCell(this.serializeDescription(entry.description)),
                     this.createCell(entry.client),
                     this.createCell(entry.project || ''),
                     this.createCell(entry.activity || ''),
@@ -335,6 +335,20 @@ export class TableParser {
             type: 'tableCell',
             children: [{ type: 'text', value: text }],
         };
+    }
+
+    /**
+     * Convert newlines to <br> for table storage
+     */
+    private static serializeDescription(description: string): string {
+        return description.replace(/\n/g, '<br>');
+    }
+
+    /**
+     * Convert <br> back to newlines for display
+     */
+    static parseDescription(description: string): string {
+        return description.replace(/<br\s*\/?>/gi, '\n');
     }
 
     /**
