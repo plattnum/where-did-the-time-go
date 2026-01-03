@@ -120,6 +120,13 @@ export class ReportsView extends ItemView {
 
         const controls = header.createDiv('reports-header-controls');
 
+        // Export CSV button
+        const exportBtn = controls.createEl('button', {
+            text: 'Export CSV',
+            cls: 'reports-btn',
+        });
+        exportBtn.addEventListener('click', () => this.exportToCSV());
+
         // Refresh button
         const refreshBtn = controls.createEl('button', {
             text: 'Refresh',
@@ -883,5 +890,102 @@ export class ReportsView extends ItemView {
         if (activityName === '(No Activity)') return '#666';
         const activity = this.settings.activities.find(a => a.name === activityName || a.id === activityName);
         return activity?.color || '#f59e0b';
+    }
+
+    /**
+     * Export current report data to CSV
+     */
+    private async exportToCSV(): Promise<void> {
+        const { start, end } = this.getDateRange(this.selectedPreset);
+
+        // Load entries for the date range
+        const entries = await this.dataManager.loadDateRange(start, end);
+
+        if (entries.length === 0) {
+            console.log('ReportsView: No entries to export');
+            return;
+        }
+
+        // Generate CSV content
+        const csv = this.generateCSV(entries);
+
+        // Create filename with date range
+        const startStr = TableParser.getDateString(start);
+        const endStr = TableParser.getDateString(end);
+        const filename = `time-entries-${startStr}-to-${endStr}.csv`;
+
+        // Trigger download
+        this.downloadCSV(csv, filename);
+    }
+
+    /**
+     * Generate CSV content from time entries
+     */
+    private generateCSV(entries: TimeEntry[]): string {
+        // CSV headers - Start/End include full datetime since entries can span days
+        const headers = ['Start', 'End', 'Duration', 'Description', 'Client', 'Project', 'Activity', 'Notes'];
+
+        // Sort entries by date/time
+        const sorted = [...entries].sort((a, b) =>
+            a.startDateTime.getTime() - b.startDateTime.getTime()
+        );
+
+        // Build rows
+        const rows: string[][] = [headers];
+
+        for (const entry of sorted) {
+            // Get client name from settings
+            const client = this.settings.clients.find(c => c.id === entry.client);
+            const clientName = client?.name || entry.client;
+
+            const row = [
+                TableParser.formatDateTime(entry.startDateTime),
+                TableParser.formatDateTime(entry.endDateTime),
+                this.formatDuration(entry.durationMinutes),
+                entry.description || '',
+                clientName,
+                entry.project || '',
+                entry.activity || '',
+                entry.linkedNote || '',
+            ];
+            rows.push(row);
+        }
+
+        // Convert to CSV string with proper escaping
+        return rows.map(row =>
+            row.map(cell => this.escapeCSVCell(cell)).join(',')
+        ).join('\n');
+    }
+
+    /**
+     * Escape a cell value for CSV format
+     */
+    private escapeCSVCell(value: string): string {
+        // If value contains comma, quote, or newline, wrap in quotes and escape quotes
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+            return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+    }
+
+    /**
+     * Trigger browser download of CSV file
+     */
+    private downloadCSV(content: string, filename: string): void {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+
+        console.log('ReportsView: Exported CSV -', filename);
     }
 }
