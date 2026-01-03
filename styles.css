@@ -123,13 +123,11 @@
     margin-right: 16px;
     /* 15-minute grid lines via CSS gradient - no extra DOM elements */
     --quarter-height: calc(var(--tt-hour-height, 60px) / 4);
-    background-image: repeating-linear-gradient(
-        to bottom,
-        transparent 0px,
-        transparent calc(var(--quarter-height) - 1px),
-        color-mix(in srgb, var(--tt-border) 40%, transparent) calc(var(--quarter-height) - 1px),
-        color-mix(in srgb, var(--tt-border) 40%, transparent) var(--quarter-height)
-    );
+    background-image: repeating-linear-gradient(to bottom,
+            transparent 0px,
+            transparent calc(var(--quarter-height) - 1px),
+            color-mix(in srgb, var(--tt-border) 40%, transparent) calc(var(--quarter-height) - 1px),
+            color-mix(in srgb, var(--tt-border) 40%, transparent) var(--quarter-height));
     background-size: 100% var(--quarter-height);
 }
 
@@ -143,29 +141,55 @@
     opacity: 0.5;
 }
 
-/* Entry cards */
+/* ==========================================================================
+   ENTRY CARD STYLES (v5)
+   Design: 200px/hr, Header + Body + Footer, responsive by duration
+   ========================================================================== */
+
 .timeline-entry-card {
     position: absolute;
     left: 0;
     right: 0;
-    background: var(--tt-card-bg);
+    background: var(--background-primary);
     border-radius: var(--tt-radius);
     border: 1px solid var(--tt-border);
     padding: 0;
     cursor: grab;
-    transition: all 0.15s ease;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
     overflow: hidden;
-    box-shadow: var(--tt-shadow);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     z-index: 5;
-
-    /* Flexbox layout for content */
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+}
+
+/* Left Color Bar (4px, client color) */
+.timeline-entry-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--client-color, var(--tt-accent));
+    z-index: 2;
+    border-radius: var(--tt-radius) 0 0 var(--tt-radius);
 }
 
 .timeline-entry-card:hover {
     border-color: var(--tt-border-hover);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    z-index: 10;
+}
+
+/* Dragging state */
+.timeline-entry-card.is-dragging {
+    opacity: 0.85;
+    cursor: grabbing;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    z-index: 100;
+    transition: none !important;
 }
 
 /* Resize handles */
@@ -175,268 +199,241 @@
     right: 0;
     height: 8px;
     cursor: ns-resize;
-    z-index: 2;
-}
-
-.entry-resize-top {
-    top: 0;
-    border-radius: var(--tt-radius) var(--tt-radius) 0 0;
+    z-index: 3;
 }
 
 .entry-resize-bottom {
     bottom: 0;
-    border-radius: 0 0 var(--tt-radius) var(--tt-radius);
 }
 
 .entry-resize-handle:hover {
-    background: color-mix(in srgb, var(--tt-accent) 30%, transparent);
+    background: color-mix(in srgb, var(--tt-accent) 25%, transparent);
 }
 
-/* Dragging state */
-.timeline-entry-card.is-dragging {
-    opacity: 0.8;
-    cursor: grabbing;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    z-index: 100;
-    transition: none !important;
-    /* Disable transitions during drag for smooth performance */
-}
+/* ==========================================================================
+   HEADER SECTION
+   ========================================================================== */
 
-/* Header row: Colored band with time + duration */
 .entry-card-header {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
+    min-height: 28px;
+    padding: 6px 10px 6px 14px;
     gap: 8px;
-    flex-shrink: 0;
-    background: var(--client-color, var(--tt-accent));
-    padding: 6px 10px;
-    border-radius: var(--tt-radius) var(--tt-radius) 0 0;
+    /* Gradient: client color 10% on left fading to card bg at 40% */
+    background: linear-gradient(
+        to right,
+        color-mix(in srgb, var(--client-color, var(--tt-accent)) 10%, var(--background-primary)),
+        var(--background-primary) 40%
+    );
 }
 
-.entry-card-time {
-    font-size: 12px;
+/* Time text */
+.entry-time-text {
+    font-size: 13px;
     font-weight: 600;
-    color: white;
+    color: var(--text-normal);
     white-space: nowrap;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
 }
 
-.entry-card-duration {
+/* Duration badge (pill) */
+.entry-duration-badge {
     font-size: 10px;
-    color: white;
-    background: rgba(255, 255, 255, 0.2);
-    padding: 1px 6px;
-    border-radius: 4px;
+    font-weight: 700;
+    background: color-mix(in srgb, var(--client-color, var(--tt-accent)) 20%, var(--background-primary));
+    color: var(--client-color, var(--tt-accent));
+    padding: 2px 8px;
+    border-radius: 99px;
     white-space: nowrap;
-}
-
-/* Linked note icon - SVG style like edit icon */
-.entry-linked-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    color: white;
-    transition: all 0.15s ease;
     flex-shrink: 0;
 }
 
-.entry-linked-icon:hover {
-    background: rgba(255, 255, 255, 0.25);
-}
-
-.entry-linked-icon svg {
-    display: block;
-}
-
-/* Edit icon (pencil) - in colored header */
-.entry-edit-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+/* Icons container (right-aligned) */
+.entry-header-icons {
+    display: flex;
+    gap: 6px;
     margin-left: auto;
-    padding: 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    color: white;
-    transition: all 0.15s ease;
     flex-shrink: 0;
+    align-items: center;
 }
 
-.entry-edit-icon:hover {
-    background: rgba(255, 255, 255, 0.25);
+.entry-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.15s ease;
 }
 
-.entry-edit-icon svg {
+.entry-icon:hover {
+    color: var(--text-normal);
+}
+
+.entry-icon svg {
     display: block;
 }
 
-/* Description row - truncate with ellipsis to prevent overflow into powerline */
-.entry-card-description {
-    font-size: 12px;
-    color: var(--tt-text);
-    line-height: 1.4;
-    word-wrap: break-word;
+/* ==========================================================================
+   BODY SECTION (30m+ only)
+   ========================================================================== */
+
+.entry-card-body {
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
-    padding: 6px 10px 4px 10px;
-    /* Line clamp with ellipsis */
+    padding: 4px 10px 4px 14px;
+}
+
+.entry-body-desc {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-normal);
     display: -webkit-box;
     -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Line clamp by duration */
+.entry-30m .entry-body-desc {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+
+.entry-45m .entry-body-desc {
     -webkit-line-clamp: 4;
     line-clamp: 4;
 }
 
-/* Powerline bar - Client >> Project >> Activity */
-.entry-powerline {
-    display: flex;
-    align-items: stretch;
-    margin: 4px 10px 8px 10px;
-    overflow: hidden;
-    border-radius: 4px;
-    font-size: 11px;
-    min-height: 22px;
+.entry-60m .entry-body-desc {
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
 }
 
-.powerline-segment {
+/* ==========================================================================
+   FOOTER / POWERLINE SECTION (30m+ only)
+   ========================================================================== */
+
+.entry-card-footer {
+    flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+    background: var(--background-secondary-alt, var(--background-secondary));
+    min-height: 24px;
+    margin-top: auto;
+}
+
+/* Powerline segments with clip-path chevrons */
+.powerline-seg {
     position: relative;
     display: flex;
     align-items: center;
-    padding: 3px 12px 3px 16px;
-    background: var(--segment-color, var(--tt-bg-secondary));
+    padding: 4px 16px 4px 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
     color: white;
-    font-weight: 500;
     white-space: nowrap;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    line-height: 1;
+    background: var(--seg-color, var(--tt-accent));
+    /* Chevron shape: notch on left, point on right */
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%);
+    margin-left: -10px;
 }
 
-/* First segment - no left padding adjustment needed */
-.powerline-segment:first-child {
-    padding-left: 12px;
+/* First segment: no left notch */
+.powerline-seg:first-child {
+    padding-left: 14px;
+    margin-left: 0;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
+    border-radius: 0 0 0 var(--tt-radius);
 }
 
-/* Angled separator using CSS triangle */
-.powerline-segment::after {
-    content: '';
-    position: absolute;
-    right: -10px;
-    top: 0;
-    bottom: 0;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 11px 0 11px 10px;
-    border-color: transparent transparent transparent var(--segment-color, var(--tt-bg-secondary));
-    z-index: 1;
+/* Last segment: no right point, rounded corner */
+.powerline-seg:last-child {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%);
+    padding-right: 14px;
+    border-radius: 0 0 var(--tt-radius) 0;
 }
 
-/* Last segment - no arrow, just rounded end */
-.powerline-segment:last-child::after {
-    display: none;
+/* Only segment (both first and last) */
+.powerline-seg:first-child:last-child {
+    clip-path: none;
+    padding-left: 14px;
+    padding-right: 14px;
+    border-radius: 0 0 var(--tt-radius) var(--tt-radius);
 }
 
-/* Last segment - rounded end */
-.powerline-segment:last-child {
-    padding-right: 12px;
-    border-radius: 0 4px 4px 0;
+/* ==========================================================================
+   15 MINUTE ENTRY (Compact Inline)
+   ========================================================================== */
+
+.timeline-entry-card.entry-15m .entry-card-header {
+    height: 100%;
+    min-height: 0;
+    background: transparent;
+    padding: 0 10px 0 14px;
 }
 
-/* Client segment - accent color */
-.powerline-client {
-    --segment-color: var(--tt-accent);
-    z-index: 3;
+.timeline-entry-card.entry-15m .entry-card-body,
+.timeline-entry-card.entry-15m .entry-card-footer {
+    display: none !important;
 }
 
-/* Project segment - uses project color */
-.powerline-project {
-    --segment-color: #6366f1;
-    z-index: 2;
-    padding-left: 20px; /* Extra padding for arrow overlap */
-}
-
-/* Activity segment - muted color */
-.powerline-activity {
-    --segment-color: #64748b;
-    z-index: 1;
-    padding-left: 20px;
-}
-
-/* Note row - expanded cards only, with separator line above */
-.entry-card-note-row {
+/* Tiny tags container (15m only) */
+.entry-tiny-tags {
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
-    margin: 0 10px;
-    padding: 6px 0;
-    border-top: 1px solid var(--tt-border);
 }
 
-.entry-linked-note {
+/* Tiny tag segments with mini chevrons */
+.tiny-tag {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: var(--tt-text-muted);
-    cursor: pointer;
-    padding: 2px 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-}
-
-.entry-linked-note:hover {
-    color: var(--tt-accent);
-    text-decoration: underline;
-}
-
-/* Very compact cards (≤30 min) - single line layout */
-.timeline-entry-card.is-very-compact {
-    gap: 0;
-}
-
-.timeline-entry-card.is-very-compact .entry-card-header {
-    flex-wrap: nowrap;
-    gap: 8px;
-    width: 100%;
-    padding: 4px 8px;
-    border-radius: var(--tt-radius) var(--tt-radius) 0 0;
-}
-
-.timeline-entry-card.is-very-compact .entry-card-time {
-    font-size: 11px;
-    flex-shrink: 0;
-}
-
-.timeline-entry-card.is-very-compact .entry-card-duration {
     font-size: 9px;
-    padding: 0 4px;
-    flex-shrink: 0;
+    font-weight: 700;
+    color: white;
+    padding: 2px 8px 2px 12px;
+    line-height: 1;
+    white-space: nowrap;
+    background: var(--tag-color, var(--tt-accent));
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 0 100%, 6px 50%);
+    margin-left: -6px;
 }
 
-/* Inline description for very compact cards */
-.entry-card-inline-desc {
+.tiny-tag:first-child {
+    padding-left: 8px;
+    margin-left: 0;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 0 100%);
+    border-radius: 3px 0 0 3px;
+}
+
+.tiny-tag:last-child {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 6px 50%);
+    padding-right: 8px;
+    border-radius: 0 3px 3px 0;
+}
+
+.tiny-tag:first-child:last-child {
+    clip-path: none;
+    border-radius: 3px;
+    padding: 2px 8px;
+}
+
+/* Inline description (15m only) */
+.entry-inline-desc {
     flex: 1;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.8);
+    min-width: 0;
+    font-size: 12px;
+    color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
-}
-
-.timeline-entry-card.is-very-compact .entry-linked-icon {
-    flex-shrink: 0;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-/* Compact cards (31-60 min) - two row layout */
-.timeline-entry-card.is-compact {
-    gap: 0;
-}
-
-.timeline-entry-card.is-compact .entry-card-header {
-    gap: 6px;
-    padding: 4px 8px;
+    margin-left: 8px;
 }
 
 .timeline-entry-card.is-compact .entry-card-time {

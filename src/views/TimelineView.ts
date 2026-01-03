@@ -311,7 +311,7 @@ export class TimelineView extends ItemView {
     private formatVisibleDateRange(startDate: Date, endDate: Date): string {
         const sameDay = startDate.toDateString() === endDate.toDateString();
         const sameMonth = startDate.getMonth() === endDate.getMonth() &&
-                          startDate.getFullYear() === endDate.getFullYear();
+            startDate.getFullYear() === endDate.getFullYear();
 
         if (sameDay) {
             // Single day: "Mon, Aug 10, 2026"
@@ -460,16 +460,15 @@ export class TimelineView extends ItemView {
     }
 
     /**
-     * Render an entry card as a single unified block (even for midnight-spanning entries)
+     * Render an entry card with v5 design: Header + Body + Footer
+     * Design spec: 200px/hr, responsive by duration (15m/30m/45m/60m+)
      */
     private renderEntryCard(entry: TimeEntry, dayTopOffset: number): void {
         const cardStartMinutes = entry.startDateTime.getHours() * 60 + entry.startDateTime.getMinutes();
-
-        // Calculate total duration in minutes for the full entry
         const totalDurationMinutes = entry.durationMinutes;
 
         const top = dayTopOffset + (cardStartMinutes / 60) * this.settings.hourHeight;
-        const height = Math.max((totalDurationMinutes / 60) * this.settings.hourHeight, 30);
+        const height = Math.max((totalDurationMinutes / 60) * this.settings.hourHeight, 50);
 
         const card = this.entriesContainer.createDiv('timeline-entry-card');
         card.style.top = `${top}px`;
@@ -477,141 +476,144 @@ export class TimelineView extends ItemView {
         card.dataset.entryDate = entry.date;
         card.dataset.entryLine = String(entry.lineNumber);
 
-        // Client color for left edge (ties in with powerline)
+        // Client color for left bar and header gradient
         const clientColor = this.getClientColor(entry.client);
         card.style.setProperty('--client-color', clientColor);
 
-        // Layout tiers based on duration:
-        // - Very compact (≤15 min): Single line header only, no powerline
-        // - Normal (>15 min): Header + description + powerline
-        const isVeryCompact = totalDurationMinutes <= 15;
-
-        if (isVeryCompact) {
-            card.addClass('is-very-compact');
+        // Duration-based layout classes
+        const is15m = totalDurationMinutes <= 15;
+        if (is15m) {
+            card.addClass('entry-15m');
+        } else if (totalDurationMinutes <= 30) {
+            card.addClass('entry-30m');
+        } else if (totalDurationMinutes <= 45) {
+            card.addClass('entry-45m');
+        } else {
+            card.addClass('entry-60m');
         }
 
-        // Resize handle - top
-        const resizeTop = card.createDiv('entry-resize-handle entry-resize-top');
-        resizeTop.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-            this.startEntryDrag(e, entry, card, 'resize-top');
-        });
-
-        // Build tooltip (always useful for truncated content)
+        // Tooltip for hover
         const tooltipParts = [
             entry.description || '(No description)',
             `${entry.start} – ${entry.end} (${this.formatDuration(entry.durationMinutes)})`,
+            `Client: ${this.getClientName(entry.client)}`,
         ];
-        if (entry.project) tooltipParts.push(`Project: ${entry.project}`);
-        if (entry.activity) tooltipParts.push(`Activity: ${entry.activity}`);
+        if (entry.project) tooltipParts.push(`Project: ${this.getProjectName(entry.project)}`);
+        if (entry.activity) tooltipParts.push(`Activity: ${this.getActivityName(entry.activity)}`);
         if (entry.linkedNote) tooltipParts.push(`Note: ${entry.linkedNote}`);
         card.setAttribute('title', tooltipParts.join('\n'));
 
-        if (isVeryCompact) {
-            // Single-line layout: Time | Duration | Note Icon | Edit Icon
-            const header = card.createDiv('entry-card-header');
+        // === HEADER SECTION ===
+        const header = card.createDiv('entry-card-header');
 
-            const timeInfo = header.createSpan('entry-card-time');
-            timeInfo.setText(`${entry.start} – ${entry.end}`);
+        // Time text + duration badge
+        const timeText = header.createSpan('entry-time-text');
+        timeText.setText(`${entry.start} – ${entry.end}`);
+        const durationBadge = header.createSpan('entry-duration-badge');
+        durationBadge.setText(this.formatDuration(entry.durationMinutes));
 
-            const duration = header.createSpan('entry-card-duration');
-            duration.setText(this.formatDuration(entry.durationMinutes));
+        // 15m layout: Tiny tags inline in header
+        if (is15m) {
+            const tinyTags = header.createDiv('entry-tiny-tags');
 
-            // Note icon (if linked)
-            if (entry.linkedNote) {
-                const noteIcon = header.createSpan('entry-linked-icon');
-                noteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
-                noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
-                noteIcon.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.openLinkedNote(entry.linkedNote!);
-                });
-            }
+            // Client tag
+            const clientTag = tinyTags.createSpan('tiny-tag');
+            clientTag.setText(this.getClientName(entry.client).substring(0, 3).toUpperCase());
+            clientTag.style.setProperty('--tag-color', clientColor);
 
-            // Edit icon (pencil) at end
-            const editIcon = header.createSpan('entry-edit-icon');
-            editIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-            editIcon.setAttribute('title', 'Edit entry');
-            editIcon.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.openEditModal(entry);
-            });
-        } else {
-            // Multi-row layout
-            const header = card.createDiv('entry-card-header');
-            const timeInfo = header.createDiv('entry-card-time');
-            timeInfo.setText(`${entry.start} – ${entry.end}`);
-            const duration = header.createSpan('entry-card-duration');
-            duration.setText(this.formatDuration(entry.durationMinutes));
-
-            // Note icon in header (all layouts)
-            if (entry.linkedNote) {
-                const noteIcon = header.createSpan('entry-linked-icon');
-                noteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
-                noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
-                noteIcon.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.openLinkedNote(entry.linkedNote!);
-                });
-            }
-
-            // Edit icon (pencil) in header
-            const editIcon = header.createSpan('entry-edit-icon');
-            editIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-            editIcon.setAttribute('title', 'Edit entry');
-            editIcon.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.openEditModal(entry);
-            });
-
-            // Description row (supports multiline via <br>)
-            const descRow = card.createDiv('entry-card-description');
-            const descText = entry.description || '(No description)';
-            // Escape HTML but preserve line breaks
-            descRow.innerHTML = descText
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/\n/g, '<br>');
-
-            // Powerline-style bar at bottom: Client >> Project >> Activity
-            const powerline = card.createDiv('entry-powerline');
-
-            // Client segment (always shown - required)
-            const clientSeg = powerline.createSpan('powerline-segment powerline-client');
-            clientSeg.setText(this.getClientName(entry.client));
-            clientSeg.style.setProperty('--segment-color', this.getClientColor(entry.client));
-
-            // Project segment (optional)
+            // Project tag
             if (entry.project) {
-                const projectSeg = powerline.createSpan('powerline-segment powerline-project');
-                projectSeg.setText(this.getProjectName(entry.project));
-                projectSeg.style.setProperty('--segment-color', this.getProjectColor(entry.project));
+                const projectTag = tinyTags.createSpan('tiny-tag');
+                projectTag.setText(this.getProjectName(entry.project).substring(0, 3).toUpperCase());
+                projectTag.style.setProperty('--tag-color', this.getProjectColor(entry.project));
             }
 
-            // Activity segment (optional)
+            // Activity tag
             if (entry.activity) {
-                const activitySeg = powerline.createSpan('powerline-segment powerline-activity');
-                activitySeg.setText(this.getActivityName(entry.activity));
-                const activityColor = this.getActivityColor(entry.activity);
-                if (activityColor) {
-                    activitySeg.style.setProperty('--segment-color', activityColor);
-                }
+                const activityTag = tinyTags.createSpan('tiny-tag');
+                activityTag.setText(this.getActivityName(entry.activity).substring(0, 3).toUpperCase());
+                const actColor = this.getActivityColor(entry.activity);
+                if (actColor) activityTag.style.setProperty('--tag-color', actColor);
+            }
+
+            // Inline description (truncated)
+            const inlineDesc = header.createSpan('entry-inline-desc');
+            inlineDesc.setText(entry.description || '');
+        }
+
+        // Icons (right side of header)
+        const icons = header.createDiv('entry-header-icons');
+
+        // Linked note icon (paperclip)
+        if (entry.linkedNote) {
+            const noteIcon = icons.createSpan('entry-icon');
+            noteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
+            noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
+            noteIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openLinkedNote(entry.linkedNote!);
+            });
+        }
+
+        // Edit icon (pencil)
+        const editIcon = icons.createSpan('entry-icon');
+        editIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+        editIcon.setAttribute('title', 'Edit entry');
+        editIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openEditModal(entry);
+        });
+
+        // === BODY SECTION (30m+ only) ===
+        if (!is15m) {
+            const body = card.createDiv('entry-card-body');
+            const desc = body.createDiv('entry-body-desc');
+            if (entry.description) {
+                desc.innerHTML = entry.description
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>');
             }
         }
 
-        // Resize handle - bottom
+        // === FOOTER / POWERLINE (30m+ only) ===
+        if (!is15m) {
+            const footer = card.createDiv('entry-card-footer');
+
+            // Client segment
+            const clientSeg = footer.createSpan('powerline-seg');
+            clientSeg.setText(this.getClientName(entry.client));
+            clientSeg.style.setProperty('--seg-color', clientColor);
+
+            // Project segment
+            if (entry.project) {
+                const projectSeg = footer.createSpan('powerline-seg');
+                projectSeg.setText(this.getProjectName(entry.project));
+                projectSeg.style.setProperty('--seg-color', this.getProjectColor(entry.project));
+            }
+
+            // Activity segment
+            if (entry.activity) {
+                const activitySeg = footer.createSpan('powerline-seg');
+                activitySeg.setText(this.getActivityName(entry.activity));
+                const actColor = this.getActivityColor(entry.activity);
+                if (actColor) activitySeg.style.setProperty('--seg-color', actColor);
+            }
+        }
+
+        // === RESIZE HANDLE ===
         const resizeBottom = card.createDiv('entry-resize-handle entry-resize-bottom');
         resizeBottom.addEventListener('mousedown', (e) => {
             e.stopPropagation();
             this.startEntryDrag(e, entry, card, 'resize-bottom');
         });
 
-        // Mousedown on card body for move (but not on resize handles or edit icon)
+        // === DRAG TO MOVE ===
         card.addEventListener('mousedown', (e) => {
             const target = e.target as HTMLElement;
             if (target.classList.contains('entry-resize-handle')) return;
-            if (target.closest('.entry-edit-icon')) return;
+            if (target.closest('.entry-icon')) return;
             e.stopPropagation();
             this.startEntryDrag(e, entry, card, 'move');
         });
@@ -933,14 +935,6 @@ export class TimelineView extends ItemView {
     private getActivityName(activityId: string): string {
         const activity = this.settings.activities.find(a => a.id === activityId || a.name === activityId);
         return activity?.name || activityId;
-    }
-
-    /**
-     * Get just the note name from a full path
-     */
-    private getNoteName(notePath: string): string {
-        const parts = notePath.split('/');
-        return parts[parts.length - 1];
     }
 
     /**
