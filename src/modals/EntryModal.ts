@@ -55,6 +55,15 @@ export class EntryModal extends Modal {
     private endDateInput: TextComponent | null = null;
     private endTimeInput: TextComponent | null = null;
     private durationInput: TextComponent | null = null;
+    private startDateInput: TextComponent | null = null;
+    private startTimeInput: TextComponent | null = null;
+
+    // Overlap validation UI
+    private saveButton: HTMLButtonElement | null = null;
+    private warningBanner: HTMLElement | null = null;
+    private startOverlap: TimeEntry | null = null;
+    private endOverlap: TimeEntry | null = null;
+    private encompassedEntry: TimeEntry | null = null;
 
     constructor(
         app: App,
@@ -134,19 +143,23 @@ export class EntryModal extends Modal {
         new Setting(startRow)
             .setName('Start')
             .addText((text) => {
+                this.startDateInput = text;
                 text.setValue(this.startDateValue);
                 text.inputEl.type = 'date';
                 text.onChange((value) => {
                     this.startDateValue = value;
                     this.recalculateDuration();
+                    this.validateOverlap();
                 });
             })
             .addText((text) => {
+                this.startTimeInput = text;
                 text.setValue(this.startTimeValue);
                 text.inputEl.type = 'time';
                 text.onChange((value) => {
                     this.startTimeValue = value;
                     this.recalculateDuration();
+                    this.validateOverlap();
                 });
             });
 
@@ -161,6 +174,7 @@ export class EntryModal extends Modal {
                 text.onChange((value) => {
                     this.durationValue = value;
                     this.updateEndFromDuration();
+                    this.validateOverlap();
                 });
             });
 
@@ -176,6 +190,7 @@ export class EntryModal extends Modal {
                 text.onChange((value) => {
                     this.endDateValue = value;
                     this.recalculateDuration();
+                    this.validateOverlap();
                 });
             })
             .addText((text) => {
@@ -185,8 +200,13 @@ export class EntryModal extends Modal {
                 text.onChange((value) => {
                     this.endTimeValue = value;
                     this.recalculateDuration();
+                    this.validateOverlap();
                 });
             });
+
+        // Overlap warning banner (hidden by default)
+        this.warningBanner = contentEl.createDiv('overlap-warning-banner');
+        this.warningBanner.style.display = 'none';
 
         // Client dropdown (required)
         new Setting(contentEl)
@@ -321,11 +341,14 @@ export class EntryModal extends Modal {
         cancelBtn.addEventListener('click', () => this.close());
 
         // Save button
-        const saveBtn = buttonRow.createEl('button', {
+        this.saveButton = buttonRow.createEl('button', {
             text: 'Save',
             cls: 'mod-cta',
         });
-        saveBtn.addEventListener('click', () => this.handleSave());
+        this.saveButton.addEventListener('click', () => this.handleSave());
+
+        // Check for overlaps on initial load (for edit mode or pre-filled times)
+        this.validateOverlap();
     }
 
     onClose(): void {
@@ -764,6 +787,167 @@ export class EntryModal extends Modal {
             this.activityValue = '';
         }
         this.activityDropdown.setValue(this.activityValue);
+    }
+
+    /**
+     * Validate overlap with existing entries and update UI
+     */
+    private async validateOverlap(): Promise<void> {
+        // Read directly from inputs to ensure we validate what the user sees
+        const startDate = this.startDateInput ? this.startDateInput.getValue() : this.startDateValue;
+        const startTime = this.startTimeInput ? this.startTimeInput.getValue() : this.startTimeValue;
+        const endDate = this.endDateInput ? this.endDateInput.getValue() : this.endDateValue;
+        const endTime = this.endTimeInput ? this.endTimeInput.getValue() : this.endTimeValue;
+
+        // Build datetime from current values
+        const startDateTime = new Date(`${startDate}T${startTime}`);
+        const endDateTime = new Date(`${endDate}T${endTime}`);
+
+        // Check for invalid dates
+        if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+            console.log('EntryModal: Invalid dates, skipping overlap check');
+            this.startOverlap = null;
+            this.endOverlap = null;
+            this.encompassedEntry = null;
+            this.updateOverlapUI();
+            return;
+        }
+
+        console.log('EntryModal: Checking conflicts for', {
+            start: startDateTime.toISOString(),
+            end: endDateTime.toISOString()
+        });
+
+        // Check for overlaps (exclude self in edit mode)
+        const excludeEntry = this.data.mode === 'edit' ? this.data.entry : undefined;
+
+        // Find all overlaps classified by type
+        const result = await this.dataManager.findOverlaps(startDateTime, endDateTime, excludeEntry);
+
+        this.startOverlap = result.startOverlap;
+        this.endOverlap = result.endOverlap;
+        this.encompassedEntry = result.encompassedEntry;
+
+        console.log('EntryModal: startOverlap =', this.startOverlap
+            ? `${this.startOverlap.start} - ${this.startOverlap.end}` : 'null');
+        console.log('EntryModal: endOverlap =', this.endOverlap
+            ? `${this.endOverlap.start} - ${this.endOverlap.end}` : 'null');
+        console.log('EntryModal: encompassedEntry =', this.encompassedEntry
+            ? `${this.encompassedEntry.start} - ${this.encompassedEntry.end}` : 'null');
+
+        this.updateOverlapUI();
+    }
+
+    /**
+     * Update UI based on overlap state
+     */
+    private updateOverlapUI(): void {
+        const hasStartOverlap = this.startOverlap !== null;
+        const hasEndOverlap = this.endOverlap !== null;
+        const hasEncompassed = this.encompassedEntry !== null;
+        const hasAnyConflict = hasStartOverlap || hasEndOverlap || hasEncompassed;
+
+        // Red border on start inputs if start is inside an entry
+        if (this.startDateInput?.inputEl) {
+            this.startDateInput.inputEl.toggleClass('time-input-error', hasStartOverlap);
+        }
+        if (this.startTimeInput?.inputEl) {
+            this.startTimeInput.inputEl.toggleClass('time-input-error', hasStartOverlap);
+        }
+
+        // Red border on end inputs if end is inside an entry
+        if (this.endDateInput?.inputEl) {
+            this.endDateInput.inputEl.toggleClass('time-input-error', hasEndOverlap);
+        }
+        if (this.endTimeInput?.inputEl) {
+            this.endTimeInput.inputEl.toggleClass('time-input-error', hasEndOverlap);
+        }
+
+        // Update warning banner
+        if (this.warningBanner) {
+            if (hasAnyConflict) {
+                this.warningBanner.style.display = 'block';
+                this.warningBanner.empty();
+
+                const icon = this.warningBanner.createSpan('overlap-warning-icon');
+                icon.setText('⚠️');
+
+                const textContainer = this.warningBanner.createDiv('overlap-warning-messages');
+
+                // Show start overlap (START is inside this entry)
+                if (hasStartOverlap) {
+                    const entry = this.startOverlap!;
+                    const entryLabel = this.formatEntryLabel(entry);
+                    const msg = textContainer.createDiv('overlap-message');
+                    msg.setText(`Start overlaps with ${entryLabel} (${entry.start} – ${entry.end})`);
+                }
+
+                // Show end overlap (END is inside this entry)
+                if (hasEndOverlap) {
+                    const entry = this.endOverlap!;
+                    const entryLabel = this.formatEntryLabel(entry);
+                    const msg = textContainer.createDiv('overlap-message');
+                    msg.setText(`End overlaps with ${entryLabel} (${entry.start} – ${entry.end})`);
+                }
+
+                // Show encompassed entry (we fully contain this entry)
+                if (hasEncompassed) {
+                    const entry = this.encompassedEntry!;
+                    const entryLabel = this.formatEntryLabel(entry);
+                    const msg = textContainer.createDiv('overlap-message');
+                    msg.setText(`Conflicts with ${entryLabel} (${entry.start} – ${entry.end})`);
+                }
+            } else {
+                this.warningBanner.style.display = 'none';
+            }
+        }
+
+        // Update save button
+        if (this.saveButton) {
+            this.saveButton.disabled = hasAnyConflict;
+            this.saveButton.toggleClass('is-disabled', hasAnyConflict);
+        }
+    }
+
+    /**
+     * Get client display name from client ID
+     */
+    private getClientName(clientId: string): string {
+        const client = this.settings.clients.find(c => c.id === clientId);
+        return client?.name || clientId;
+    }
+
+    /**
+     * Format entry label as CLIENT > PROJECT > ACTIVITY
+     */
+    private formatEntryLabel(entry: TimeEntry): string {
+        const parts: string[] = [];
+
+        // Client (always present)
+        const clientName = this.getClientName(entry.client);
+        parts.push(clientName);
+
+        // Project (if present)
+        if (entry.project) {
+            parts.push(entry.project);
+        }
+
+        // Activity (if present)
+        if (entry.activity) {
+            parts.push(entry.activity);
+        }
+
+        return parts.join(' > ');
+    }
+    /**
+     * Check if two entries are same (helper for filtering)
+     */
+    private isSameEntry(a: TimeEntry, b: TimeEntry): boolean {
+        return (
+            a.startDateTime.getTime() === b.startDateTime.getTime() &&
+            a.endDateTime.getTime() === b.endDateTime.getTime() &&
+            a.description === b.description
+        );
     }
 }
 

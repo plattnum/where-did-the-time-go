@@ -367,6 +367,65 @@ export class DataManager {
     }
 
     /**
+     * Find all overlapping entries and classify each overlap type
+     * - startOverlap: First entry where our START falls inside
+     * - endOverlap: First entry where our END falls inside
+     * - encompassedEntry: First entry we fully encompass
+     */
+    async findOverlaps(
+        start: Date,
+        end: Date,
+        excludeEntry?: TimeEntry
+    ): Promise<{
+        startOverlap: TimeEntry | null;
+        endOverlap: TimeEntry | null;
+        encompassedEntry: TimeEntry | null;
+    }> {
+        const entries = await this.loadDateRange(start, end);
+        console.log('DataManager.findOverlaps:', {
+            start: start.toISOString(),
+            end: end.toISOString(),
+            entriesLoaded: entries.length
+        });
+
+        let startOverlap: TimeEntry | null = null;
+        let endOverlap: TimeEntry | null = null;
+        let encompassedEntry: TimeEntry | null = null;
+
+        for (const entry of entries) {
+            if (excludeEntry && this.isSameEntry(entry, excludeEntry)) continue;
+
+            // Check for any overlap first
+            const overlaps = start < entry.endDateTime && end > entry.startDateTime;
+            if (!overlaps) {
+                console.log('  vs', entry.start, '-', entry.end, ': no overlap');
+                continue;
+            }
+
+            // Classify the overlap type
+            const startInside = start >= entry.startDateTime && start < entry.endDateTime;
+            const endInside = end > entry.startDateTime && end <= entry.endDateTime;
+
+            console.log('  vs', entry.start, '-', entry.end, ':',
+                startInside ? 'START_INSIDE' : '',
+                endInside ? 'END_INSIDE' : '',
+                (!startInside && !endInside) ? 'ENCOMPASSED' : '');
+
+            if (startInside && !startOverlap) {
+                startOverlap = entry;
+            }
+            if (endInside && !endOverlap) {
+                endOverlap = entry;
+            }
+            if (!startInside && !endInside && !encompassedEntry) {
+                encompassedEntry = entry;
+            }
+        }
+
+        return { startOverlap, endOverlap, encompassedEntry };
+    }
+
+    /**
      * Get all unique projects from entries
      */
     async getAllProjects(): Promise<string[]> {
