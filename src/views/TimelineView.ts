@@ -1,8 +1,9 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Modal, App, setIcon } from 'obsidian';
 import { VIEW_TYPE_TIMELINE, TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
 import { EntryModal, EntryModalData } from '../modals/EntryModal';
+import { Logger } from '../utils/Logger';
 
 /**
  * The main timeline view with infinite scrolling
@@ -79,7 +80,7 @@ export class TimelineView extends ItemView {
                 this.settings.dayStartHour * this.settings.hourHeight;
             this.timelineContainer.scrollTop = targetOffset;
             this.updateVisibleDateLabel();
-            console.log('onOpen: scrolled to today, offset=', targetOffset);
+            Logger.log('onOpen: scrolled to today, offset=', targetOffset);
         });
     }
 
@@ -101,7 +102,7 @@ export class TimelineView extends ItemView {
     }
 
     async refresh(): Promise<void> {
-        console.log('refresh: clearing caches and re-rendering');
+        Logger.log('refresh: clearing caches and re-rendering');
         // Save current scroll position
         const savedScrollTop = this.timelineContainer?.scrollTop ?? 0;
 
@@ -212,7 +213,7 @@ export class TimelineView extends ItemView {
             cls: 'timeline-btn timeline-jump-btn',
         });
         jumpBtn.setAttribute('title', 'Jump to date');
-        jumpBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`;
+        setIcon(jumpBtn, 'calendar');
 
         // Hidden date picker - outside button, visually hidden
         const hiddenDatePicker = controls.createEl('input', {
@@ -275,7 +276,7 @@ export class TimelineView extends ItemView {
         const scrollAdjustment = days * this.dayHeight;
         this.timelineContainer.scrollTop = oldScrollTop - scrollAdjustment;
 
-        console.log('Shifted center by', days, 'days, new center:', this.centerDate.toDateString());
+        Logger.log('Shifted center by', days, 'days, new center:', this.centerDate.toDateString());
     }
 
     /**
@@ -346,7 +347,7 @@ export class TimelineView extends ItemView {
         const endDate = new Date(this.centerDate);
         endDate.setDate(endDate.getDate() + this.visibleDaysBuffer * 2);
 
-        console.log('loadVisibleRange: centerDate=', this.centerDate.toDateString(),
+        Logger.log('loadVisibleRange: centerDate=', this.centerDate.toDateString(),
             'range=', startDate.toDateString(), 'to', endDate.toDateString());
 
         // Determine which months need loading
@@ -363,25 +364,25 @@ export class TimelineView extends ItemView {
             current.setMonth(current.getMonth() + 1);
         }
 
-        console.log('loadVisibleRange: months to check=', Array.from(months));
+        Logger.log('loadVisibleRange: months to check=', Array.from(months));
 
         // Load any months we haven't loaded yet
         for (const month of months) {
             if (!this.loadedMonths.has(month)) {
-                console.log('loadVisibleRange: loading month', month);
+                Logger.log('loadVisibleRange: loading month', month);
                 const parsed = await this.dataManager.loadMonth(month);
                 this.loadedMonths.add(month);
 
-                console.log('loadVisibleRange: loaded', parsed.entries.length, 'entries for', month);
-                console.log('loadVisibleRange: entriesByDate keys=', Array.from(parsed.entriesByDate.keys()));
+                Logger.log('loadVisibleRange: loaded', parsed.entries.length, 'entries for', month);
+                Logger.log('loadVisibleRange: entriesByDate keys=', Array.from(parsed.entriesByDate.keys()));
 
                 // Merge entries into our map
                 for (const [dateStr, entries] of parsed.entriesByDate) {
                     this.entriesByDate.set(dateStr, entries);
-                    console.log('loadVisibleRange: set', dateStr, 'with', entries.length, 'entries');
+                    Logger.log('loadVisibleRange: set', dateStr, 'with', entries.length, 'entries');
                 }
             } else {
-                console.log('loadVisibleRange: month already loaded', month);
+                Logger.log('loadVisibleRange: month already loaded', month);
             }
         }
     }
@@ -450,7 +451,7 @@ export class TimelineView extends ItemView {
         // Render entries for this day
         const entries = this.entriesByDate.get(dateStr) || [];
         if (entries.length > 0) {
-            console.log('renderDay: rendering', entries.length, 'entries for', dateStr);
+            Logger.log('renderDay: rendering', entries.length, 'entries for', dateStr);
         }
         for (const entry of entries) {
             this.renderEntryCard(entry, topOffset);
@@ -547,7 +548,7 @@ export class TimelineView extends ItemView {
         // Linked note icon (paperclip)
         if (entry.linkedNote) {
             const noteIcon = icons.createSpan('entry-icon');
-            noteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
+            setIcon(noteIcon, 'paperclip');
             noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
             noteIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -557,11 +558,20 @@ export class TimelineView extends ItemView {
 
         // Edit icon (pencil)
         const editIcon = icons.createSpan('entry-icon');
-        editIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+        setIcon(editIcon, 'pencil');
         editIcon.setAttribute('title', 'Edit entry');
         editIcon.addEventListener('click', (e) => {
             e.stopPropagation();
             this.openEditModal(entry);
+        });
+
+        // Delete icon (trash)
+        const deleteIcon = icons.createSpan('entry-icon entry-icon-delete');
+        setIcon(deleteIcon, 'trash-2');
+        deleteIcon.setAttribute('title', 'Delete entry');
+        deleteIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.confirmDeleteEntry(entry);
         });
 
         // === BODY SECTION (30m+ only) ===
@@ -569,11 +579,7 @@ export class TimelineView extends ItemView {
             const body = card.createDiv('entry-card-body');
             const desc = body.createDiv('entry-body-desc');
             if (entry.description) {
-                desc.innerHTML = entry.description
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/\n/g, '<br>');
+                desc.textContent = entry.description;
             }
         }
 
@@ -947,7 +953,7 @@ export class TimelineView extends ItemView {
         if (file) {
             this.app.workspace.openLinkText(notePath, '', false);
         } else {
-            console.warn('Linked note not found:', fullPath);
+            Logger.warn('Linked note not found:', fullPath);
         }
     }
 
@@ -957,7 +963,7 @@ export class TimelineView extends ItemView {
      * Open modal to edit an existing entry
      */
     private openEditModal(entry: TimeEntry): void {
-        console.log('Opening edit modal for entry:', entry);
+        Logger.log('Opening edit modal for entry:', entry);
         const data: EntryModalData = {
             mode: 'edit',
             entry,
@@ -977,7 +983,7 @@ export class TimelineView extends ItemView {
      * Open modal to create a new entry
      */
     private openCreateModal(date: Date, startTime?: string): void {
-        console.log('Opening create modal for date:', date, 'time:', startTime);
+        Logger.log('Opening create modal for date:', date, 'time:', startTime);
         const data: EntryModalData = {
             mode: 'create',
             date,
@@ -995,6 +1001,16 @@ export class TimelineView extends ItemView {
     }
 
     /**
+     * Show confirmation dialog and delete entry if confirmed
+     */
+    private confirmDeleteEntry(entry: TimeEntry): void {
+        new ConfirmDeleteModal(this.app, entry, async () => {
+            await this.dataManager.deleteEntry(entry);
+            this.refresh();
+        }).open();
+    }
+
+    /**
      * Handle double-click on timeline to create new entry
      */
     private handleTimelineDoubleClick(e: MouseEvent): void {
@@ -1009,7 +1025,7 @@ export class TimelineView extends ItemView {
         const rect = this.timelineInner.getBoundingClientRect();
         const clickY = e.clientY - rect.top;
 
-        console.log('Double-click debug:', {
+        Logger.log('Double-click debug:', {
             clientY: e.clientY,
             rectTop: rect.top,
             clickY: clickY,
@@ -1031,7 +1047,7 @@ export class TimelineView extends ItemView {
 
         const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-        console.log('Double-clicked at:', clickedDate.toDateString(), startTime);
+        Logger.log('Double-clicked at:', clickedDate.toDateString(), startTime);
         this.openCreateModal(clickedDate, startTime);
     }
 
@@ -1129,7 +1145,7 @@ export class TimelineView extends ItemView {
         const startTime = this.roundToTimeString(startHours);
         const endTime = this.roundToTimeString(endHours);
 
-        console.log('Drag selection:', clickedDate.toDateString(), startTime, '-', endTime);
+        Logger.log('Drag selection:', clickedDate.toDateString(), startTime, '-', endTime);
 
         this.cleanupDrag();
         this.openCreateModalWithRange(clickedDate, startTime, endTime);
@@ -1207,7 +1223,7 @@ export class TimelineView extends ItemView {
      * Open create modal with pre-filled start and end times
      */
     private openCreateModalWithRange(date: Date, startTime: string, endTime: string): void {
-        console.log('Opening create modal with range:', date, startTime, '-', endTime);
+        Logger.log('Opening create modal with range:', date, startTime, '-', endTime);
         const data: EntryModalData = {
             mode: 'create',
             date,
@@ -1223,5 +1239,65 @@ export class TimelineView extends ItemView {
             () => this.refresh()
         );
         modal.open();
+    }
+}
+
+/**
+ * Confirmation modal for deleting an entry
+ */
+class ConfirmDeleteModal extends Modal {
+    private entry: TimeEntry;
+    private onConfirm: () => Promise<void>;
+
+    constructor(app: App, entry: TimeEntry, onConfirm: () => Promise<void>) {
+        super(app);
+        this.entry = entry;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen(): void {
+        const { contentEl } = this;
+        contentEl.empty();
+        contentEl.addClass('time-tracker-confirm-delete');
+
+        contentEl.createEl('h2', { text: 'Delete Entry' });
+
+        // Show entry details
+        const details = contentEl.createDiv('delete-entry-details');
+        details.createEl('p', {
+            text: `${this.entry.start} – ${this.entry.end}`,
+            cls: 'delete-entry-time',
+        });
+        if (this.entry.description) {
+            details.createEl('p', {
+                text: this.entry.description,
+                cls: 'delete-entry-desc',
+            });
+        }
+
+        contentEl.createEl('p', {
+            text: 'Are you sure you want to delete this entry? This cannot be undone.',
+            cls: 'delete-confirm-message',
+        });
+
+        // Buttons
+        const buttonContainer = contentEl.createDiv('delete-button-container');
+
+        const cancelBtn = buttonContainer.createEl('button', { text: 'Cancel' });
+        cancelBtn.addEventListener('click', () => this.close());
+
+        const deleteBtn = buttonContainer.createEl('button', {
+            text: 'Delete',
+            cls: 'mod-warning',
+        });
+        deleteBtn.addEventListener('click', async () => {
+            await this.onConfirm();
+            this.close();
+        });
+    }
+
+    onClose(): void {
+        const { contentEl } = this;
+        contentEl.empty();
     }
 }

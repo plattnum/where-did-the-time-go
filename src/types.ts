@@ -138,6 +138,8 @@ export interface TimeTrackerSettings {
     defaultActivity: string;
     /** List of clients for billing */
     clients: Client[];
+    /** Enable debug logging to console */
+    debugMode: boolean;
 }
 
 /**
@@ -171,6 +173,7 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     ],
     activities: [],
     defaultActivity: '',
+    debugMode: false,
 };
 
 /**

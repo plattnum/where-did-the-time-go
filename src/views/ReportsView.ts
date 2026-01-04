@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport, ClientReport } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
+import { Logger } from '../utils/Logger';
 
 /**
  * Reports view showing time breakdowns by project and tag
@@ -299,12 +300,12 @@ export class ReportsView extends ItemView {
     private async loadReport(): Promise<void> {
         const { start, end } = this.getDateRange(this.selectedPreset);
 
-        console.log('ReportsView: Loading report for', start.toDateString(), 'to', end.toDateString());
+        Logger.log('ReportsView: Loading report for', start.toDateString(), 'to', end.toDateString());
 
         // Load entries for the date range (includes overlapping entries)
         const entries = await this.dataManager.loadDateRange(start, end);
 
-        console.log('ReportsView: Found', entries.length, 'entries');
+        Logger.log('ReportsView: Found', entries.length, 'entries');
 
         // Calculate reports with effective durations (handles midnight-spanning)
         this.calculateReports(entries, start, end);
@@ -902,7 +903,7 @@ export class ReportsView extends ItemView {
         const entries = await this.dataManager.loadDateRange(start, end);
 
         if (entries.length === 0) {
-            console.log('ReportsView: No entries to export');
+            Logger.log('ReportsView: No entries to export');
             return;
         }
 
@@ -986,6 +987,6 @@ export class ReportsView extends ItemView {
 
         URL.revokeObjectURL(url);
 
-        console.log('ReportsView: Exported CSV -', filename);
+        Logger.log('ReportsView: Exported CSV -', filename);
     }
 }

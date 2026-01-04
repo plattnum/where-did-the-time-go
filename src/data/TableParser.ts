@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';
 import type { Root, Table, TableRow, TableCell } from 'mdast';
 import type { TimeEntry, ParsedMonth } from '../types';
+import { Logger } from '../utils/Logger';
 
 /**
  * Parses and serializes time entries using markdown tables via mdast/remark
@@ -137,7 +138,7 @@ export class TableParser {
 
         // Must have start, end, and client
         if (!startStr || !endStr || !client) {
-            console.log('TableParser: Missing required fields (start, end, or client)');
+            Logger.log('TableParser: Missing required fields (start, end, or client)');
             return null;
         }
 
@@ -146,7 +147,7 @@ export class TableParser {
         const endDateTime = this.parseDateTime(endStr);
 
         if (!startDateTime || !endDateTime) {
-            console.log('TableParser: Invalid datetime format');
+            Logger.log('TableParser: Invalid datetime format');
             return null;
         }
 

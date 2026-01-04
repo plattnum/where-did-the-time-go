@@ -1,6 +1,7 @@
 import { TFile, TFolder, Vault, Notice } from 'obsidian';
 import type { TimeEntry, ParsedMonth, TimeTrackerSettings } from '../types';
 import { TableParser } from './TableParser';
+import { Logger } from '../utils/Logger';
 
 /**
  * Manages all data operations for time entries
@@ -96,17 +97,17 @@ export class DataManager {
     async loadMonth(monthStr: string): Promise<ParsedMonth> {
         // Check cache first
         if (this.cache.has(monthStr)) {
-            console.log('DataManager: Cache hit for', monthStr);
+            Logger.log('DataManager: Cache hit for', monthStr);
             return this.cache.get(monthStr)!;
         }
 
         const filePath = this.getMonthFilePath(monthStr);
-        console.log('DataManager: Loading file', filePath);
+        Logger.log('DataManager: Loading file', filePath);
 
         const file = this.vault.getAbstractFileByPath(filePath);
 
         if (!file || !(file instanceof TFile)) {
-            console.log('DataManager: File not found');
+            Logger.log('DataManager: File not found');
             const emptyMonth: ParsedMonth = {
                 month: monthStr,
                 entries: [],
@@ -117,7 +118,7 @@ export class DataManager {
 
         const content = await this.vault.read(file);
         const parsed = TableParser.parseMonthFile(content, monthStr);
-        console.log('DataManager: Parsed', parsed.entries.length, 'entries');
+        Logger.log('DataManager: Parsed', parsed.entries.length, 'entries');
 
         // Cache the result
         this.cache.set(monthStr, parsed);
@@ -283,7 +284,7 @@ export class DataManager {
 
         if (monthChanged) {
             // Month changed - need to remove from old month and add to new month
-            console.log('Month changed from', oldMonthStr, 'to', newMonthStr);
+            Logger.log('Month changed from', oldMonthStr, 'to', newMonthStr);
 
             // Remove from old month
             const oldParsed = await this.loadMonth(oldMonthStr);
@@ -382,7 +383,7 @@ export class DataManager {
         encompassedEntry: TimeEntry | null;
     }> {
         const entries = await this.loadDateRange(start, end);
-        console.log('DataManager.findOverlaps:', {
+        Logger.log('DataManager.findOverlaps:', {
             start: start.toISOString(),
             end: end.toISOString(),
             entriesLoaded: entries.length
@@ -398,7 +399,7 @@ export class DataManager {
             // Check for any overlap first
             const overlaps = start < entry.endDateTime && end > entry.startDateTime;
             if (!overlaps) {
-                console.log('  vs', entry.start, '-', entry.end, ': no overlap');
+                Logger.log('  vs', entry.start, '-', entry.end, ': no overlap');
                 continue;
             }
 
@@ -406,7 +407,7 @@ export class DataManager {
             const startInside = start >= entry.startDateTime && start < entry.endDateTime;
             const endInside = end > entry.startDateTime && end <= entry.endDateTime;
 
-            console.log('  vs', entry.start, '-', entry.end, ':',
+            Logger.log('  vs', entry.start, '-', entry.end, ':',
                 startInside ? 'START_INSIDE' : '',
                 endInside ? 'END_INSIDE' : '',
                 (!startInside && !endInside) ? 'ENCOMPASSED' : '');

@@ -270,8 +270,13 @@
     color: var(--text-normal);
 }
 
+.entry-icon-delete:hover {
+    color: var(--text-error);
+}
+
 .entry-icon svg {
     display: block;
+    pointer-events: none; /* Ensure clicks hit the span, not SVG elements */
 }
 
 /* ==========================================================================
@@ -293,6 +298,7 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: pre-wrap; /* Preserve line breaks from textContent */
 }
 
 /* Line clamp by duration */
@@ -1685,4 +1691,84 @@
 
 .time-input-error:focus {
     box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
+}
+
+/* ==========================================================================
+   DELETE CONFIRMATION MODAL
+   ========================================================================== */
+
+.time-tracker-confirm-delete.modal {
+    width: 320px;
+}
+
+.time-tracker-confirm-delete .modal-content {
+    padding: 16px;
+}
+
+.time-tracker-confirm-delete h2 {
+    margin: 0 0 12px 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.delete-entry-details {
+    background: var(--background-secondary);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.delete-entry-time {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-normal);
+}
+
+.delete-entry-desc {
+    margin: 4px 0 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.delete-confirm-message {
+    margin: 0 0 16px 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.delete-button-container {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.delete-button-container button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    transition: all 0.15s ease;
+}
+
+.delete-button-container button:hover {
+    background: var(--background-secondary);
+}
+
+.delete-button-container button.mod-warning {
+    background: var(--text-error);
+    border-color: var(--text-error);
+    color: white;
+}
+
+.delete-button-container button.mod-warning:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
 }

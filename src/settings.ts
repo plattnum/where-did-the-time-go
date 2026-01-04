@@ -161,6 +161,19 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     );
                     modal.open();
                 }));
+
+        // Developer Settings
+        containerEl.createEl('h2', { text: 'Developer' });
+
+        new Setting(containerEl)
+            .setName('Debug mode')
+            .setDesc('Enable verbose logging to the developer console (useful for troubleshooting)')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.debugMode)
+                .onChange(async (value) => {
+                    this.plugin.settings.debugMode = value;
+                    await this.plugin.saveSettings();
+                }));
     }
 
     private renderClientsList(container: HTMLElement): void {

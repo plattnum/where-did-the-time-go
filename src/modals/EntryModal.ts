@@ -2,6 +2,7 @@ import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponen
 import { TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
+import { Logger } from '../utils/Logger';
 
 /**
  * Mode for the entry modal
@@ -389,7 +390,7 @@ export class EntryModal extends Modal {
         const startForStorage = `${this.startDateValue} ${this.startTimeValue}`;
         const endForStorage = `${this.endDateValue} ${this.endTimeValue}`;
 
-        console.log('Saving entry:', {
+        Logger.log('Saving entry:', {
             date: this.startDateValue,
             start: startForStorage,
             end: endForStorage
@@ -805,7 +806,7 @@ export class EntryModal extends Modal {
 
         // Check for invalid dates
         if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-            console.log('EntryModal: Invalid dates, skipping overlap check');
+            Logger.log('EntryModal: Invalid dates, skipping overlap check');
             this.startOverlap = null;
             this.endOverlap = null;
             this.encompassedEntry = null;
@@ -813,7 +814,7 @@ export class EntryModal extends Modal {
             return;
         }
 
-        console.log('EntryModal: Checking conflicts for', {
+        Logger.log('EntryModal: Checking conflicts for', {
             start: startDateTime.toISOString(),
             end: endDateTime.toISOString()
         });
@@ -828,11 +829,11 @@ export class EntryModal extends Modal {
         this.endOverlap = result.endOverlap;
         this.encompassedEntry = result.encompassedEntry;
 
-        console.log('EntryModal: startOverlap =', this.startOverlap
+        Logger.log('EntryModal: startOverlap =', this.startOverlap
             ? `${this.startOverlap.start} - ${this.startOverlap.end}` : 'null');
-        console.log('EntryModal: endOverlap =', this.endOverlap
+        Logger.log('EntryModal: endOverlap =', this.endOverlap
             ? `${this.endOverlap.start} - ${this.endOverlap.end}` : 'null');
-        console.log('EntryModal: encompassedEntry =', this.encompassedEntry
+        Logger.log('EntryModal: encompassedEntry =', this.encompassedEntry
             ? `${this.encompassedEntry.start} - ${this.encompassedEntry.end}` : 'null');
 
         this.updateOverlapUI();

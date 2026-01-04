@@ -4,6 +4,7 @@ import { TimeTrackerSettingTab } from './src/settings';
 import { DataManager } from './src/data/DataManager';
 import { TimelineView } from './src/views/TimelineView';
 import { ReportsView } from './src/views/ReportsView';
+import { Logger } from './src/utils/Logger';
 
 export default class WhereDidTheTimeGoPlugin extends Plugin {
     settings: TimeTrackerSettings;
@@ -14,6 +15,9 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
 
         // Load settings
         await this.loadSettings();
+
+        // Initialize logger with debug mode from settings
+        Logger.setDebugMode(this.settings.debugMode);
 
         // Initialize data manager
         this.dataManager = new DataManager(this.app.vault, this.settings);
@@ -87,6 +91,8 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
 
     async saveSettings(): Promise<void> {
         await this.saveData(this.settings);
+        // Update logger debug mode
+        Logger.setDebugMode(this.settings.debugMode);
         // Update data manager with new settings
         if (this.dataManager) {
             this.dataManager.updateSettings(this.settings);
