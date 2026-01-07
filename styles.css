@@ -96,6 +96,23 @@
     height: 14px;
 }
 
+.timeline-btn-add {
+    padding: 5px 6px;
+    background: var(--tt-accent);
+    border-color: var(--tt-accent);
+    color: white;
+}
+
+.timeline-btn-add:hover {
+    background: var(--interactive-accent-hover);
+    border-color: var(--interactive-accent-hover);
+}
+
+.timeline-btn-add svg {
+    width: 14px;
+    height: 14px;
+}
+
 /* Timeline container */
 .timeline-container {
     flex: 1;

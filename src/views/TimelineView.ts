@@ -190,6 +190,7 @@ export class TimelineView extends ItemView {
         const todayBtn = controls.createEl('button', {
             text: 'Today',
             cls: 'timeline-btn',
+            attr: { 'aria-label': 'Go to today' },
         });
         todayBtn.addEventListener('click', () => this.scrollToDate(new Date()));
 
@@ -197,29 +198,30 @@ export class TimelineView extends ItemView {
         const nowBtn = controls.createEl('button', {
             text: 'Now',
             cls: 'timeline-btn timeline-btn-primary',
+            attr: { 'aria-label': 'Scroll to current time' },
         });
         nowBtn.addEventListener('click', () => this.scrollToNow());
 
         // Navigation buttons (1 day at a time)
         const prevBtn = controls.createEl('button', {
             cls: 'timeline-btn timeline-nav-btn',
+            attr: { 'aria-label': 'Previous day' },
         });
-        prevBtn.setAttribute('title', 'Previous day');
         setIcon(prevBtn, 'chevron-left');
         prevBtn.addEventListener('click', () => this.navigateDays(-1));
 
         const nextBtn = controls.createEl('button', {
             cls: 'timeline-btn timeline-nav-btn',
+            attr: { 'aria-label': 'Next day' },
         });
-        nextBtn.setAttribute('title', 'Next day');
         setIcon(nextBtn, 'chevron-right');
         nextBtn.addEventListener('click', () => this.navigateDays(1));
 
         // Jump to date - calendar button
         const jumpBtn = controls.createEl('button', {
-            cls: 'timeline-btn timeline-jump-btn',
+            cls: 'timeline-btn timeline-nav-btn',
+            attr: { 'aria-label': 'Jump to date' },
         });
-        jumpBtn.setAttribute('title', 'Jump to date');
         setIcon(jumpBtn, 'calendar');
 
         // Hidden date picker - outside button, visually hidden
@@ -239,6 +241,18 @@ export class TimelineView extends ItemView {
 
         jumpBtn.addEventListener('click', () => {
             (hiddenDatePicker as any).showPicker?.() || hiddenDatePicker.click();
+        });
+
+        // Add entry button
+        const addBtn = controls.createEl('button', {
+            cls: 'timeline-btn timeline-btn-add',
+            attr: { 'aria-label': 'Add new entry' },
+        });
+        setIcon(addBtn, 'plus');
+        addBtn.addEventListener('click', () => {
+            const now = new Date();
+            const startTime = `${now.getHours().toString().padStart(2, '0')}:${Math.floor(now.getMinutes() / 15) * 15}`.padEnd(5, '0').substring(0, 5);
+            this.openCreateModal(now, startTime);
         });
     }
 
