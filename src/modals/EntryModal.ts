@@ -66,6 +66,15 @@ export class EntryModal extends Modal {
     private endOverlap: TimeEntry | null = null;
     private encompassedEntry: TimeEntry | null = null;
 
+    // Snap hints for adjacent entries
+    private previousEntry: TimeEntry | null = null;
+    private nextEntry: TimeEntry | null = null;
+    private startSnapHint: HTMLElement | null = null;
+    private endSnapHint: HTMLElement | null = null;
+
+    // Validation request counter to prevent race conditions
+    private validationRequestId: number = 0;
+
     constructor(
         app: App,
         settings: TimeTrackerSettings,
@@ -792,8 +801,12 @@ export class EntryModal extends Modal {
 
     /**
      * Validate overlap with existing entries and update UI
+     * Uses request ID to prevent race conditions from concurrent async calls
      */
     private async validateOverlap(): Promise<void> {
+        // Increment and capture request ID to handle race conditions
+        const requestId = ++this.validationRequestId;
+
         // Read directly from inputs to ensure we validate what the user sees
         const startDate = this.startDateInput ? this.startDateInput.getValue() : this.startDateValue;
         const startTime = this.startTimeInput ? this.startTimeInput.getValue() : this.startTimeValue;
@@ -807,6 +820,8 @@ export class EntryModal extends Modal {
         // Check for invalid dates
         if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
             Logger.log('EntryModal: Invalid dates, skipping overlap check');
+            // Only update if this is still the latest request
+            if (requestId !== this.validationRequestId) return;
             this.startOverlap = null;
             this.endOverlap = null;
             this.encompassedEntry = null;
@@ -816,7 +831,8 @@ export class EntryModal extends Modal {
 
         Logger.log('EntryModal: Checking conflicts for', {
             start: startDateTime.toISOString(),
-            end: endDateTime.toISOString()
+            end: endDateTime.toISOString(),
+            requestId
         });
 
         // Check for overlaps (exclude self in edit mode)
@@ -824,6 +840,12 @@ export class EntryModal extends Modal {
 
         // Find all overlaps classified by type
         const result = await this.dataManager.findOverlaps(startDateTime, endDateTime, excludeEntry);
+
+        // Race condition guard: only apply results if this is still the latest request
+        if (requestId !== this.validationRequestId) {
+            Logger.log('EntryModal: Discarding stale validation result', { requestId, currentId: this.validationRequestId });
+            return;
+        }
 
         this.startOverlap = result.startOverlap;
         this.endOverlap = result.endOverlap;
