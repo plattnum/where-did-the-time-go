@@ -7,13 +7,15 @@ A lightweight time tracking plugin for Obsidian. No subscriptions. No bloat. Jus
 I got tired of:
 - SaaS time trackers that take 10 seconds to load
 - Monthly subscriptions for what amounts to a fancy spreadsheet
+- Google Sheets (it works, but it's not fun)
 - Apps that include "team collaboration features" when I just work alone
-- Electron apps eating 500MB of RAM to show me a list of tasks
 - Syncing conflicts, server outages, and "we're updating our privacy policy" emails
 
 I wanted something **simple**: click, enter time, done. Data lives in my vault as plain markdown. Works offline. Loads instantly. No account required. No telemetry. No upsells.
 
 If you need Gantt charts, resource allocation, or enterprise reporting - this isn't for you. If you just want to track where your hours went so you can bill clients or stop lying to yourself about "where the day went" - welcome.
+
+**No timer feature.** I don't track my work by hitting start/stop on a stopwatch - it just doesn't fit how I work. I enter my time after the fact. If you need a running timer, this plugin isn't for you.
 
 ## Features
 
