@@ -4,6 +4,7 @@ import { TimeTrackerSettingTab } from './src/settings';
 import { DataManager } from './src/data/DataManager';
 import { TimelineView } from './src/views/TimelineView';
 import { ReportsView } from './src/views/ReportsView';
+import { EntryModal } from './src/modals/EntryModal';
 import { Logger } from './src/utils/Logger';
 
 export default class WhereDidTheTimeGoPlugin extends Plugin {
@@ -59,6 +60,15 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
             name: 'Open Reports',
             callback: () => {
                 this.activateReportsView();
+            },
+        });
+
+        // Add command to create new entry
+        this.addCommand({
+            id: 'create-entry',
+            name: 'Create Time Entry',
+            callback: () => {
+                this.openCreateEntryModal();
             },
         });
 
@@ -158,6 +168,29 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
         if (leaf) {
             workspace.revealLeaf(leaf);
         }
+    }
+
+    /**
+     * Open the create entry modal directly (for command palette)
+     */
+    private openCreateEntryModal(): void {
+        const now = new Date();
+        // Round to nearest 15 minutes
+        const minutes = Math.floor(now.getMinutes() / 15) * 15;
+        const startTime = `${now.getHours().toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+        const modal = new EntryModal(
+            this.app,
+            this.settings,
+            this.dataManager,
+            {
+                mode: 'create',
+                date: now,
+                startTime,
+            },
+            () => this.refreshTimelineViews()
+        );
+        modal.open();
     }
 
     /**

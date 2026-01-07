@@ -69,6 +69,7 @@ Working late? Entries can cross midnight without breaking. The plugin handles mu
 ### Creating Entries
 - **Click + drag** on the timeline to create an entry
 - **Click** the + button in the toolbar
+- **Command palette** (`Ctrl/Cmd + P`) → "Create Time Entry"
 - Fill in the details, hit Save
 
 ### Editing Entries
@@ -76,8 +77,10 @@ Working late? Entries can cross midnight without breaking. The plugin handles mu
 - **Drag** entries to move them
 - **Drag edges** to resize (change duration)
 
-### Keyboard Shortcuts
-- `Ctrl/Cmd + Shift + T` - Open Timeline view
+### Command Palette
+- `Create Time Entry` - Open entry form directly (pre-fills current time)
+- `Open Timeline` - Open the timeline view
+- `Open Reports` - Open the reports view
 
 ## Settings
 
