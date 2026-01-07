@@ -725,10 +725,11 @@ export class TimelineView extends ItemView {
         const endHours = Math.floor(endTotalMins / 60) % 24;
         const endMins = Math.round(endTotalMins % 60 / 15) * 15;
 
-        // Determine end date (might be next day if spans midnight)
+        // Determine end date (might span multiple days)
         const endDate = new Date(newDate);
-        if (endTotalMins >= 24 * 60) {
-            endDate.setDate(endDate.getDate() + 1);
+        const daysToAdd = Math.floor(endTotalMins / (24 * 60));
+        if (daysToAdd > 0) {
+            endDate.setDate(endDate.getDate() + daysToAdd);
         }
 
         const newStartTime = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`;
