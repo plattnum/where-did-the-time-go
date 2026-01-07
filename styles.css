@@ -31,17 +31,20 @@
 /* Header */
 .timeline-header {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
+    gap: 8px 16px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--tt-border);
     background: var(--tt-bg-secondary);
 }
 
 .timeline-header-title {
     display: flex;
-    align-items: center;
-    gap: 16px;
+    align-items: baseline;
+    gap: 12px;
+    min-width: 0;
 }
 
 .timeline-header-title h2 {
@@ -49,35 +52,48 @@
     font-size: 1.1em;
     font-weight: 600;
     color: var(--tt-text);
+    flex-shrink: 0;
 }
 
 .timeline-visible-date {
-    font-size: 0.9em;
+    font-size: 0.85em;
     color: var(--tt-text-muted);
     font-weight: 400;
+    white-space: nowrap;
 }
 
 .timeline-header-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: nowrap;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .timeline-btn {
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: var(--tt-radius);
     background: var(--tt-bg);
     border: 1px solid var(--tt-border);
     color: var(--tt-text);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12px;
     transition: all 0.15s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .timeline-btn:hover {
     background: var(--tt-bg-secondary);
     border-color: var(--tt-accent);
+}
+
+.timeline-nav-btn {
+    padding: 5px 6px;
+}
+
+.timeline-nav-btn svg {
+    width: 14px;
+    height: 14px;
 }
 
 /* Timeline container */

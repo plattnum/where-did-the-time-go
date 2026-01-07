@@ -202,15 +202,17 @@ export class TimelineView extends ItemView {
 
         // Navigation buttons (1 day at a time)
         const prevBtn = controls.createEl('button', {
-            text: '← Prev',
-            cls: 'timeline-btn',
+            cls: 'timeline-btn timeline-nav-btn',
         });
+        prevBtn.setAttribute('title', 'Previous day');
+        setIcon(prevBtn, 'chevron-left');
         prevBtn.addEventListener('click', () => this.navigateDays(-1));
 
         const nextBtn = controls.createEl('button', {
-            text: 'Next →',
-            cls: 'timeline-btn',
+            cls: 'timeline-btn timeline-nav-btn',
         });
+        nextBtn.setAttribute('title', 'Next day');
+        setIcon(nextBtn, 'chevron-right');
         nextBtn.addEventListener('click', () => this.navigateDays(1));
 
         // Jump to date - calendar button
