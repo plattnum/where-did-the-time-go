@@ -754,7 +754,7 @@ export class TimelineView extends ItemView {
             });
             await this.refresh();
         } catch (err) {
-            console.error('Failed to update entry after drag:', err);
+            Logger.error('Failed to update entry after drag:', err);
             new Notice('Failed to move entry. It may overlap with another entry.');
             // Revert visual position
             card.style.top = `${this.entryDragOriginalTop}px`;

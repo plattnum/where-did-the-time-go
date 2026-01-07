@@ -381,7 +381,7 @@ export class EntryModal extends Modal {
     private async handleSave(): Promise<void> {
         // Validate required fields
         if (!this.startDateValue || !this.startTimeValue || !this.endDateValue || !this.endTimeValue) {
-            console.error('EntryModal: Missing required fields');
+            Logger.error('EntryModal: Missing required fields');
             return;
         }
 
@@ -394,7 +394,7 @@ export class EntryModal extends Modal {
         // Validate date format
         if (!/^\d{4}-\d{2}-\d{2}$/.test(this.startDateValue) ||
             !/^\d{4}-\d{2}-\d{2}$/.test(this.endDateValue)) {
-            console.error('EntryModal: Invalid date format');
+            Logger.error('EntryModal: Invalid date format');
             return;
         }
 
@@ -446,7 +446,7 @@ export class EntryModal extends Modal {
             this.onSave();
             this.close();
         } catch (error) {
-            console.error('EntryModal: Error saving entry:', error);
+            Logger.error('EntryModal: Error saving entry:', error);
             // The DataManager will show a Notice for overlap errors
         }
     }
@@ -470,7 +470,7 @@ export class EntryModal extends Modal {
             this.onSave();
             this.close();
         } catch (error) {
-            console.error('EntryModal: Error deleting entry:', error);
+            Logger.error('EntryModal: Error deleting entry:', error);
         }
     }
 
