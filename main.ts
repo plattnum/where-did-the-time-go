@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf } from 'obsidian';
+import { Plugin, WorkspaceLeaf, debounce } from 'obsidian';
 import { TimeTrackerSettings, DEFAULT_SETTINGS, VIEW_TYPE_TIMELINE, VIEW_TYPE_REPORTS } from './src/types';
 import { TimeTrackerSettingTab } from './src/settings';
 import { DataManager } from './src/data/DataManager';
@@ -65,6 +65,9 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
         // Add settings tab
         this.addSettingTab(new TimeTrackerSettingTab(this.app, this));
 
+        // Debounced refresh to avoid excessive updates during sync operations
+        const debouncedRefresh = debounce(() => this.refreshTimelineViews(), 500, true);
+
         // Watch for file changes to invalidate cache
         this.registerEvent(
             this.app.vault.on('modify', (file) => {
@@ -73,8 +76,8 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
                     const monthMatch = file.name.match(/^(\d{4}-\d{2})\.md$/);
                     if (monthMatch) {
                         this.dataManager.invalidateMonth(monthMatch[1]);
-                        // Refresh open timeline views
-                        this.refreshTimelineViews();
+                        // Refresh open timeline views (debounced)
+                        debouncedRefresh();
                     }
                 }
             })
