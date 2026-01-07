@@ -12,6 +12,9 @@ export class DataManager {
     private settings: TimeTrackerSettings;
     private cache: Map<string, ParsedMonth> = new Map();
 
+    // Limit cache size to prevent unbounded memory growth
+    private static readonly MAX_CACHED_MONTHS = 24;
+
     constructor(vault: Vault, settings: TimeTrackerSettings) {
         this.vault = vault;
         this.settings = settings;
@@ -122,6 +125,14 @@ export class DataManager {
 
         // Cache the result
         this.cache.set(monthStr, parsed);
+
+        // Prune cache if over limit (FIFO - Map maintains insertion order)
+        if (this.cache.size > DataManager.MAX_CACHED_MONTHS) {
+            const oldestKey = this.cache.keys().next().value;
+            if (oldestKey) {
+                this.cache.delete(oldestKey);
+            }
+        }
 
         return parsed;
     }
