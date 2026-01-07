@@ -85,6 +85,11 @@ export class TimelineView extends ItemView {
     }
 
     async onClose(): Promise<void> {
+        // Cleanup any active drag listeners (in case view closes mid-drag)
+        document.removeEventListener('mousemove', this.handleEntryDragMove);
+        document.removeEventListener('mouseup', this.handleEntryDragEnd);
+        this.cleanupEntryDrag();
+
         // Cleanup resize observer
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
