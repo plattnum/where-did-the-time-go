@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Modal, App, setIcon } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Modal, App, setIcon, Notice } from 'obsidian';
 import { VIEW_TYPE_TIMELINE, TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
@@ -755,6 +755,7 @@ export class TimelineView extends ItemView {
             await this.refresh();
         } catch (err) {
             console.error('Failed to update entry after drag:', err);
+            new Notice('Failed to move entry. It may overlap with another entry.');
             // Revert visual position
             card.style.top = `${this.entryDragOriginalTop}px`;
             card.style.height = `${this.entryDragOriginalHeight}px`;
