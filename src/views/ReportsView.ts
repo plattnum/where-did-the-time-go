@@ -1,8 +1,11 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
 import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport, ClientReport } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
 import { Logger } from '../utils/Logger';
+
+/** Maximum days allowed for report range to prevent performance issues */
+const MAX_REPORT_DAYS = 90;
 
 /**
  * Reports view showing time breakdowns by project and tag
@@ -299,6 +302,13 @@ export class ReportsView extends ItemView {
      */
     private async loadReport(): Promise<void> {
         const { start, end } = this.getDateRange(this.selectedPreset);
+
+        // Check if range exceeds maximum
+        const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysDiff > MAX_REPORT_DAYS) {
+            new Notice(`Report range limited to ${MAX_REPORT_DAYS} days for performance. Please select a shorter range.`);
+            return;
+        }
 
         Logger.log('ReportsView: Loading report for', start.toDateString(), 'to', end.toDateString());
 

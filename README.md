@@ -45,7 +45,7 @@ Your data lives in `TimeTracking/YYYY-MM.md` files as markdown tables:
 One file per month. Human-readable. Git-friendly. Portable - if this plugin dies, your data doesn't.
 
 ### Reports View
-See where your time actually went. Filter by client, project, date range. Export to CSV when your accountant asks for timesheets.
+See where your time actually went. Filter by client, project, date range. Export to CSV when your accountant asks for timesheets. Reports are limited to 90 days max to keep things fast.
 
 ### Overlap Detection
 Won't let you accidentally double-book yourself. The timeline shows conflicts in real-time.
