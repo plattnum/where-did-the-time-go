@@ -75,6 +75,9 @@ export class EntryModal extends Modal {
     // Validation request counter to prevent race conditions
     private validationRequestId: number = 0;
 
+    // Duration validation state
+    private hasInvalidDuration: boolean = false;
+
     constructor(
         app: App,
         settings: TimeTrackerSettings,
@@ -395,6 +398,14 @@ export class EntryModal extends Modal {
             return;
         }
 
+        // Validate end time is after start time (prevents negative durations)
+        const startDateTime = new Date(`${this.startDateValue}T${this.startTimeValue}`);
+        const endDateTime = new Date(`${this.endDateValue}T${this.endTimeValue}`);
+        if (endDateTime <= startDateTime) {
+            new Notice('End time must be after start time');
+            return;
+        }
+
         // Format start and end with explicit date+time: "YYYY-MM-DD HH:mm"
         const startForStorage = `${this.startDateValue} ${this.startTimeValue}`;
         const endForStorage = `${this.endDateValue} ${this.endTimeValue}`;
@@ -557,10 +568,23 @@ export class EntryModal extends Modal {
      * Recalculate and update duration display when dates/times change
      */
     private recalculateDuration(): void {
-        this.durationValue = this.calculateDurationFromDates();
+        const start = new Date(`${this.startDateValue}T${this.startTimeValue}`);
+        const end = new Date(`${this.endDateValue}T${this.endTimeValue}`);
+        const diffMs = end.getTime() - start.getTime();
+        const diffMins = Math.round(diffMs / 60000);
+
+        // Track invalid duration state
+        this.hasInvalidDuration = diffMins <= 0;
+
+        this.durationValue = this.formatDurationMinutes(diffMins);
         if (this.durationInput) {
             this.durationInput.setValue(this.durationValue);
+            // Add visual error state for invalid duration
+            this.durationInput.inputEl.toggleClass('time-input-error', this.hasInvalidDuration);
         }
+
+        // Update save button state
+        this.updateSaveButtonState();
     }
 
     /**
@@ -920,15 +944,44 @@ export class EntryModal extends Modal {
                     const msg = textContainer.createDiv('overlap-message');
                     msg.setText(`Conflicts with ${entryLabel} (${entry.start} – ${entry.end})`);
                 }
+
+                // Show invalid duration warning
+                if (this.hasInvalidDuration) {
+                    const msg = textContainer.createDiv('overlap-message');
+                    msg.setText('End time must be after start time');
+                }
+            } else if (this.hasInvalidDuration) {
+                // Show only duration warning
+                this.warningBanner.style.display = 'block';
+                this.warningBanner.empty();
+
+                const icon = this.warningBanner.createSpan('overlap-warning-icon');
+                icon.setText('⚠️');
+
+                const textContainer = this.warningBanner.createDiv('overlap-warning-messages');
+                const msg = textContainer.createDiv('overlap-message');
+                msg.setText('End time must be after start time');
             } else {
                 this.warningBanner.style.display = 'none';
             }
         }
 
-        // Update save button
+        // Update save button state
+        this.updateSaveButtonState();
+    }
+
+    /**
+     * Update save button enabled/disabled state based on all validation
+     */
+    private updateSaveButtonState(): void {
+        const hasAnyConflict = this.startOverlap !== null ||
+            this.endOverlap !== null ||
+            this.encompassedEntry !== null;
+        const cannotSave = hasAnyConflict || this.hasInvalidDuration;
+
         if (this.saveButton) {
-            this.saveButton.disabled = hasAnyConflict;
-            this.saveButton.toggleClass('is-disabled', hasAnyConflict);
+            this.saveButton.disabled = cannotSave;
+            this.saveButton.toggleClass('is-disabled', cannotSave);
         }
     }
 
