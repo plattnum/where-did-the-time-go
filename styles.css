@@ -1293,8 +1293,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding-left: 48px;
-    font-size: 13px;
+    padding-left: 72px;
+    font-size: 12px;
     color: var(--tt-text-muted);
 }
 
@@ -1447,6 +1447,7 @@
 /* Reports: Project nested under client */
 .reports-project-nested-row {
     background: var(--tt-bg-secondary);
+    cursor: pointer;
 }
 
 .reports-project-nested-row:hover {
@@ -1456,9 +1457,14 @@
 .reports-project-nested-name {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding-left: 48px;
+    gap: 8px;
+    padding-left: 32px;
     font-size: 13px;
+    color: var(--tt-text-muted);
+}
+
+.reports-project-nested-name .reports-expand-icon {
+    font-size: 10px;
     color: var(--tt-text-muted);
 }
 
