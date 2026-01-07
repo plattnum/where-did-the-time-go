@@ -63,7 +63,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             .setName('Hour height')
             .setDesc('Height in pixels for each hour in the timeline view')
             .addSlider(slider => slider
-                .setLimits(40, 240, 10)
+                .setLimits(200, 240, 10)
                 .setValue(this.plugin.settings.hourHeight)
                 .setDynamicTooltip()
                 .onChange(async (value) => {
@@ -106,16 +106,6 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.use24HourFormat)
                 .onChange(async (value) => {
                     this.plugin.settings.use24HourFormat = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Show description')
-            .setDesc('Show entry descriptions in timeline cards')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.showDescription)
-                .onChange(async (value) => {
-                    this.plugin.settings.showDescription = value;
                     await this.plugin.saveSettings();
                 }));
 

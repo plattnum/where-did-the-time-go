@@ -120,8 +120,6 @@ export interface TimeTrackerSettings {
     dayEndHour: number;
     /** Default project for new entries */
     defaultProject: string;
-    /** Whether to show description in cards */
-    showDescription: boolean;
     /** Use 24-hour format (true) or 12-hour (false) */
     use24HourFormat: boolean;
     /** First day of week: 'monday' or 'sunday' */
@@ -149,11 +147,10 @@ export interface TimeTrackerSettings {
  */
 export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     timeTrackingFolder: 'TimeTracking',
-    hourHeight: 60,
+    hourHeight: 200,
     dayStartHour: 6,
     dayEndHour: 22,
     defaultProject: '',
-    showDescription: true,
     use24HourFormat: true,
     weekStart: 'monday',
     autoCreateFolder: true,
