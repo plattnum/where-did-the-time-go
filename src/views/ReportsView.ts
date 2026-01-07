@@ -461,6 +461,11 @@ export class ReportsView extends ItemView {
         const projectCard = this.summaryContainer.createDiv('reports-summary-card');
         projectCard.createDiv({ text: 'Projects', cls: 'reports-summary-label' });
         projectCard.createDiv({ text: String(this.projectReports.length), cls: 'reports-summary-value' });
+
+        // Client count
+        const clientCard = this.summaryContainer.createDiv('reports-summary-card');
+        clientCard.createDiv({ text: 'Clients', cls: 'reports-summary-label' });
+        clientCard.createDiv({ text: String(this.clientReports.length), cls: 'reports-summary-value' });
     }
 
     /**
