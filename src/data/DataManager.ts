@@ -83,7 +83,7 @@ export class DataManager {
 
         if (!file) {
             // Create the file with header and empty table
-            const content = TableParser.generateMonthFile([], monthStr);
+            const content = TableParser.generateMonthFile([], monthStr, this.settings.hideTablesInPreview);
             file = await this.vault.create(filePath, content);
         }
 
@@ -346,7 +346,7 @@ export class DataManager {
      */
     private async writeMonthFile(monthStr: string, entries: TimeEntry[]): Promise<void> {
         const file = await this.getOrCreateMonthFile(monthStr);
-        const content = TableParser.generateMonthFile(entries, monthStr);
+        const content = TableParser.generateMonthFile(entries, monthStr, this.settings.hideTablesInPreview);
         await this.vault.modify(file, content);
     }
 

@@ -354,12 +354,18 @@ export class TableParser {
 
     /**
      * Generate a complete month file with header and table
-     * Table is wrapped in %% comments so Obsidian doesn't render it
+     * @param entries - Time entries for the month
+     * @param monthStr - Month string (YYYY-MM)
+     * @param hideTable - If true, wrap table in %% comments to hide in reading view
      */
-    static generateMonthFile(entries: TimeEntry[], monthStr: string): string {
+    static generateMonthFile(entries: TimeEntry[], monthStr: string, hideTable: boolean = true): string {
         const header = this.getFileHeader();
         const table = this.generateTable(entries);
-        return `${header}\n# ${monthStr}\n\n%%\n${table}%%\n`;
+        if (hideTable) {
+            return `${header}\n# ${monthStr}\n\n%%\n${table}%%\n`;
+        } else {
+            return `${header}\n# ${monthStr}\n\n${table}`;
+        }
     }
 
     /**

@@ -46,6 +46,16 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        new Setting(containerEl)
+            .setName('Hide tables in reading view')
+            .setDesc('Wrap data tables in %% comment markers to hide them in reading view. Disable to see raw table data.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.hideTablesInPreview)
+                .onChange(async (value) => {
+                    this.plugin.settings.hideTablesInPreview = value;
+                    await this.plugin.saveSettings();
+                }));
+
         // Timeline Display Settings
         containerEl.createEl('h2', { text: 'Timeline Display' });
 

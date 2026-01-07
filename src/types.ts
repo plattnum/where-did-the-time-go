@@ -140,6 +140,8 @@ export interface TimeTrackerSettings {
     clients: Client[];
     /** Enable debug logging to console */
     debugMode: boolean;
+    /** Hide data tables in reading view using %% comment markers */
+    hideTablesInPreview: boolean;
 }
 
 /**
@@ -174,6 +176,7 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     activities: [],
     defaultActivity: '',
     debugMode: false,
+    hideTablesInPreview: true,
 };
 
 /**
