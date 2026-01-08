@@ -1,5 +1,7 @@
 # Where Did The Time Go?
 
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/plattnum)
+
 A lightweight time tracking plugin for Obsidian. No subscriptions. No bloat. Just you, your vault, and some markdown tables.
 
 ## Why This Exists
@@ -165,6 +167,12 @@ PRs welcome for actual bugs. Feature PRs should be discussed first.
 ## License
 
 MIT - Do whatever you want with it.
+
+## Support
+
+If this plugin saves you time, consider buying me a coffee.
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/plattnum)
 
 ---
 
