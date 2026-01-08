@@ -19,6 +19,8 @@ If you need Gantt charts, resource allocation, or enterprise reporting - this is
 
 **No timer feature.** I don't track my work by hitting start/stop on a stopwatch - it just doesn't fit how I work. I enter my time after the fact. If you need a running timer, this plugin isn't for you.
 
+**Not a task manager.** This is purely time tracking - logging hours after the fact. My tasks live in external systems (Jira, Linear, GitHub Issues, whatever). I didn't want to integrate with Obsidian Tasks or other task plugins that scan your entire vault. This plugin stays in its lane: you tell it what you worked on and when, it writes that to a table. That's it.
+
 ## Features
 
 ### Infinite Timeline View
@@ -47,7 +49,7 @@ Your data lives in `TimeTracking/YYYY-MM.md` files as markdown tables:
 One file per month. Human-readable. Git-friendly. Portable - if this plugin dies, your data doesn't.
 
 ### Reports View
-See where your time actually went. Filter by client, project, date range. Export to CSV when your accountant asks for timesheets. Reports are limited to 90 days max to keep things fast.
+See where your time actually went. Filter by client, project, date range. Export to CSV or JSON when your accountant asks for timesheets. Date range selections are limited to 90 days max to keep things fast.
 
 ### Overlap Detection
 Won't let you accidentally double-book yourself. The timeline shows conflicts in real-time.
