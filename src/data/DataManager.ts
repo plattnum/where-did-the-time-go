@@ -438,6 +438,59 @@ export class DataManager {
     }
 
     /**
+     * Find adjacent entries (previous entry ending before start, next entry starting after end)
+     * Used for "magnet" snap feature in entry modal
+     */
+    async findAdjacentEntries(
+        start: Date,
+        end: Date,
+        excludeEntry?: TimeEntry
+    ): Promise<{
+        previous: TimeEntry | null;
+        next: TimeEntry | null;
+    }> {
+        // Load entries for a range around the current entry (same day plus buffer)
+        const searchStart = new Date(start);
+        searchStart.setDate(searchStart.getDate() - 1);
+        const searchEnd = new Date(end);
+        searchEnd.setDate(searchEnd.getDate() + 1);
+
+        const entries = await this.loadDateRange(searchStart, searchEnd);
+
+        let previous: TimeEntry | null = null;
+        let next: TimeEntry | null = null;
+
+        for (const entry of entries) {
+            if (excludeEntry && this.isSameEntry(entry, excludeEntry)) continue;
+
+            // Previous: entry ends before or at our start (no gap = snappable)
+            if (entry.endDateTime <= start) {
+                // Keep the closest one (latest end time that's still before start)
+                if (!previous || entry.endDateTime > previous.endDateTime) {
+                    previous = entry;
+                }
+            }
+
+            // Next: entry starts at or after our end (no gap = snappable)
+            if (entry.startDateTime >= end) {
+                // Keep the closest one (earliest start time that's still after end)
+                if (!next || entry.startDateTime < next.startDateTime) {
+                    next = entry;
+                }
+            }
+        }
+
+        Logger.log('DataManager.findAdjacentEntries:', {
+            start: start.toISOString(),
+            end: end.toISOString(),
+            previous: previous ? `${previous.start}-${previous.end}` : null,
+            next: next ? `${next.start}-${next.end}` : null
+        });
+
+        return { previous, next };
+    }
+
+    /**
      * Get all unique projects from entries
      */
     async getAllProjects(): Promise<string[]> {

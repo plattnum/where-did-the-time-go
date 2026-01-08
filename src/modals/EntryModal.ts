@@ -1,4 +1,4 @@
-import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponent, Notice, FuzzySuggestModal, TFile } from 'obsidian';
+import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponent, Notice, FuzzySuggestModal, TFile, setIcon } from 'obsidian';
 import { TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
@@ -150,10 +150,10 @@ export class EntryModal extends Modal {
         const title = this.data.mode === 'edit' ? 'Edit Time Entry' : 'New Time Entry';
         contentEl.createEl('h2', { text: title });
 
-        // Start row: Date and Time
+        // Start row: Date and Time with magnet button
         const startRow = contentEl.createDiv('time-row');
 
-        new Setting(startRow)
+        const startSetting = new Setting(startRow)
             .setName('Start')
             .addText((text) => {
                 this.startDateInput = text;
@@ -163,6 +163,7 @@ export class EntryModal extends Modal {
                     this.startDateValue = value;
                     this.recalculateDuration();
                     this.validateOverlap();
+                    this.findAdjacentEntries();
                 });
             })
             .addText((text) => {
@@ -173,8 +174,20 @@ export class EntryModal extends Modal {
                     this.startTimeValue = value;
                     this.recalculateDuration();
                     this.validateOverlap();
+                    this.findAdjacentEntries();
                 });
             });
+
+        // Magnet button for start (snap to end of previous entry)
+        this.startSnapHint = startSetting.controlEl.createEl('button', {
+            cls: 'time-magnet-btn',
+        });
+        setIcon(this.startSnapHint, 'magnet');
+        this.startSnapHint.style.display = 'none'; // Hidden until adjacent entry found
+        this.startSnapHint.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.snapStartToPrevious();
+        });
 
         // Duration row (between start and end)
         new Setting(contentEl)
@@ -191,10 +204,10 @@ export class EntryModal extends Modal {
                 });
             });
 
-        // End row: Date and Time
+        // End row: Date and Time with magnet button
         const endRow = contentEl.createDiv('time-row');
 
-        new Setting(endRow)
+        const endSetting = new Setting(endRow)
             .setName('End')
             .addText((text) => {
                 this.endDateInput = text;
@@ -204,6 +217,7 @@ export class EntryModal extends Modal {
                     this.endDateValue = value;
                     this.recalculateDuration();
                     this.validateOverlap();
+                    this.findAdjacentEntries();
                 });
             })
             .addText((text) => {
@@ -214,8 +228,20 @@ export class EntryModal extends Modal {
                     this.endTimeValue = value;
                     this.recalculateDuration();
                     this.validateOverlap();
+                    this.findAdjacentEntries();
                 });
             });
+
+        // Magnet button for end (snap to start of next entry)
+        this.endSnapHint = endSetting.controlEl.createEl('button', {
+            cls: 'time-magnet-btn',
+        });
+        setIcon(this.endSnapHint, 'magnet');
+        this.endSnapHint.style.display = 'none'; // Hidden until adjacent entry found
+        this.endSnapHint.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.snapEndToNext();
+        });
 
         // Overlap warning banner (hidden by default)
         this.warningBanner = contentEl.createDiv('overlap-warning-banner');
@@ -360,8 +386,9 @@ export class EntryModal extends Modal {
         });
         this.saveButton.addEventListener('click', () => this.handleSave());
 
-        // Check for overlaps on initial load (for edit mode or pre-filled times)
+        // Check for overlaps and find adjacent entries on initial load
         this.validateOverlap();
+        this.findAdjacentEntries();
     }
 
     onClose(): void {
@@ -1024,6 +1051,101 @@ export class EntryModal extends Modal {
             a.endDateTime.getTime() === b.endDateTime.getTime() &&
             a.description === b.description
         );
+    }
+
+    /**
+     * Find adjacent entries (previous ending before start, next starting after end)
+     */
+    private async findAdjacentEntries(): Promise<void> {
+        const startDateTime = new Date(`${this.startDateValue}T${this.startTimeValue}`);
+        const endDateTime = new Date(`${this.endDateValue}T${this.endTimeValue}`);
+
+        if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+            this.previousEntry = null;
+            this.nextEntry = null;
+            this.updateMagnetButtons();
+            return;
+        }
+
+        const excludeEntry = this.data.mode === 'edit' ? this.data.entry : undefined;
+        const { previous, next } = await this.dataManager.findAdjacentEntries(startDateTime, endDateTime, excludeEntry);
+
+        this.previousEntry = previous;
+        this.nextEntry = next;
+        this.updateMagnetButtons();
+    }
+
+    /**
+     * Update magnet button visibility and tooltips
+     */
+    private updateMagnetButtons(): void {
+        // Start magnet - snaps to end of previous entry
+        if (this.startSnapHint) {
+            if (this.previousEntry) {
+                this.startSnapHint.style.display = 'inline-flex';
+                const prevEnd = this.previousEntry.end;
+                const prevClient = this.getClientName(this.previousEntry.client);
+                this.startSnapHint.setAttribute('aria-label', `Snap to ${prevEnd} (end of ${prevClient})`);
+            } else {
+                this.startSnapHint.style.display = 'none';
+            }
+        }
+
+        // End magnet - snaps to start of next entry
+        if (this.endSnapHint) {
+            if (this.nextEntry) {
+                this.endSnapHint.style.display = 'inline-flex';
+                const nextStart = this.nextEntry.start;
+                const nextClient = this.getClientName(this.nextEntry.client);
+                this.endSnapHint.setAttribute('aria-label', `Snap to ${nextStart} (start of ${nextClient})`);
+            } else {
+                this.endSnapHint.style.display = 'none';
+            }
+        }
+    }
+
+    /**
+     * Snap start time to end of previous entry
+     */
+    private snapStartToPrevious(): void {
+        if (!this.previousEntry) return;
+
+        // Use the previous entry's end date/time
+        this.startDateValue = TableParser.getDateString(this.previousEntry.endDateTime);
+        this.startTimeValue = this.previousEntry.end;
+
+        if (this.startDateInput) {
+            this.startDateInput.setValue(this.startDateValue);
+        }
+        if (this.startTimeInput) {
+            this.startTimeInput.setValue(this.startTimeValue);
+        }
+
+        this.recalculateDuration();
+        this.validateOverlap();
+        this.findAdjacentEntries();
+    }
+
+    /**
+     * Snap end time to start of next entry
+     */
+    private snapEndToNext(): void {
+        if (!this.nextEntry) return;
+
+        // Use the next entry's start date/time
+        this.endDateValue = TableParser.getDateString(this.nextEntry.startDateTime);
+        this.endTimeValue = this.nextEntry.start;
+
+        if (this.endDateInput) {
+            this.endDateInput.setValue(this.endDateValue);
+        }
+        if (this.endTimeInput) {
+            this.endTimeInput.setValue(this.endTimeValue);
+        }
+
+        this.recalculateDuration();
+        this.validateOverlap();
+        this.findAdjacentEntries();
     }
 }
 

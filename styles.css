@@ -786,6 +786,34 @@
     line-height: 1.4;
 }
 
+/* Magnet button for time snapping */
+.time-magnet-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin-left: 4px;
+    background: var(--background-modifier-hover);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.time-magnet-btn:hover {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.time-magnet-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
 /* Disabled save button */
 .time-tracker-entry-modal button.is-disabled {
     opacity: 0.5;
