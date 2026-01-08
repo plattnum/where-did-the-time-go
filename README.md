@@ -1,6 +1,6 @@
 # Where Did The Time Go?
 
-[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/plattnum)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/plattnum)
 
 A lightweight time tracking plugin for Obsidian. No subscriptions. No bloat. Just you, your vault, and some markdown tables.
 
@@ -15,11 +15,11 @@ I got tired of:
 
 I wanted something **simple**: click, enter time, done. Data lives in my vault as plain markdown. Works offline. Loads instantly. No account required. No telemetry. No upsells.
 
-If you need Gantt charts, resource allocation, or enterprise reporting - this isn't for you. If you just want to track where your hours went so you can bill clients or stop lying to yourself about "where the day went" - welcome.
+If you need Gantt charts, resource allocation, task managment, or enterprise reporting - this isn't for you. If you just want to track where your hours went so you can bill clients or finally answer "wait, what did I actually do yesterday?".
 
 **No timer feature.** I don't track my work by hitting start/stop on a stopwatch - it just doesn't fit how I work. I enter my time after the fact. If you need a running timer, this plugin isn't for you.
 
-**Not a task manager.** This is purely time tracking - logging hours after the fact. My tasks live in external systems (Jira, Linear, GitHub Issues, whatever). I didn't want to integrate with Obsidian Tasks or other task plugins that scan your entire vault. This plugin stays in its lane: you tell it what you worked on and when, it writes that to a table. That's it.
+**Not a task manager.** This is purely time tracking - logging hours after the fact. My tasks live in external systems (Jira, Linear, GitHub Issues, etc). I didn't want to integrate with Obsidian Tasks or other task plugins that scan your entire vault. This plugin stays in its lane: you tell it what you worked on and when, it writes that to a table. That's it.
 
 ## Features
 
@@ -59,7 +59,8 @@ Working late? Entries can cross midnight without breaking. The plugin handles mu
 
 ## Installation
 
-### From Obsidian Community Plugins
+### From Obsidian Community Plugins *(pending approval)*
+Once approved:
 1. Open Settings → Community Plugins
 2. Search for "Where Did The Time Go"
 3. Install and enable
@@ -162,9 +163,7 @@ A: Your data stays. It's just markdown files.
 
 ## Contributing
 
-Found a bug? Open an issue. Want a feature? Open an issue first - I might talk you out of it if it adds bloat.
-
-PRs welcome for actual bugs. Feature PRs should be discussed first.
+This is my side project - something I hack on when I have spare time. Not accepting pull requests for now, but feel free to open issues for bugs or feature ideas.
 
 ## License
 
@@ -174,7 +173,7 @@ MIT - Do whatever you want with it.
 
 If this plugin saves you time, consider buying me a coffee.
 
-[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/plattnum)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/plattnum)
 
 ---
 
