@@ -125,11 +125,18 @@ export class ReportsView extends ItemView {
         const controls = header.createDiv('reports-header-controls');
 
         // Export CSV button
-        const exportBtn = controls.createEl('button', {
+        const exportCsvBtn = controls.createEl('button', {
             text: 'Export CSV',
             cls: 'reports-btn',
         });
-        exportBtn.addEventListener('click', () => this.exportToCSV());
+        exportCsvBtn.addEventListener('click', () => this.exportToCSV());
+
+        // Export JSON button
+        const exportJsonBtn = controls.createEl('button', {
+            text: 'Export JSON',
+            cls: 'reports-btn',
+        });
+        exportJsonBtn.addEventListener('click', () => this.exportToJSON());
 
         // Refresh button
         const refreshBtn = controls.createEl('button', {
@@ -907,5 +914,84 @@ export class ReportsView extends ItemView {
         URL.revokeObjectURL(url);
 
         Logger.log('ReportsView: Exported CSV -', filename);
+    }
+
+    /**
+     * Export current report data to JSON
+     */
+    private async exportToJSON(): Promise<void> {
+        const { start, end } = this.getDateRange(this.selectedPreset);
+
+        // Load entries for the date range
+        const entries = await this.dataManager.loadDateRange(start, end);
+
+        if (entries.length === 0) {
+            new Notice('No entries to export');
+            return;
+        }
+
+        // Generate JSON content
+        const json = this.generateJSON(entries, start, end);
+
+        // Create filename with date range
+        const startStr = TableParser.getDateString(start);
+        const endStr = TableParser.getDateString(end);
+        const filename = `time-entries-${startStr}-to-${endStr}.json`;
+
+        this.downloadJSON(json, filename);
+    }
+
+    /**
+     * Generate JSON content from time entries
+     */
+    private generateJSON(entries: TimeEntry[], start: Date, end: Date): string {
+        // Sort entries by date/time
+        const sorted = [...entries].sort((a, b) =>
+            a.startDateTime.getTime() - b.startDateTime.getTime()
+        );
+
+        // Build export object
+        const exportData = {
+            exportedAt: new Date().toISOString(),
+            dateRange: {
+                start: TableParser.getDateString(start),
+                end: TableParser.getDateString(end),
+            },
+            totalEntries: sorted.length,
+            entries: sorted.map(entry => ({
+                date: entry.date,
+                start: entry.start,
+                end: entry.end,
+                durationMinutes: entry.durationMinutes,
+                description: entry.description,
+                client: entry.client,
+                project: entry.project || null,
+                activity: entry.activity || null,
+                linkedNote: entry.linkedNote || null,
+            })),
+        };
+
+        return JSON.stringify(exportData, null, 2);
+    }
+
+    /**
+     * Trigger browser download of JSON file
+     */
+    private downloadJSON(content: string, filename: string): void {
+        const blob = new Blob([content], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+
+        Logger.log('ReportsView: Exported JSON -', filename);
     }
 }
