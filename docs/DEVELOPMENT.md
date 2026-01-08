@@ -24,10 +24,10 @@ npm run dev
 
 A test vault is included in the repo at `vaults/where-did-the-time-go-vault/`. This is where the plugin gets copied on build.
 
-Open this vault in Obsidian for development:
-1. Open Obsidian
-2. "Open another vault" → "Open folder as vault"
-3. Select `vaults/where-did-the-time-go-vault`
+To open in Obsidian:
+1. Open Obsidian → "Open another vault" → "Open folder as vault"
+2. Select `vaults/where-did-the-time-go-vault`
+3. The plugin is pre-installed and ready to use
 
 To use a different vault, either:
 1. **Edit the default** in `esbuild.config.mjs` (line 17)

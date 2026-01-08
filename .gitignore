@@ -1,6 +1,6 @@
 node_modules
 dist
-main.js
+/main.js
 .DS_Store
 .idea
 *.local
