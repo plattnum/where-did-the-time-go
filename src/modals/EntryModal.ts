@@ -1,4 +1,4 @@
-import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponent, Notice, FuzzySuggestModal, TFile, setIcon } from 'obsidian';
+import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponent, Notice, FuzzySuggestModal, TFile } from 'obsidian';
 import { TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
@@ -181,8 +181,8 @@ export class EntryModal extends Modal {
         // Magnet button for start (snap to end of previous entry)
         this.startSnapHint = startSetting.controlEl.createEl('button', {
             cls: 'time-magnet-btn',
+            text: '🧲',
         });
-        setIcon(this.startSnapHint, 'magnet');
         this.startSnapHint.style.display = 'none'; // Hidden until adjacent entry found
         this.startSnapHint.addEventListener('click', (e) => {
             e.preventDefault();
@@ -235,8 +235,8 @@ export class EntryModal extends Modal {
         // Magnet button for end (snap to start of next entry)
         this.endSnapHint = endSetting.controlEl.createEl('button', {
             cls: 'time-magnet-btn',
+            text: '🧲',
         });
-        setIcon(this.endSnapHint, 'magnet');
         this.endSnapHint.style.display = 'none'; // Hidden until adjacent entry found
         this.endSnapHint.addEventListener('click', (e) => {
             e.preventDefault();

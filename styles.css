@@ -809,11 +809,6 @@
     color: var(--text-on-accent);
 }
 
-.time-magnet-btn svg {
-    width: 14px;
-    height: 14px;
-}
-
 /* Disabled save button */
 .time-tracker-entry-modal button.is-disabled {
     opacity: 0.5;

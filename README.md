@@ -79,6 +79,23 @@ Working late? Entries can cross midnight without breaking. The plugin handles mu
 - **Drag** entries to move them
 - **Drag edges** to resize (change duration)
 
+### Entry Modal Fields
+
+When creating or editing an entry, you'll see these fields:
+
+| Field | Description |
+|-------|-------------|
+| **Start** | Date and time the entry begins. 🧲 magnet button appears if there's an adjacent entry - click to snap to previous entry's end time. |
+| **Duration** | Calculated automatically from start/end. You can also type directly (e.g., "1h 30m", "90m", "1.5h") and end time updates. |
+| **End** | Date and time the entry ends. 🧲 magnet button snaps to next entry's start time if one exists. |
+| **Client** | Required. Who you're billing. Configure clients in Settings. |
+| **Project** | Optional. Filtered to show only projects belonging to the selected client. |
+| **Activity** | Optional. Type of work (dev, meeting, etc.). Filtered by client. |
+| **Description** | What you worked on. Character limit configurable in Settings. |
+| **Linked Note** | Optional path to a related note. Use "Browse" to search existing notes or "Create New" to make one. |
+
+**Overlap detection**: If your entry overlaps with an existing one, the conflicting times highlight red and Save is disabled until you fix it.
+
 ### Command Palette
 - `Create Time Entry` - Open entry form directly (pre-fills current time)
 - `Open Timeline` - Open the timeline view
