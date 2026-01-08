@@ -88,6 +88,9 @@ export class TimelineView extends ItemView {
         // Cleanup any active drag listeners (in case view closes mid-drag)
         document.removeEventListener('mousemove', this.handleEntryDragMove);
         document.removeEventListener('mouseup', this.handleEntryDragEnd);
+        document.removeEventListener('touchmove', this.handleEntryDragMoveTouch);
+        document.removeEventListener('touchend', this.handleEntryDragEndTouch);
+        document.removeEventListener('touchcancel', this.handleEntryDragEndTouch);
         this.cleanupEntryDrag();
 
         // Cleanup resize observer
@@ -155,11 +158,17 @@ export class TimelineView extends ItemView {
         // Set up scroll listener
         this.timelineContainer.addEventListener('scroll', () => this.onScroll());
 
-        // Drag to select time range for new entry
+        // Drag to select time range for new entry (mouse)
         this.entriesContainer.addEventListener('mousedown', (e) => this.handleDragStart(e));
         this.entriesContainer.addEventListener('mousemove', (e) => this.handleDragMove(e));
         this.entriesContainer.addEventListener('mouseup', (e) => this.handleDragEnd(e));
         this.entriesContainer.addEventListener('mouseleave', (e) => this.handleDragCancel(e));
+
+        // Drag to select time range for new entry (touch)
+        this.entriesContainer.addEventListener('touchstart', (e) => this.handleDragStartTouch(e), { passive: false });
+        this.entriesContainer.addEventListener('touchmove', (e) => this.handleDragMoveTouch(e), { passive: false });
+        this.entriesContainer.addEventListener('touchend', (e) => this.handleDragEndTouch(e), { passive: false });
+        this.entriesContainer.addEventListener('touchcancel', () => this.handleDragCancelTouch());
 
         // Double-click on timeline to create new entry (fallback)
         this.entriesContainer.addEventListener('dblclick', (e) => this.handleTimelineDoubleClick(e));
@@ -635,6 +644,10 @@ export class TimelineView extends ItemView {
             e.stopPropagation();
             this.startEntryDrag(e, entry, card, 'resize-bottom');
         });
+        resizeBottom.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            this.startEntryDragTouch(e, entry, card, 'resize-bottom');
+        }, { passive: false });
 
         // === DRAG TO MOVE ===
         card.addEventListener('mousedown', (e) => {
@@ -644,17 +657,45 @@ export class TimelineView extends ItemView {
             e.stopPropagation();
             this.startEntryDrag(e, entry, card, 'move');
         });
+        card.addEventListener('touchstart', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('entry-resize-handle')) return;
+            if (target.closest('.entry-icon')) return;
+            e.stopPropagation();
+            this.startEntryDragTouch(e, entry, card, 'move');
+        }, { passive: false });
     }
 
     /**
-     * Start dragging an entry (move or resize)
+     * Start dragging an entry (move or resize) - mouse version
      */
     private startEntryDrag(e: MouseEvent, entry: TimeEntry, card: HTMLElement, mode: 'move' | 'resize-top' | 'resize-bottom'): void {
         e.preventDefault();
+        this.initEntryDrag(e.clientY, entry, card, mode);
+        document.addEventListener('mousemove', this.handleEntryDragMove);
+        document.addEventListener('mouseup', this.handleEntryDragEnd);
+    }
+
+    /**
+     * Start dragging an entry (move or resize) - touch version
+     */
+    private startEntryDragTouch(e: TouchEvent, entry: TimeEntry, card: HTMLElement, mode: 'move' | 'resize-top' | 'resize-bottom'): void {
+        if (e.touches.length !== 1) return;
+        e.preventDefault();
+        this.initEntryDrag(e.touches[0].clientY, entry, card, mode);
+        document.addEventListener('touchmove', this.handleEntryDragMoveTouch, { passive: false });
+        document.addEventListener('touchend', this.handleEntryDragEndTouch);
+        document.addEventListener('touchcancel', this.handleEntryDragEndTouch);
+    }
+
+    /**
+     * Initialize entry drag state (shared by mouse and touch)
+     */
+    private initEntryDrag(clientY: number, entry: TimeEntry, card: HTMLElement, mode: 'move' | 'resize-top' | 'resize-bottom'): void {
         this.entryDragMode = mode;
         this.entryDragEntry = entry;
         this.entryDragCard = card;
-        this.entryDragStartY = e.clientY;
+        this.entryDragStartY = clientY;
         this.entryDragOriginalTop = parseFloat(card.style.top);
         this.entryDragOriginalHeight = parseFloat(card.style.height);
 
@@ -663,18 +704,31 @@ export class TimelineView extends ItemView {
         // Create tooltip for time feedback
         this.entryDragTooltipEl = this.timelineInner.createDiv('timeline-drag-tooltip');
         this.updateEntryDragTooltip();
-
-        document.addEventListener('mousemove', this.handleEntryDragMove);
-        document.addEventListener('mouseup', this.handleEntryDragEnd);
     }
 
     /**
-     * Handle entry drag movement
+     * Handle entry drag movement - mouse version
      */
     private handleEntryDragMove = (e: MouseEvent): void => {
+        this.updateEntryDragPosition(e.clientY);
+    };
+
+    /**
+     * Handle entry drag movement - touch version
+     */
+    private handleEntryDragMoveTouch = (e: TouchEvent): void => {
+        if (e.touches.length !== 1) return;
+        e.preventDefault(); // Prevent scrolling while dragging
+        this.updateEntryDragPosition(e.touches[0].clientY);
+    };
+
+    /**
+     * Update entry position during drag (shared by mouse and touch)
+     */
+    private updateEntryDragPosition(clientY: number): void {
         if (this.entryDragMode === 'none' || !this.entryDragCard) return;
 
-        const deltaY = e.clientY - this.entryDragStartY;
+        const deltaY = clientY - this.entryDragStartY;
 
         if (this.entryDragMode === 'move') {
             // Move the whole card
@@ -698,21 +752,40 @@ export class TimelineView extends ItemView {
 
         // Update tooltip with current times
         this.updateEntryDragTooltip();
-    };
+    }
 
     /**
-     * End entry drag and save changes
+     * End entry drag and save changes - mouse version
      */
     private handleEntryDragEnd = async (e: MouseEvent): Promise<void> => {
         document.removeEventListener('mousemove', this.handleEntryDragMove);
         document.removeEventListener('mouseup', this.handleEntryDragEnd);
+        await this.finalizeEntryDrag(e.clientY);
+    };
 
+    /**
+     * End entry drag and save changes - touch version
+     */
+    private handleEntryDragEndTouch = async (e: TouchEvent): Promise<void> => {
+        document.removeEventListener('touchmove', this.handleEntryDragMoveTouch);
+        document.removeEventListener('touchend', this.handleEntryDragEndTouch);
+        document.removeEventListener('touchcancel', this.handleEntryDragEndTouch);
+
+        // Use changedTouches for touchend (touches array is empty)
+        const clientY = e.changedTouches?.[0]?.clientY ?? this.entryDragStartY;
+        await this.finalizeEntryDrag(clientY);
+    };
+
+    /**
+     * Finalize entry drag - calculate new times and save (shared by mouse and touch)
+     */
+    private async finalizeEntryDrag(clientY: number): Promise<void> {
         if (this.entryDragMode === 'none' || !this.entryDragCard || !this.entryDragEntry) {
             this.cleanupEntryDrag();
             return;
         }
 
-        const deltaY = e.clientY - this.entryDragStartY;
+        const deltaY = clientY - this.entryDragStartY;
 
         // If barely moved, treat as click (will open edit modal)
         if (Math.abs(deltaY) < 5) {
@@ -1178,6 +1251,122 @@ export class TimelineView extends ItemView {
      * Handle drag cancel (mouse leaves container)
      */
     private handleDragCancel(_e: MouseEvent): void {
+        if (this.isDragging) {
+            this.cleanupDrag();
+        }
+    }
+
+    // Touch versions of drag-to-create handlers
+
+    /**
+     * Handle touch start - begin selecting time range (touch version)
+     */
+    private handleDragStartTouch(e: TouchEvent): void {
+        if (e.touches.length !== 1) return;
+
+        // Don't start drag on entry cards
+        const target = e.target as HTMLElement;
+        if (target.closest('.timeline-entry-card')) {
+            return;
+        }
+
+        // Prevent multiple drags
+        if (this.isDragging) return;
+
+        this.isDragging = true;
+
+        // Clean up any stale selection element
+        if (this.selectionEl) {
+            this.selectionEl.remove();
+            this.selectionEl = null;
+        }
+
+        const rect = this.timelineInner.getBoundingClientRect();
+        this.dragStartY = e.touches[0].clientY - rect.top;
+        this.dragCurrentY = this.dragStartY;
+
+        // Calculate the date for this position
+        const dayIndex = Math.floor(this.dragStartY / this.dayHeight) - this.visibleDaysBuffer;
+        this.dragStartDate = new Date(this.centerDate);
+        this.dragStartDate.setDate(this.dragStartDate.getDate() + dayIndex);
+
+        // Create selection element
+        this.selectionEl = this.timelineInner.createDiv('timeline-drag-selection');
+
+        // Create tooltip for time feedback
+        this.dragTooltipEl = this.timelineInner.createDiv('timeline-drag-tooltip');
+        this.updateSelectionElement();
+
+        e.preventDefault();
+    }
+
+    /**
+     * Handle touch move - update selection visual (touch version)
+     */
+    private handleDragMoveTouch(e: TouchEvent): void {
+        if (!this.isDragging || !this.selectionEl || e.touches.length !== 1) return;
+
+        e.preventDefault(); // Prevent scrolling while creating entry
+
+        const rect = this.timelineInner.getBoundingClientRect();
+        this.dragCurrentY = e.touches[0].clientY - rect.top;
+        this.updateSelectionElement();
+    }
+
+    /**
+     * Handle touch end - open create modal with selected time range (touch version)
+     */
+    private handleDragEndTouch(e: TouchEvent): void {
+        if (!this.isDragging) return;
+
+        // Use changedTouches for touchend
+        const touch = e.changedTouches?.[0];
+        if (!touch) {
+            this.cleanupDrag();
+            return;
+        }
+
+        const rect = this.timelineInner.getBoundingClientRect();
+        const endY = touch.clientY - rect.top;
+
+        // Calculate start and end times
+        const minY = Math.min(this.dragStartY, endY);
+        const maxY = Math.max(this.dragStartY, endY);
+
+        // Only open modal if drag was significant (more than ~15 min worth)
+        const minDrag = this.settings.hourHeight / 4; // 15 minutes
+        if (maxY - minY < minDrag) {
+            this.cleanupDrag();
+            return;
+        }
+
+        // Calculate date and times from Y positions
+        const dayIndex = Math.floor(minY / this.dayHeight) - this.visibleDaysBuffer;
+        const clickedDate = new Date(this.centerDate);
+        clickedDate.setDate(clickedDate.getDate() + dayIndex);
+
+        // Calculate times within the day
+        const dayTopY = (dayIndex + this.visibleDaysBuffer) * this.dayHeight;
+        const startYInDay = minY - dayTopY;
+        const endYInDay = maxY - dayTopY;
+
+        const startHours = startYInDay / this.settings.hourHeight;
+        const endHours = endYInDay / this.settings.hourHeight;
+
+        // Round to nearest 15 minutes
+        const startTime = this.roundToTimeString(startHours);
+        const endTime = this.roundToTimeString(endHours);
+
+        Logger.log('Touch drag selection:', clickedDate.toDateString(), startTime, '-', endTime);
+
+        this.cleanupDrag();
+        this.openCreateModalWithRange(clickedDate, startTime, endTime);
+    }
+
+    /**
+     * Handle touch cancel (touch version)
+     */
+    private handleDragCancelTouch(): void {
         if (this.isDragging) {
             this.cleanupDrag();
         }
