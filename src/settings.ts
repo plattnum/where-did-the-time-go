@@ -162,6 +162,17 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        new Setting(containerEl)
+            .setName('Invoice folder')
+            .setDesc('Folder where invoices will be saved (created automatically)')
+            .addText(text => text
+                .setPlaceholder('TimeTracking/Invoices')
+                .setValue(this.plugin.settings.invoiceFolder)
+                .onChange(async (value) => {
+                    this.plugin.settings.invoiceFolder = value || 'TimeTracking/Invoices';
+                    await this.plugin.saveSettings();
+                }));
+
         // Clients Section
         containerEl.createEl('h2', { text: 'Clients' });
         containerEl.createEl('p', {

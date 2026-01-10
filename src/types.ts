@@ -124,6 +124,8 @@ export interface TimeTrackerSettings {
     timeTrackingFolder: string;
     /** Bill From info for invoices */
     billFrom: BillFrom;
+    /** Folder for generated invoices (relative to vault root) */
+    invoiceFolder: string;
     /** Pixels per hour in timeline view */
     hourHeight: number;
     /** First hour to display (0-23) */
@@ -163,6 +165,7 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
         name: '',
         address: '',
     },
+    invoiceFolder: 'TimeTracking/Invoices',
     hourHeight: 200,
     dayStartHour: 6,
     dayEndHour: 22,
