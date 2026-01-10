@@ -136,6 +136,10 @@ var import_obsidian7 = require("obsidian");
 // src/types.ts
 var DEFAULT_SETTINGS = {
   timeTrackingFolder: "TimeTracking",
+  billFrom: {
+    name: "",
+    address: ""
+  },
   hourHeight: 200,
   dayStartHour: 6,
   dayEndHour: 22,
@@ -384,6 +388,19 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
     }));
     new import_obsidian2.Setting(containerEl).setName("Week start").setDesc("First day of the week").addDropdown((dropdown) => dropdown.addOption("monday", "Monday").addOption("sunday", "Sunday").setValue(this.plugin.settings.weekStart).onChange(async (value) => {
       this.plugin.settings.weekStart = value;
+      await this.plugin.saveSettings();
+    }));
+    containerEl.createEl("h2", { text: "Bill From" });
+    containerEl.createEl("p", {
+      text: "Your billing information that appears on invoices.",
+      cls: "setting-item-description"
+    });
+    new import_obsidian2.Setting(containerEl).setName("Name").setDesc("Your name or business name").addText((text5) => text5.setPlaceholder("Your Name / Business Name").setValue(this.plugin.settings.billFrom.name).onChange(async (value) => {
+      this.plugin.settings.billFrom.name = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Address").setDesc("Your billing address (multi-line)").addTextArea((textarea) => textarea.setPlaceholder("123 Main Street\nCity, State 12345\nCountry").setValue(this.plugin.settings.billFrom.address).onChange(async (value) => {
+      this.plugin.settings.billFrom.address = value;
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h2", { text: "Clients" });

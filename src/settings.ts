@@ -133,6 +133,35 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        // Bill From Section (for invoices)
+        containerEl.createEl('h2', { text: 'Bill From' });
+        containerEl.createEl('p', {
+            text: 'Your billing information that appears on invoices.',
+            cls: 'setting-item-description'
+        });
+
+        new Setting(containerEl)
+            .setName('Name')
+            .setDesc('Your name or business name')
+            .addText(text => text
+                .setPlaceholder('Your Name / Business Name')
+                .setValue(this.plugin.settings.billFrom.name)
+                .onChange(async (value) => {
+                    this.plugin.settings.billFrom.name = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Address')
+            .setDesc('Your billing address (multi-line)')
+            .addTextArea(textarea => textarea
+                .setPlaceholder('123 Main Street\nCity, State 12345\nCountry')
+                .setValue(this.plugin.settings.billFrom.address)
+                .onChange(async (value) => {
+                    this.plugin.settings.billFrom.address = value;
+                    await this.plugin.saveSettings();
+                }));
+
         // Clients Section
         containerEl.createEl('h2', { text: 'Clients' });
         containerEl.createEl('p', {

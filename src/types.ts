@@ -107,11 +107,23 @@ export interface Client {
 }
 
 /**
+ * Bill From information for invoices
+ */
+export interface BillFrom {
+    /** Your name or business name */
+    name: string;
+    /** Multi-line address */
+    address: string;
+}
+
+/**
  * Plugin settings stored in Obsidian's data.json
  */
 export interface TimeTrackerSettings {
     /** Root folder for time tracking files */
     timeTrackingFolder: string;
+    /** Bill From info for invoices */
+    billFrom: BillFrom;
     /** Pixels per hour in timeline view */
     hourHeight: number;
     /** First hour to display (0-23) */
@@ -147,6 +159,10 @@ export interface TimeTrackerSettings {
  */
 export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     timeTrackingFolder: 'TimeTracking',
+    billFrom: {
+        name: '',
+        address: '',
+    },
     hourHeight: 200,
     dayStartHour: 6,
     dayEndHour: 22,
