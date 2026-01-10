@@ -1,8 +1,10 @@
 import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
-import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport, ClientReport } from '../types';
+import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport, ClientReport, Client } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
 import { Logger } from '../utils/Logger';
+import { InvoiceModal, InvoiceModalData } from '../modals/InvoiceModal';
+import { InvoiceGenerator } from '../invoice/InvoiceGenerator';
 
 /** Maximum days allowed for report range to prevent performance issues */
 const MAX_REPORT_DAYS = 90;
@@ -22,6 +24,11 @@ export class ReportsView extends ItemView {
     private activityReports: ActivityReport[] = [];
     private clientReports: ClientReport[] = [];
     private totalMinutes: number = 0;
+
+    // Store current entries and date range for invoice generation
+    private currentEntries: TimeEntry[] = [];
+    private currentRangeStart: Date | null = null;
+    private currentRangeEnd: Date | null = null;
 
     // DOM references
     private contentContainer: HTMLElement;
@@ -323,6 +330,11 @@ export class ReportsView extends ItemView {
         const entries = await this.dataManager.loadDateRange(start, end);
 
         Logger.log('ReportsView: Found', entries.length, 'entries');
+
+        // Store for invoice generation
+        this.currentEntries = entries;
+        this.currentRangeStart = start;
+        this.currentRangeEnd = end;
 
         // Calculate reports with effective durations (handles midnight-spanning)
         this.calculateReports(entries, start, end);
@@ -630,6 +642,18 @@ export class ReportsView extends ItemView {
 
             nameCell.createSpan({ text: report.name });
 
+            // Invoice button (show if client has tracked time)
+            if (report.totalMinutes > 0) {
+                const invoiceBtn = nameCell.createEl('button', {
+                    text: 'Invoice',
+                    cls: 'reports-invoice-btn',
+                });
+                invoiceBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openInvoiceModal(report.clientId, report.billableAmount);
+                });
+            }
+
             row.createEl('td', {
                 text: this.formatDuration(report.totalMinutes),
                 cls: 'reports-col-hours',
@@ -771,6 +795,78 @@ export class ReportsView extends ItemView {
             this.expandedClientProjects.add(projectKey);
         }
         this.renderClientTable();
+    }
+
+    /**
+     * Open the invoice modal for a client
+     */
+    private openInvoiceModal(clientId: string, totalAmount: number): void {
+        const client = this.settings.clients.find(c => c.id === clientId);
+        if (!client) {
+            new Notice('Client not found');
+            return;
+        }
+
+        if (!this.currentRangeStart || !this.currentRangeEnd) {
+            new Notice('No date range selected');
+            return;
+        }
+
+        const modalData: InvoiceModalData = {
+            client,
+            periodStart: this.currentRangeStart,
+            periodEnd: this.currentRangeEnd,
+            totalAmount,
+        };
+
+        const modal = new InvoiceModal(
+            this.app,
+            modalData,
+            async (result) => {
+                await this.generateInvoice(client, result);
+            }
+        );
+        modal.open();
+    }
+
+    /**
+     * Generate the invoice file
+     */
+    private async generateInvoice(client: Client, modalResult: import('../modals/InvoiceModal').InvoiceModalResult): Promise<void> {
+        if (!this.currentRangeStart || !this.currentRangeEnd) {
+            new Notice('No date range selected');
+            return;
+        }
+
+        try {
+            const generator = new InvoiceGenerator(this.app, this.settings, this.dataManager);
+
+            // Generate invoice data
+            const invoiceData = generator.generateInvoiceData(
+                this.currentEntries,
+                client,
+                modalResult,
+                this.currentRangeStart,
+                this.currentRangeEnd
+            );
+
+            // Generate markdown
+            const markdown = generator.generateMarkdown(invoiceData);
+
+            // Save to file
+            const filepath = await generator.saveInvoice(invoiceData, markdown);
+
+            new Notice(`Invoice created: ${filepath}`);
+
+            // Open the file
+            const file = this.app.vault.getAbstractFileByPath(filepath);
+            if (file) {
+                await this.app.workspace.getLeaf().openFile(file as import('obsidian').TFile);
+            }
+        } catch (error) {
+            Logger.log('ReportsView: Error generating invoice', error);
+            new Notice(`Error generating invoice: ${error.message}`);
+        }
     }
 
     // Helper methods

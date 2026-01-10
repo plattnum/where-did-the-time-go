@@ -1534,6 +1534,49 @@
     flex-grow: 1;
 }
 
+/* Invoice modal */
+.invoice-modal {
+    max-width: 500px;
+}
+
+.invoice-modal h2 {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.invoice-client-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    background: var(--background-secondary);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.invoice-client-info strong {
+    color: var(--text-normal);
+}
+
+.invoice-period,
+.invoice-amount {
+    color: var(--text-muted);
+}
+
+.invoice-amount {
+    font-family: var(--font-monospace);
+}
+
+.invoice-due-date {
+    padding: 8px 12px;
+    background: var(--background-secondary);
+    border-radius: 4px;
+    font-family: var(--font-monospace);
+    color: var(--text-normal);
+}
+
 /* Reports: Client row */
 .reports-client-row {
     cursor: pointer;
@@ -1549,6 +1592,25 @@
     align-items: center;
     gap: 10px;
     font-weight: 500;
+}
+
+/* Reports: Invoice button */
+.reports-invoice-btn {
+    margin-left: auto;
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    opacity: 0.85;
+}
+
+.reports-invoice-btn:hover {
+    opacity: 1;
+    transform: translateY(-1px);
 }
 
 /* Reports: Project nested under client */
