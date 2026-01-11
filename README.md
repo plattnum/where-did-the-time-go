@@ -49,7 +49,7 @@ Your data lives in `TimeTracking/YYYY-MM.md` files as markdown tables:
 One file per month. Human-readable. Git-friendly. Portable - if this plugin dies, your data doesn't.
 
 ### Reports View
-See where your time actually went. Filter by client, project, date range. Export to CSV or JSON when your accountant asks for timesheets. Date range selections are limited to 90 days max to keep things fast.
+See where your time actually went. Select a date range and get a hierarchical breakdown: **Client → Project → Activity**, with hours and billable amounts at each level. Expand any level to drill down. Export to CSV or JSON when your accountant asks for timesheets.
 
 ### Invoice Generation
 Generate markdown invoices directly from the Reports view. Each client row shows an **Invoice** button when there's billable time. Click it to:
