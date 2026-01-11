@@ -3,33 +3,32 @@ name: Release Obsidian Plugin
 on:
   push:
     tags:
-      - '*'
+      - "*"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: "18.x"
 
-      - name: Install dependencies
-        run: npm install
+      - name: Build plugin
+        run: |
+          npm install
+          npm run build
 
-      - name: Build
-        run: npm run build
-
-      - name: Create Release
+      - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
+          tag="${{ github.ref_name }}"
+
           gh release create "$tag" \
             --title="$tag" \
-            --generate-notes \
+            --draft \
             main.js manifest.json styles.css
