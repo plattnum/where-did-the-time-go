@@ -2,7 +2,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/plattnum)
 
-A lightweight time tracking plugin for Obsidian. No subscriptions. No bloat. Just you, your vault, and some markdown tables.
+**A visual time tracking plugin for Obsidian.** An infinite-scroll timeline to log your hours, hierarchical reports to see where they went, and one-click invoicing to bill for them. Your data stays in your vault as plain markdown tables - no cloud, no sync, no subscriptions.
 
 ## Why This Exists
 
@@ -23,8 +23,8 @@ If you need Gantt charts, resource allocation, task managment, or enterprise rep
 
 ## Features
 
-### Infinite Timeline View
-Visual day-by-day timeline. Drag to create entries, drag to move them, resize to adjust duration. Click to edit. It's a calendar, you've used one before. The timeline extends infinitely in both directions.
+### ∞ Timeline
+Visual day-by-day timeline that scrolls infinitely in both directions. Drag to create entries, drag to move them, resize to adjust duration. Click to edit.
 
 ![Timeline View](docs/timeline.png)
 
