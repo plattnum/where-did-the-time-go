@@ -179,6 +179,16 @@ A: No. Dataview doesn't parse markdown tables. Your data is portable plain text,
 **Q: What happens if I uninstall the plugin?**
 A: Your data stays. It's just markdown files.
 
+## Development
+
+The repo includes a test vault at `vaults/where-did-the-time-go-vault/` with:
+- 3 fictitious clients (Acme Rocket Supplies, Umbrella Corporation, Weyland-Yutani)
+- 9 projects and 18 activities
+- 74 test time entries across Nov-Dec 2025
+- Edge cases: midnight-spanning entries, month boundaries, rapid 15-min entries
+
+Run `npm run dev` to build in watch mode - output auto-copies to the test vault. See `docs/DEVELOPMENT.md` for details.
+
 ## Contributing
 
 This is my side project - something I hack on when I have spare time. Not accepting pull requests for now, but feel free to open issues for bugs or feature ideas.
