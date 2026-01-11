@@ -101,6 +101,8 @@ Once approved:
 
 ### Entry Modal Fields
 
+<img src="docs/new-time-entry-modal.png" width="50%" alt="Entry Modal">
+
 When creating or editing an entry, you'll see these fields:
 
 | Field | Description |
