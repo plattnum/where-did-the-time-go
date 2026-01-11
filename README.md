@@ -26,7 +26,7 @@ If you need Gantt charts, resource allocation, task managment, or enterprise rep
 ### ∞ Timeline
 Visual day-by-day timeline that scrolls infinitely in both directions. Drag to create entries, drag to move them, resize to adjust duration. Click to edit.
 
-![Timeline View](docs/timeline.png)
+![Timeline View](docs/infinite-timeline-view-sshot.png)
 
 ### Simple Data Model
 - **Clients** - Who you're billing (or "Personal" if you're tracking for yourself)
@@ -50,6 +50,8 @@ One file per month. Human-readable. Git-friendly. Portable - if this plugin dies
 
 ### Reports View
 See where your time actually went. Select a date range and get a hierarchical breakdown: **Client → Project → Activity**, with hours and billable amounts at each level. Expand any level to drill down. Export to CSV or JSON when your accountant asks for timesheets.
+
+![Reports View](docs/time-report-view-sshot.png)
 
 ### Invoice Generation
 Generate markdown invoices directly from the Reports view. Each client row shows an **Invoice** button when there's billable time. Click it to:
