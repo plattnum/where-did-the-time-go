@@ -51,6 +51,19 @@ One file per month. Human-readable. Git-friendly. Portable - if this plugin dies
 ### Reports View
 See where your time actually went. Filter by client, project, date range. Export to CSV or JSON when your accountant asks for timesheets. Date range selections are limited to 90 days max to keep things fast.
 
+### Invoice Generation
+Generate markdown invoices directly from the Reports view. Each client row shows an **Invoice** button when there's billable time. Click it to:
+
+1. Enter invoice number, issue date, and payment terms
+2. Due date auto-calculates based on payment terms
+3. Generate a markdown invoice with:
+   - Your "Bill From" info (configured in Settings)
+   - Client's billing address
+   - Line items grouped by project (hours × rate)
+   - Subtotal and total in the client's currency
+
+Invoices are saved to your invoice folder (default: `TimeTracking/Invoices/`) as `{invoice-number}.md`. The generated markdown renders nicely in Obsidian and can be exported to PDF.
+
 ### Overlap Detection
 Won't let you accidentally double-book yourself. The timeline shows conflicts in real-time.
 
@@ -117,13 +130,16 @@ When creating or editing an entry, you'll see these fields:
 | **Week start** | Monday or Sunday |
 | **24-hour format** | Toggle 24h vs 12h time display |
 | **Description max length** | Character limit for descriptions (0 = unlimited) |
+| **Bill From name** | Your name or business name for invoices |
+| **Bill From address** | Your billing address (multi-line) for invoices |
+| **Invoice folder** | Where generated invoices are saved (default: `TimeTracking/Invoices`) |
 
 ## Clients, Projects & Activities
 
 Configure in Settings:
 
-- **Clients** - Each has a name, color, hourly rate, and currency
-- **Projects** - Belong to a client, inherit rate or override
+- **Clients** - Each has a name, color, hourly rate, currency, billing address, and payment terms (for invoicing)
+- **Projects** - Belong to a client, can override the client's hourly rate
 - **Activities** - Work types (dev, meeting, review, etc.) per client
 
 Colors appear as left-border indicators on timeline entries.

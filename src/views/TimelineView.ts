@@ -61,7 +61,7 @@ export class TimelineView extends ItemView {
     }
 
     getDisplayText(): string {
-        return 'Timeline';
+        return '∞ Timeline';
     }
 
     getIcon(): string {
@@ -187,7 +187,7 @@ export class TimelineView extends ItemView {
         const header = container.createDiv('timeline-header');
 
         const titleSection = header.createDiv('timeline-header-title');
-        titleSection.createEl('h2', { text: 'Timeline' });
+        titleSection.createEl('h2', { text: '∞ Timeline' });
 
         // Visible date range label
         this.visibleDateLabel = titleSection.createSpan('timeline-visible-date');

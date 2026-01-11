@@ -131,7 +131,7 @@ __export(main_exports, {
   default: () => WhereDidTheTimeGoPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian7 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/types.ts
 var DEFAULT_SETTINGS = {
@@ -140,6 +140,7 @@ var DEFAULT_SETTINGS = {
     name: "",
     address: ""
   },
+  invoiceFolder: "TimeTracking/Invoices",
   hourHeight: 200,
   dayStartHour: 6,
   dayEndHour: 22,
@@ -156,7 +157,6 @@ var DEFAULT_SETTINGS = {
       archived: false,
       rate: 0,
       currency: "USD",
-      rateType: "hourly",
       paymentTerms: "N/A"
     }
   ],
@@ -187,7 +187,6 @@ var ClientModal = class extends import_obsidian.Modal {
       this.colorValue = data.client.color;
       this.rateValue = data.client.rate;
       this.currencyValue = data.client.currency;
-      this.rateTypeValue = data.client.rateType;
       this.addressValue = data.client.address || "";
       this.emailValue = data.client.email || "";
       this.taxIdValue = data.client.taxId || "";
@@ -198,7 +197,6 @@ var ClientModal = class extends import_obsidian.Modal {
       this.colorValue = this.getRandomColor();
       this.rateValue = 100;
       this.currencyValue = "USD";
-      this.rateTypeValue = "hourly";
       this.addressValue = "";
       this.emailValue = "";
       this.taxIdValue = "";
@@ -228,9 +226,6 @@ var ClientModal = class extends import_obsidian.Modal {
     }));
     new import_obsidian.Setting(contentEl).setName("Currency").setDesc("Currency code").addDropdown((dropdown) => dropdown.addOption("USD", "USD - US Dollar").addOption("EUR", "EUR - Euro").addOption("GBP", "GBP - British Pound").addOption("CAD", "CAD - Canadian Dollar").addOption("AUD", "AUD - Australian Dollar").addOption("JPY", "JPY - Japanese Yen").addOption("CHF", "CHF - Swiss Franc").addOption("INR", "INR - Indian Rupee").setValue(this.currencyValue).onChange((value) => {
       this.currencyValue = value;
-    }));
-    new import_obsidian.Setting(contentEl).setName("Rate Type").setDesc("How the rate is calculated").addDropdown((dropdown) => dropdown.addOption("hourly", "Hourly").addOption("daily", "Daily").setValue(this.rateTypeValue).onChange((value) => {
-      this.rateTypeValue = value;
     }));
     contentEl.createEl("h3", { text: "Invoice Details" });
     new import_obsidian.Setting(contentEl).setName("Billing Address").setDesc("Multi-line address for invoices").addTextArea((textarea) => textarea.setPlaceholder("123 Main Street\nSuite 400\nSan Francisco, CA 94102").setValue(this.addressValue).onChange((value) => {
@@ -288,7 +283,6 @@ var ClientModal = class extends import_obsidian.Modal {
       archived: this.data.mode === "edit" && this.data.client ? this.data.client.archived : false,
       rate: this.rateValue,
       currency: this.currencyValue,
-      rateType: this.rateTypeValue,
       address: this.addressValue.trim() || void 0,
       email: this.emailValue.trim() || void 0,
       taxId: this.taxIdValue.trim() || void 0,
@@ -403,6 +397,10 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
       this.plugin.settings.billFrom.address = value;
       await this.plugin.saveSettings();
     }));
+    new import_obsidian2.Setting(containerEl).setName("Invoice folder").setDesc("Folder where invoices will be saved (created automatically)").addText((text5) => text5.setPlaceholder("TimeTracking/Invoices").setValue(this.plugin.settings.invoiceFolder).onChange(async (value) => {
+      this.plugin.settings.invoiceFolder = value || "TimeTracking/Invoices";
+      await this.plugin.saveSettings();
+    }));
     containerEl.createEl("h2", { text: "Clients" });
     containerEl.createEl("p", {
       text: "Define clients for billing. Projects can be assigned to clients for invoicing.",
@@ -456,7 +454,7 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
       const colorDot = clientHeader.createSpan("client-color-dot");
       colorDot.style.backgroundColor = client.color;
       clientHeader.createSpan({ text: client.name, cls: "client-name" });
-      const rateDisplay = client.rateType === "hourly" ? `${client.currency} ${client.rate}/hr` : `${client.currency} ${client.rate}/day`;
+      const rateDisplay = `${client.currency} ${client.rate}/hr`;
       clientHeader.createSpan({ text: rateDisplay, cls: "client-rate-badge" });
       const editBtn = clientHeader.createEl("button", { cls: "client-edit-btn" });
       editBtn.setText("Edit");
@@ -12586,7 +12584,7 @@ var TimelineView = class extends import_obsidian5.ItemView {
     return VIEW_TYPE_TIMELINE;
   }
   getDisplayText() {
-    return "Timeline";
+    return "\u221E Timeline";
   }
   getIcon() {
     return "clock";
@@ -12670,7 +12668,7 @@ var TimelineView = class extends import_obsidian5.ItemView {
   renderHeader(container) {
     const header = container.createDiv("timeline-header");
     const titleSection = header.createDiv("timeline-header-title");
-    titleSection.createEl("h2", { text: "Timeline" });
+    titleSection.createEl("h2", { text: "\u221E Timeline" });
     this.visibleDateLabel = titleSection.createSpan("timeline-visible-date");
     this.visibleDateLabel.setText("");
     const controls = header.createDiv("timeline-header-controls");
@@ -13663,9 +13661,326 @@ var ConfirmDeleteModal = class extends import_obsidian5.Modal {
 };
 
 // src/views/ReportsView.ts
+var import_obsidian8 = require("obsidian");
+
+// src/modals/InvoiceModal.ts
 var import_obsidian6 = require("obsidian");
+var InvoiceModal = class extends import_obsidian6.Modal {
+  constructor(app, data, onGenerate) {
+    super(app);
+    // Form values
+    this.invoiceNumber = "";
+    this.paymentTerms = "Net 30";
+    this.data = data;
+    this.onGenerate = onGenerate;
+    this.issueDate = new Date();
+    this.dueDate = this.calculateDueDate(this.issueDate, this.paymentTerms);
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("invoice-modal");
+    contentEl.createEl("h2", { text: "Generate Invoice" });
+    const clientInfo = contentEl.createDiv("invoice-client-info");
+    clientInfo.createEl("strong", { text: this.data.client.name });
+    clientInfo.createEl("span", {
+      text: ` \u2022 ${this.formatDateRange(this.data.periodStart, this.data.periodEnd)}`,
+      cls: "invoice-period"
+    });
+    clientInfo.createEl("span", {
+      text: ` \u2022 ${this.formatCurrency(this.data.totalAmount, this.data.client.currency)}`,
+      cls: "invoice-amount"
+    });
+    new import_obsidian6.Setting(contentEl).setName("Invoice Number").setDesc("Unique identifier for this invoice (e.g., INV-2025-001)").addText((text5) => text5.setPlaceholder("INV-2025-001").setValue(this.invoiceNumber).onChange((value) => {
+      this.invoiceNumber = value;
+    }));
+    new import_obsidian6.Setting(contentEl).setName("Issue Date").setDesc("Date the invoice is issued").addText((text5) => {
+      text5.inputEl.type = "date";
+      text5.setValue(this.formatDateForInput(this.issueDate));
+      text5.onChange((value) => {
+        const [year, month, day] = value.split("-").map(Number);
+        this.issueDate = new Date(year, month - 1, day);
+        this.updateDueDate();
+      });
+    });
+    new import_obsidian6.Setting(contentEl).setName("Payment Terms").setDesc("When payment is due").addDropdown((dropdown) => dropdown.addOption("Due on receipt", "Due on receipt").addOption("Net 15", "Net 15").addOption("Net 30", "Net 30").addOption("Net 45", "Net 45").addOption("Net 60", "Net 60").setValue(this.paymentTerms).onChange((value) => {
+      this.paymentTerms = value;
+      this.updateDueDate();
+    }));
+    const dueDateSetting = new import_obsidian6.Setting(contentEl).setName("Due Date").setDesc("Automatically calculated from issue date and terms");
+    this.dueDateDisplay = dueDateSetting.controlEl.createDiv("invoice-due-date");
+    this.dueDateDisplay.setText(this.formatDateDisplay(this.dueDate));
+    const buttonRow = contentEl.createDiv("modal-button-row");
+    const cancelBtn = buttonRow.createEl("button", { text: "Cancel" });
+    cancelBtn.addEventListener("click", () => this.close());
+    const generateBtn = buttonRow.createEl("button", {
+      text: "Generate Invoice",
+      cls: "mod-cta"
+    });
+    generateBtn.addEventListener("click", () => this.handleGenerate());
+  }
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+  /**
+   * Update the due date based on issue date and terms
+   */
+  updateDueDate() {
+    this.dueDate = this.calculateDueDate(this.issueDate, this.paymentTerms);
+    if (this.dueDateDisplay) {
+      this.dueDateDisplay.setText(this.formatDateDisplay(this.dueDate));
+    }
+  }
+  /**
+   * Calculate due date from issue date and payment terms
+   */
+  calculateDueDate(issueDate, terms) {
+    const due = new Date(issueDate);
+    switch (terms) {
+      case "Due on receipt":
+        break;
+      case "Net 15":
+        due.setDate(due.getDate() + 15);
+        break;
+      case "Net 30":
+        due.setDate(due.getDate() + 30);
+        break;
+      case "Net 45":
+        due.setDate(due.getDate() + 45);
+        break;
+      case "Net 60":
+        due.setDate(due.getDate() + 60);
+        break;
+    }
+    return due;
+  }
+  /**
+   * Handle generate button click
+   */
+  handleGenerate() {
+    if (!this.invoiceNumber.trim()) {
+      new import_obsidian6.Notice("Invoice number is required");
+      return;
+    }
+    const result = {
+      invoiceNumber: this.invoiceNumber.trim(),
+      issueDate: this.issueDate,
+      paymentTerms: this.paymentTerms,
+      dueDate: this.dueDate
+    };
+    this.onGenerate(result);
+    this.close();
+  }
+  // Formatting helpers
+  formatDateForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+  formatDateDisplay(date) {
+    return date.toLocaleDateString(void 0, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  }
+  formatDateRange(start, end) {
+    const options = {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    };
+    return `${start.toLocaleDateString(void 0, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(void 0, options)}`;
+  }
+  formatCurrency(amount, currency) {
+    return new Intl.NumberFormat(void 0, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  }
+};
+
+// src/invoice/InvoiceGenerator.ts
+var import_obsidian7 = require("obsidian");
+var InvoiceGenerator = class {
+  constructor(app, settings, dataManager) {
+    this.app = app;
+    this.settings = settings;
+    this.dataManager = dataManager;
+  }
+  /**
+   * Generate invoice data from filtered entries
+   */
+  generateInvoiceData(entries, client, modalResult, rangeStart, rangeEnd) {
+    var _a;
+    const projectHours = /* @__PURE__ */ new Map();
+    for (const entry of entries) {
+      if (entry.client !== client.id)
+        continue;
+      const effectiveMinutes = this.dataManager.getEffectiveDuration(entry, rangeStart, rangeEnd);
+      if (effectiveMinutes <= 0)
+        continue;
+      const projectName = entry.project || "(No Project)";
+      const current = projectHours.get(projectName) || 0;
+      projectHours.set(projectName, current + effectiveMinutes);
+    }
+    const lineItems = [];
+    for (const [projectName, minutes] of projectHours) {
+      const hours = minutes / 60;
+      const project = this.settings.projects.find(
+        (p) => (p.name === projectName || p.id === projectName) && p.clientId === client.id
+      );
+      const hourlyRate = (_a = project == null ? void 0 : project.rateOverride) != null ? _a : client.rate;
+      const amount = hours * hourlyRate;
+      const description = projectName;
+      lineItems.push({
+        description,
+        quantity: Math.round(hours * 100) / 100,
+        // Round to 2 decimals
+        unitPrice: hourlyRate,
+        currency: client.currency,
+        amount: Math.round(amount * 100) / 100
+      });
+    }
+    lineItems.sort((a, b) => b.amount - a.amount);
+    const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+    const total = subtotal;
+    return {
+      invoiceNumber: modalResult.invoiceNumber,
+      issueDate: modalResult.issueDate,
+      dueDate: modalResult.dueDate,
+      billFrom: this.settings.billFrom,
+      billTo: {
+        name: client.name,
+        address: client.address || ""
+      },
+      lineItems,
+      currency: client.currency,
+      subtotal: Math.round(subtotal * 100) / 100,
+      total: Math.round(total * 100) / 100
+    };
+  }
+  /**
+   * Generate markdown content from invoice data
+   */
+  generateMarkdown(invoice) {
+    const lines = [];
+    lines.push(`# ${invoice.invoiceNumber}`);
+    lines.push("");
+    lines.push(`Issue date: ${this.formatDate(invoice.issueDate)}`);
+    lines.push(`Due date: ${this.formatDate(invoice.dueDate)}`);
+    lines.push("");
+    const billFromAddress = invoice.billFrom.address.split("\n").filter((l) => l.trim());
+    const billToAddress = invoice.billTo.address.split("\n").filter((l) => l.trim());
+    lines.push('<div style="display: flex; justify-content: space-between; margin: 20px 0;">');
+    lines.push('<div style="flex: 1;">');
+    lines.push("<small>Bill from</small><br>");
+    lines.push(`<strong>${this.escapeHtml(invoice.billFrom.name)}</strong><br>`);
+    for (const line of billFromAddress) {
+      lines.push(`${this.escapeHtml(line)}<br>`);
+    }
+    lines.push("</div>");
+    lines.push('<div style="flex: 1; text-align: right;">');
+    lines.push("<small>Bill to</small><br>");
+    lines.push(`<strong>${this.escapeHtml(invoice.billTo.name)}</strong><br>`);
+    for (const line of billToAddress) {
+      lines.push(`${this.escapeHtml(line)}<br>`);
+    }
+    lines.push("</div>");
+    lines.push("</div>");
+    lines.push("");
+    lines.push('<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">');
+    lines.push("<thead>");
+    lines.push('<tr style="border-bottom: 1px solid #ccc;">');
+    lines.push('<th style="text-align: left; padding: 8px 0;">DESCRIPTION</th>');
+    lines.push('<th style="text-align: right; padding: 8px 0;">QUANTITY</th>');
+    lines.push('<th style="text-align: right; padding: 8px 0;">UNIT PRICE</th>');
+    lines.push('<th style="text-align: right; padding: 8px 0;">AMOUNT</th>');
+    lines.push("</tr>");
+    lines.push("</thead>");
+    lines.push("<tbody>");
+    for (const item of invoice.lineItems) {
+      const quantity = item.quantity.toFixed(2);
+      const unitPrice = this.formatAmount(item.unitPrice, item.currency);
+      const amount = this.formatAmount(item.amount, item.currency);
+      let description = item.description;
+      if (description === "(No Project)") {
+        description = "Services";
+      }
+      lines.push('<tr style="border-bottom: 1px solid #eee;">');
+      lines.push(`<td style="text-align: left; padding: 8px 0;">${this.escapeHtml(description)}</td>`);
+      lines.push(`<td style="text-align: right; padding: 8px 0;">${quantity}</td>`);
+      lines.push(`<td style="text-align: right; padding: 8px 0;">${unitPrice}</td>`);
+      lines.push(`<td style="text-align: right; padding: 8px 0;">${amount}</td>`);
+      lines.push("</tr>");
+    }
+    lines.push("</tbody>");
+    lines.push("</table>");
+    lines.push("");
+    const subtotalFormatted = this.formatAmount(invoice.subtotal, invoice.currency);
+    const totalFormatted = this.formatAmount(invoice.total, invoice.currency);
+    lines.push('<div style="text-align: right; margin-top: 20px;">');
+    lines.push(`<div>SUBTOTAL: ${subtotalFormatted}</div>`);
+    lines.push(`<div><strong>TOTAL: ${totalFormatted}</strong></div>`);
+    lines.push("</div>");
+    lines.push("");
+    return lines.join("\n");
+  }
+  escapeHtml(text5) {
+    return text5.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  /**
+   * Save invoice to file
+   */
+  async saveInvoice(invoice, markdown) {
+    await this.ensureInvoiceFolder();
+    const filename = `${this.sanitizeFilename(invoice.invoiceNumber)}.md`;
+    const filepath = `${this.settings.invoiceFolder}/${filename}`;
+    const existing = this.app.vault.getAbstractFileByPath(filepath);
+    if (existing) {
+      throw new Error(`Invoice file already exists: ${filepath}`);
+    }
+    await this.app.vault.create(filepath, markdown);
+    Logger.log("InvoiceGenerator: Created invoice at", filepath);
+    return filepath;
+  }
+  /**
+   * Ensure the invoice folder exists
+   */
+  async ensureInvoiceFolder() {
+    const folderPath = this.settings.invoiceFolder;
+    const existing = this.app.vault.getAbstractFileByPath(folderPath);
+    if (existing instanceof import_obsidian7.TFolder) {
+      return;
+    }
+    await this.app.vault.createFolder(folderPath);
+    Logger.log("InvoiceGenerator: Created invoice folder", folderPath);
+  }
+  // Formatting helpers
+  formatDate(date) {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+  formatAmount(amount, currency) {
+    return `${amount.toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+  }
+  escapeTableCell(text5) {
+    return text5.replace(/\|/g, "\\|");
+  }
+  sanitizeFilename(name) {
+    return name.replace(/[<>:"/\\|?*]/g, "-");
+  }
+};
+
+// src/views/ReportsView.ts
 var MAX_REPORT_DAYS = 90;
-var ReportsView = class extends import_obsidian6.ItemView {
+var ReportsView = class extends import_obsidian8.ItemView {
   constructor(leaf, settings, dataManager) {
     super(leaf);
     // Current report state
@@ -13676,6 +13991,10 @@ var ReportsView = class extends import_obsidian6.ItemView {
     this.activityReports = [];
     this.clientReports = [];
     this.totalMinutes = 0;
+    // Store current entries and date range for invoice generation
+    this.currentEntries = [];
+    this.currentRangeStart = null;
+    this.currentRangeEnd = null;
     // Expanded clients (for project breakdown)
     this.expandedClients = /* @__PURE__ */ new Set();
     // Expanded projects within clients (key: "clientId:projectName")
@@ -13887,12 +14206,15 @@ var ReportsView = class extends import_obsidian6.ItemView {
     const { start, end } = this.getDateRange(this.selectedPreset);
     const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1e3 * 60 * 60 * 24));
     if (daysDiff > MAX_REPORT_DAYS) {
-      new import_obsidian6.Notice(`Report range limited to ${MAX_REPORT_DAYS} days for performance. Please select a shorter range.`);
+      new import_obsidian8.Notice(`Report range limited to ${MAX_REPORT_DAYS} days for performance. Please select a shorter range.`);
       return;
     }
     Logger.log("ReportsView: Loading report for", start.toDateString(), "to", end.toDateString());
     const entries = await this.dataManager.loadDateRange(start, end);
     Logger.log("ReportsView: Found", entries.length, "entries");
+    this.currentEntries = entries;
+    this.currentRangeStart = start;
+    this.currentRangeEnd = end;
     this.calculateReports(entries, start, end);
     this.calculateActivityReports(entries, start, end);
     this.calculateClientReports(entries, start, end);
@@ -14031,12 +14353,7 @@ var ReportsView = class extends import_obsidian6.ItemView {
       if (!client)
         continue;
       const percentage = totalClientMinutes > 0 ? data.minutes / totalClientMinutes * 100 : 0;
-      let billableAmount = 0;
-      if (client.rateType === "hourly") {
-        billableAmount = client.rate * (data.minutes / 60);
-      } else {
-        billableAmount = client.rate * (data.minutes / 480);
-      }
+      const billableAmount = client.rate * (data.minutes / 60);
       const projectBreakdown = [];
       for (const [projectName, projectData] of data.projects) {
         const projectColor = this.getProjectColor(projectName);
@@ -14065,7 +14382,6 @@ var ReportsView = class extends import_obsidian6.ItemView {
         color: client.color,
         rate: client.rate,
         currency: client.currency,
-        rateType: client.rateType,
         totalMinutes: data.minutes,
         billableAmount,
         percentage,
@@ -14105,6 +14421,16 @@ var ReportsView = class extends import_obsidian6.ItemView {
       const expandIcon = nameCell.createSpan("reports-expand-icon");
       expandIcon.setText(this.expandedClients.has(report.clientId) ? "\u25BC" : "\u25B6");
       nameCell.createSpan({ text: report.name });
+      if (report.totalMinutes > 0) {
+        const invoiceBtn = nameCell.createEl("button", {
+          text: "Invoice",
+          cls: "reports-invoice-btn"
+        });
+        invoiceBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.openInvoiceModal(report.clientId, report.billableAmount);
+        });
+      }
       row.createEl("td", {
         text: this.formatDuration(report.totalMinutes),
         cls: "reports-col-hours"
@@ -14217,6 +14543,63 @@ var ReportsView = class extends import_obsidian6.ItemView {
       this.expandedClientProjects.add(projectKey);
     }
     this.renderClientTable();
+  }
+  /**
+   * Open the invoice modal for a client
+   */
+  openInvoiceModal(clientId, totalAmount) {
+    const client = this.settings.clients.find((c) => c.id === clientId);
+    if (!client) {
+      new import_obsidian8.Notice("Client not found");
+      return;
+    }
+    if (!this.currentRangeStart || !this.currentRangeEnd) {
+      new import_obsidian8.Notice("No date range selected");
+      return;
+    }
+    const modalData = {
+      client,
+      periodStart: this.currentRangeStart,
+      periodEnd: this.currentRangeEnd,
+      totalAmount
+    };
+    const modal = new InvoiceModal(
+      this.app,
+      modalData,
+      async (result) => {
+        await this.generateInvoice(client, result);
+      }
+    );
+    modal.open();
+  }
+  /**
+   * Generate the invoice file
+   */
+  async generateInvoice(client, modalResult) {
+    if (!this.currentRangeStart || !this.currentRangeEnd) {
+      new import_obsidian8.Notice("No date range selected");
+      return;
+    }
+    try {
+      const generator = new InvoiceGenerator(this.app, this.settings, this.dataManager);
+      const invoiceData = generator.generateInvoiceData(
+        this.currentEntries,
+        client,
+        modalResult,
+        this.currentRangeStart,
+        this.currentRangeEnd
+      );
+      const markdown = generator.generateMarkdown(invoiceData);
+      const filepath = await generator.saveInvoice(invoiceData, markdown);
+      new import_obsidian8.Notice(`Invoice created: ${filepath}`);
+      const file = this.app.vault.getAbstractFileByPath(filepath);
+      if (file) {
+        await this.app.workspace.getLeaf().openFile(file);
+      }
+    } catch (error) {
+      Logger.log("ReportsView: Error generating invoice", error);
+      new import_obsidian8.Notice(`Error generating invoice: ${error.message}`);
+    }
   }
   // Helper methods
   formatDuration(minutes) {
@@ -14336,7 +14719,7 @@ var ReportsView = class extends import_obsidian6.ItemView {
     const { start, end } = this.getDateRange(this.selectedPreset);
     const entries = await this.dataManager.loadDateRange(start, end);
     if (entries.length === 0) {
-      new import_obsidian6.Notice("No entries to export");
+      new import_obsidian8.Notice("No entries to export");
       return;
     }
     const json = this.generateJSON(entries, start, end);
@@ -14392,7 +14775,7 @@ var ReportsView = class extends import_obsidian6.ItemView {
 };
 
 // main.ts
-var WhereDidTheTimeGoPlugin = class extends import_obsidian7.Plugin {
+var WhereDidTheTimeGoPlugin = class extends import_obsidian9.Plugin {
   async onload() {
     console.log("Loading Where Did The Time Go plugin");
     await this.loadSettings();
@@ -14434,7 +14817,7 @@ var WhereDidTheTimeGoPlugin = class extends import_obsidian7.Plugin {
       }
     });
     this.addSettingTab(new TimeTrackerSettingTab(this.app, this));
-    const debouncedRefresh = (0, import_obsidian7.debounce)(() => this.refreshTimelineViews(), 500, true);
+    const debouncedRefresh = (0, import_obsidian9.debounce)(() => this.refreshTimelineViews(), 500, true);
     this.registerEvent(
       this.app.vault.on("modify", (file) => {
         if (file.path.startsWith(this.settings.timeTrackingFolder)) {
