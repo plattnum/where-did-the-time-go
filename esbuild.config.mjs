@@ -14,7 +14,7 @@ if you want to view the source, please visit the github repository of this plugi
 const prod = (process.argv[2] === "production");
 
 // Define test vault path - normally this would be configurable, but setting a default for dev convenience
-const TEST_VAULT_PATH = process.env.OBSIDIAN_TEST_VAULT || "/Users/plattnum/Obsidian-Vaults/plugin-dev-vault";
+const TEST_VAULT_PATH = process.env.OBSIDIAN_TEST_VAULT || "./vaults/where-did-the-time-go-vault";
 const PLUGIN_ID = "where-did-the-time-go";
 
 const context = await esbuild.context({

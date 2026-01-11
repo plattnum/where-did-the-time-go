@@ -1,7 +1,7 @@
 import { TFile, TFolder, Vault, Notice } from 'obsidian';
 import type { TimeEntry, ParsedMonth, TimeTrackerSettings } from '../types';
-import { EntryParser } from './EntryParser';
-import { EntrySerializer } from './EntrySerializer';
+import { TableParser } from './TableParser';
+import { Logger } from '../utils/Logger';
 
 /**
  * Manages all data operations for time entries
@@ -11,6 +11,9 @@ export class DataManager {
     private vault: Vault;
     private settings: TimeTrackerSettings;
     private cache: Map<string, ParsedMonth> = new Map();
+
+    // Limit cache size to prevent unbounded memory growth
+    private static readonly MAX_CACHED_MONTHS = 24;
 
     constructor(vault: Vault, settings: TimeTrackerSettings) {
         this.vault = vault;
@@ -79,8 +82,9 @@ export class DataManager {
         let file = this.vault.getAbstractFileByPath(filePath);
 
         if (!file) {
-            // Create the file with warning header
-            file = await this.vault.create(filePath, EntrySerializer.FILE_HEADER);
+            // Create the file with header and empty table
+            const content = TableParser.generateMonthFile([], monthStr, this.settings.hideTablesInPreview);
+            file = await this.vault.create(filePath, content);
         }
 
         if (!(file instanceof TFile)) {
@@ -96,17 +100,17 @@ export class DataManager {
     async loadMonth(monthStr: string): Promise<ParsedMonth> {
         // Check cache first
         if (this.cache.has(monthStr)) {
-            console.log('DataManager: Cache hit for', monthStr);
+            Logger.log('DataManager: Cache hit for', monthStr);
             return this.cache.get(monthStr)!;
         }
 
         const filePath = this.getMonthFilePath(monthStr);
-        console.log('DataManager: Loading file', filePath);
+        Logger.log('DataManager: Loading file', filePath);
 
         const file = this.vault.getAbstractFileByPath(filePath);
 
         if (!file || !(file instanceof TFile)) {
-            console.log('DataManager: File not found');
+            Logger.log('DataManager: File not found');
             const emptyMonth: ParsedMonth = {
                 month: monthStr,
                 entries: [],
@@ -116,11 +120,19 @@ export class DataManager {
         }
 
         const content = await this.vault.read(file);
-        const parsed = EntryParser.parseMonthFile(content, monthStr);
-        console.log('DataManager: Parsed', parsed.entries.length, 'entries');
+        const parsed = TableParser.parseMonthFile(content, monthStr);
+        Logger.log('DataManager: Parsed', parsed.entries.length, 'entries');
 
         // Cache the result
         this.cache.set(monthStr, parsed);
+
+        // Prune cache if over limit (FIFO - Map maintains insertion order)
+        if (this.cache.size > DataManager.MAX_CACHED_MONTHS) {
+            const oldestKey = this.cache.keys().next().value;
+            if (oldestKey) {
+                this.cache.delete(oldestKey);
+            }
+        }
 
         return parsed;
     }
@@ -137,14 +149,14 @@ export class DataManager {
         // Include month before startDate in case an entry started there and spans into our range
         const monthBefore = new Date(startDate);
         monthBefore.setMonth(monthBefore.getMonth() - 1);
-        monthsToLoad.add(EntryParser.getMonthString(monthBefore));
+        monthsToLoad.add(TableParser.getMonthString(monthBefore));
 
-        const endMonth = EntryParser.getMonthString(endDate);
+        const endMonth = TableParser.getMonthString(endDate);
         const current = new Date(startDate);
         current.setDate(1); // Start from first of month
 
-        while (EntryParser.getMonthString(current) <= endMonth) {
-            monthsToLoad.add(EntryParser.getMonthString(current));
+        while (TableParser.getMonthString(current) <= endMonth) {
+            monthsToLoad.add(TableParser.getMonthString(current));
             current.setMonth(current.getMonth() + 1);
         }
 
@@ -182,8 +194,8 @@ export class DataManager {
      * Load entries for a specific date
      */
     async loadEntriesForDate(date: Date): Promise<TimeEntry[]> {
-        const monthStr = EntryParser.getMonthString(date);
-        const dateStr = EntryParser.getDateString(date);
+        const monthStr = TableParser.getMonthString(date);
+        const dateStr = TableParser.getDateString(date);
 
         const parsed = await this.loadMonth(monthStr);
         return parsed.entriesByDate.get(dateStr) || [];
@@ -201,13 +213,15 @@ export class DataManager {
      */
     async createEntry(entry: Omit<TimeEntry, 'lineNumber' | 'durationMinutes' | 'startDateTime' | 'endDateTime'>): Promise<TimeEntry> {
         const monthStr = entry.date.substring(0, 7); // YYYY-MM
-        const file = await this.getOrCreateMonthFile(monthStr);
 
-        // Create full entry object - start and end contain full date+time
-        const { startDateTime, endDateTime } = EntryParser.parseDateTimeFields(
-            entry.start,
-            entry.end
-        );
+        // Create full entry object - parse start and end as full datetime strings
+        const startDateTime = TableParser.parseDateTime(entry.start);
+        const endDateTime = TableParser.parseDateTime(entry.end);
+
+        if (!startDateTime || !endDateTime) {
+            throw new Error(`Invalid datetime format. Expected "YYYY-MM-DD HH:mm". Got start="${entry.start}", end="${entry.end}"`);
+        }
+
         const durationMinutes = Math.round((endDateTime.getTime() - startDateTime.getTime()) / 60000);
 
         const fullEntry: TimeEntry = {
@@ -215,7 +229,7 @@ export class DataManager {
             startDateTime,
             endDateTime,
             durationMinutes,
-            lineNumber: 0, // Will be set after save
+            lineNumber: 0, // Row index will be set after save
         };
 
         // Check for overlaps
@@ -224,10 +238,12 @@ export class DataManager {
             throw new Error('Entry overlaps with an existing time entry');
         }
 
-        // Add entry to file content
-        const content = await this.vault.read(file);
-        const newContent = EntrySerializer.addEntryToContent(content, fullEntry);
-        await this.vault.modify(file, newContent);
+        // Load existing entries for the month, add new entry, regenerate file
+        const parsed = await this.loadMonth(monthStr);
+        const allEntries = [...parsed.entries, fullEntry];
+
+        // Write the updated file
+        await this.writeMonthFile(monthStr, allEntries);
 
         // Invalidate cache
         this.invalidateMonth(monthStr);
@@ -249,54 +265,56 @@ export class DataManager {
             ...newEntry,
         };
 
-        // Recalculate datetime if times changed - start and end contain full date+time
+        // Recalculate datetime if times changed
         if (newEntry.start || newEntry.end || newEntry.date) {
-            const { startDateTime, endDateTime } = EntryParser.parseDateTimeFields(
-                updatedEntry.start,
-                updatedEntry.end
-            );
+            const startDateTime = TableParser.parseDateTime(updatedEntry.start);
+            const endDateTime = TableParser.parseDateTime(updatedEntry.end);
+
+            if (!startDateTime || !endDateTime) {
+                throw new Error('Invalid datetime format');
+            }
+
             updatedEntry.startDateTime = startDateTime;
             updatedEntry.endDateTime = endDateTime;
             updatedEntry.durationMinutes = Math.round(
                 (endDateTime.getTime() - startDateTime.getTime()) / 60000
             );
+            // Update the date field from the start datetime
+            updatedEntry.date = TableParser.getDateString(startDateTime);
         }
 
         const newMonthStr = updatedEntry.date.substring(0, 7);
-        const dateChanged = oldEntry.date !== updatedEntry.date;
+        const monthChanged = oldMonthStr !== newMonthStr;
 
-        // Check for overlaps (excluding self if same date)
+        // Check for overlaps (excluding self)
         const existingEntries = await this.loadEntriesForDate(updatedEntry.startDateTime);
-        const otherEntries = dateChanged
-            ? existingEntries // All entries on new date are "other"
-            : existingEntries.filter(e => e.lineNumber !== oldEntry.lineNumber);
+        const otherEntries = existingEntries.filter(e => !this.isSameEntry(e, oldEntry));
         if (this.hasOverlap(updatedEntry, otherEntries)) {
             throw new Error('Entry overlaps with an existing time entry');
         }
 
-        if (dateChanged) {
-            // Date changed - need to delete from old location and add to new location
-            console.log('Date changed from', oldEntry.date, 'to', updatedEntry.date);
+        if (monthChanged) {
+            // Month changed - need to remove from old month and add to new month
+            Logger.log('Month changed from', oldMonthStr, 'to', newMonthStr);
 
-            // Delete from old file
-            const oldFile = await this.getOrCreateMonthFile(oldMonthStr);
-            const oldContent = await this.vault.read(oldFile);
-            const contentAfterDelete = EntrySerializer.deleteEntryFromContent(oldContent, oldEntry);
-            await this.vault.modify(oldFile, contentAfterDelete);
+            // Remove from old month
+            const oldParsed = await this.loadMonth(oldMonthStr);
+            const oldEntries = oldParsed.entries.filter(e => !this.isSameEntry(e, oldEntry));
+            await this.writeMonthFile(oldMonthStr, oldEntries);
             this.invalidateMonth(oldMonthStr);
 
-            // Add to new file (might be same file if same month, different day)
-            const newFile = await this.getOrCreateMonthFile(newMonthStr);
-            const newContent = await this.vault.read(newFile);
-            const contentAfterAdd = EntrySerializer.addEntryToContent(newContent, updatedEntry);
-            await this.vault.modify(newFile, contentAfterAdd);
+            // Add to new month
+            const newParsed = await this.loadMonth(newMonthStr);
+            const newEntries = [...newParsed.entries, updatedEntry];
+            await this.writeMonthFile(newMonthStr, newEntries);
             this.invalidateMonth(newMonthStr);
         } else {
-            // Same date - just update in place
-            const file = await this.getOrCreateMonthFile(oldMonthStr);
-            const content = await this.vault.read(file);
-            const newContent = EntrySerializer.updateEntryInContent(content, oldEntry, updatedEntry);
-            await this.vault.modify(file, newContent);
+            // Same month - update in place
+            const parsed = await this.loadMonth(oldMonthStr);
+            const entries = parsed.entries.map(e =>
+                this.isSameEntry(e, oldEntry) ? updatedEntry : e
+            );
+            await this.writeMonthFile(oldMonthStr, entries);
             this.invalidateMonth(oldMonthStr);
         }
 
@@ -310,11 +328,12 @@ export class DataManager {
      */
     async deleteEntry(entry: TimeEntry): Promise<void> {
         const monthStr = entry.date.substring(0, 7);
-        const file = await this.getOrCreateMonthFile(monthStr);
 
-        const content = await this.vault.read(file);
-        const newContent = EntrySerializer.deleteEntryFromContent(content, entry);
-        await this.vault.modify(file, newContent);
+        // Load entries, remove the one to delete, regenerate file
+        const parsed = await this.loadMonth(monthStr);
+        const entries = parsed.entries.filter(e => !this.isSameEntry(e, entry));
+
+        await this.writeMonthFile(monthStr, entries);
 
         // Invalidate cache
         this.invalidateMonth(monthStr);
@@ -323,12 +342,32 @@ export class DataManager {
     }
 
     /**
+     * Write a month file with the given entries
+     */
+    private async writeMonthFile(monthStr: string, entries: TimeEntry[]): Promise<void> {
+        const file = await this.getOrCreateMonthFile(monthStr);
+        const content = TableParser.generateMonthFile(entries, monthStr, this.settings.hideTablesInPreview);
+        await this.vault.modify(file, content);
+    }
+
+    /**
+     * Check if two entries are the same (based on start time and description)
+     */
+    private isSameEntry(a: TimeEntry, b: TimeEntry): boolean {
+        return (
+            a.startDateTime.getTime() === b.startDateTime.getTime() &&
+            a.endDateTime.getTime() === b.endDateTime.getTime() &&
+            a.description === b.description
+        );
+    }
+
+    /**
      * Check if an entry overlaps with existing entries
      */
     private hasOverlap(newEntry: TimeEntry, existingEntries: TimeEntry[]): boolean {
         return existingEntries.some(existing => {
-            // Skip if same line (editing self)
-            if (existing.lineNumber === newEntry.lineNumber) {
+            // Skip if same entry
+            if (this.isSameEntry(existing, newEntry)) {
                 return false;
             }
             // Check for overlap
@@ -340,6 +379,118 @@ export class DataManager {
     }
 
     /**
+     * Find all overlapping entries and classify each overlap type
+     * - startOverlap: First entry where our START falls inside
+     * - endOverlap: First entry where our END falls inside
+     * - encompassedEntry: First entry we fully encompass
+     */
+    async findOverlaps(
+        start: Date,
+        end: Date,
+        excludeEntry?: TimeEntry
+    ): Promise<{
+        startOverlap: TimeEntry | null;
+        endOverlap: TimeEntry | null;
+        encompassedEntry: TimeEntry | null;
+    }> {
+        const entries = await this.loadDateRange(start, end);
+        Logger.log('DataManager.findOverlaps:', {
+            start: start.toISOString(),
+            end: end.toISOString(),
+            entriesLoaded: entries.length
+        });
+
+        let startOverlap: TimeEntry | null = null;
+        let endOverlap: TimeEntry | null = null;
+        let encompassedEntry: TimeEntry | null = null;
+
+        for (const entry of entries) {
+            if (excludeEntry && this.isSameEntry(entry, excludeEntry)) continue;
+
+            // Check for any overlap first
+            const overlaps = start < entry.endDateTime && end > entry.startDateTime;
+            if (!overlaps) {
+                Logger.log('  vs', entry.start, '-', entry.end, ': no overlap');
+                continue;
+            }
+
+            // Classify the overlap type
+            const startInside = start >= entry.startDateTime && start < entry.endDateTime;
+            const endInside = end > entry.startDateTime && end <= entry.endDateTime;
+
+            Logger.log('  vs', entry.start, '-', entry.end, ':',
+                startInside ? 'START_INSIDE' : '',
+                endInside ? 'END_INSIDE' : '',
+                (!startInside && !endInside) ? 'ENCOMPASSED' : '');
+
+            if (startInside && !startOverlap) {
+                startOverlap = entry;
+            }
+            if (endInside && !endOverlap) {
+                endOverlap = entry;
+            }
+            if (!startInside && !endInside && !encompassedEntry) {
+                encompassedEntry = entry;
+            }
+        }
+
+        return { startOverlap, endOverlap, encompassedEntry };
+    }
+
+    /**
+     * Find adjacent entries (previous entry ending before start, next entry starting after end)
+     * Used for "magnet" snap feature in entry modal
+     */
+    async findAdjacentEntries(
+        start: Date,
+        end: Date,
+        excludeEntry?: TimeEntry
+    ): Promise<{
+        previous: TimeEntry | null;
+        next: TimeEntry | null;
+    }> {
+        // Load entries for a range around the current entry (same day plus buffer)
+        const searchStart = new Date(start);
+        searchStart.setDate(searchStart.getDate() - 1);
+        const searchEnd = new Date(end);
+        searchEnd.setDate(searchEnd.getDate() + 1);
+
+        const entries = await this.loadDateRange(searchStart, searchEnd);
+
+        let previous: TimeEntry | null = null;
+        let next: TimeEntry | null = null;
+
+        for (const entry of entries) {
+            if (excludeEntry && this.isSameEntry(entry, excludeEntry)) continue;
+
+            // Previous: entry ends before or at our start (no gap = snappable)
+            if (entry.endDateTime <= start) {
+                // Keep the closest one (latest end time that's still before start)
+                if (!previous || entry.endDateTime > previous.endDateTime) {
+                    previous = entry;
+                }
+            }
+
+            // Next: entry starts at or after our end (no gap = snappable)
+            if (entry.startDateTime >= end) {
+                // Keep the closest one (earliest start time that's still after end)
+                if (!next || entry.startDateTime < next.startDateTime) {
+                    next = entry;
+                }
+            }
+        }
+
+        Logger.log('DataManager.findAdjacentEntries:', {
+            start: start.toISOString(),
+            end: end.toISOString(),
+            previous: previous ? `${previous.start}-${previous.end}` : null,
+            next: next ? `${next.start}-${next.end}` : null
+        });
+
+        return { previous, next };
+    }
+
+    /**
      * Get all unique projects from entries
      */
     async getAllProjects(): Promise<string[]> {
@@ -347,8 +498,8 @@ export class DataManager {
 
         // Load current month and previous month
         const now = new Date();
-        const thisMonth = EntryParser.getMonthString(now);
-        const lastMonth = EntryParser.getMonthString(
+        const thisMonth = TableParser.getMonthString(now);
+        const lastMonth = TableParser.getMonthString(
             new Date(now.getFullYear(), now.getMonth() - 1, 1)
         );
 
@@ -365,18 +516,9 @@ export class DataManager {
     }
 
     /**
-     * Get all unique tags from entries
+     * Get all unique tags from entries (deprecated - returns empty)
      */
     async getAllTags(): Promise<string[]> {
-        const tags = new Set<string>();
-
-        // Load current month and previous month
-        const now = new Date();
-        const thisMonth = EntryParser.getMonthString(now);
-        const lastMonth = EntryParser.getMonthString(
-            new Date(now.getFullYear(), now.getMonth() - 1, 1)
-        );
-
         // Tags feature removed - return empty array
         return [];
     }

@@ -1,0 +1,10 @@
+{
+    "id": "where-did-the-time-go",
+    "name": "Where Did The Time Go?",
+    "version": "1.0.0",
+    "minAppVersion": "0.15.0",
+    "description": "A plugin to track time.",
+    "author": "Plattnum",
+    "authorUrl": "https://github.com/plattnum",
+    "isDesktopOnly": false
+}

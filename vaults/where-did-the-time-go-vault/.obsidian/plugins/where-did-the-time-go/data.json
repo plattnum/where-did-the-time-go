@@ -1,0 +1,135 @@
+{
+  "timeTrackingFolder": "TimeTracking",
+  "billFrom": {
+    "name": "John Doodle",
+    "address": "123 Main Street\nSomecity, ZZ\n90210"
+  },
+  "invoiceFolder": "TimeTracking/Invoices",
+  "hourHeight": 200,
+  "dayStartHour": 6,
+  "dayEndHour": 22,
+  "defaultProject": "",
+  "use24HourFormat": true,
+  "weekStart": "monday",
+  "autoCreateFolder": true,
+  "descriptionMaxLength": 200,
+  "clients": [
+    {
+      "id": "personal",
+      "name": "Acme Rocket Supplies LLC",
+      "color": "#4f46e5",
+      "archived": false,
+      "rate": 50,
+      "currency": "USD",
+      "rateType": "hourly",
+      "address": "123 Blink Blink Crecent\nSomewhere, BC\nV8N 3YZ\nCANADA",
+      "paymentTerms": "N/A"
+    },
+    {
+      "id": "umbrella-corporation",
+      "name": "Umbrella Corporation",
+      "color": "#f60404",
+      "archived": false,
+      "rate": 100,
+      "currency": "CAD",
+      "paymentTerms": "Net 30"
+    },
+    {
+      "id": "weyland-yutani",
+      "name": "Weyland-Yutani",
+      "color": "#059669",
+      "archived": false,
+      "rate": 210,
+      "currency": "AUD",
+      "paymentTerms": "Net 30"
+    }
+  ],
+  "projects": [
+    {
+      "id": "operation-coyote",
+      "name": "Operation Coyote",
+      "color": "#f59e0b",
+      "archived": false,
+      "clientId": "personal"
+    },
+    {
+      "id": "giant-magnet-research",
+      "name": "Giant Magnet Research",
+      "color": "#8b5cf6",
+      "archived": false,
+      "clientId": "personal"
+    },
+    {
+      "id": "t-virus-containment",
+      "name": "T-Virus Containment",
+      "color": "#dc2626",
+      "archived": false,
+      "clientId": "umbrella-corporation"
+    },
+    {
+      "id": "raccoon-city-cleanup",
+      "name": "Raccoon City Cleanup",
+      "color": "#7c3aed",
+      "archived": false,
+      "clientId": "umbrella-corporation"
+    },
+    {
+      "id": "lv-426-survey",
+      "name": "LV-426 Survey",
+      "color": "#06b6d4",
+      "archived": false,
+      "clientId": "weyland-yutani"
+    },
+    {
+      "id": "xenomorph-integration",
+      "name": "Xenomorph Integration",
+      "color": "#84cc16",
+      "archived": false,
+      "clientId": "weyland-yutani"
+    },
+    {
+      "id": "instant-tunnel-paint",
+      "name": "Instant Tunnel Paint R&D",
+      "color": "#ec4899",
+      "archived": false,
+      "clientId": "personal"
+    },
+    {
+      "id": "nemesis-program",
+      "name": "Nemesis Program",
+      "color": "#1e293b",
+      "archived": false,
+      "clientId": "umbrella-corporation"
+    },
+    {
+      "id": "prometheus-mission",
+      "name": "Prometheus Mission",
+      "color": "#f97316",
+      "archived": false,
+      "clientId": "weyland-yutani"
+    }
+  ],
+  "activities": [
+    { "id": "feat-acme", "name": "Feature", "color": "#22c55e", "clientId": "personal" },
+    { "id": "fix-acme", "name": "Bug Fix", "color": "#ef4444", "clientId": "personal" },
+    { "id": "docs-acme", "name": "Documentation", "color": "#3b82f6", "clientId": "personal" },
+    { "id": "refactor-acme", "name": "Refactor", "color": "#a855f7", "clientId": "personal" },
+    { "id": "test-acme", "name": "Testing", "color": "#eab308", "clientId": "personal" },
+    { "id": "review-acme", "name": "Code Review", "color": "#06b6d4", "clientId": "personal" },
+    { "id": "feat-umbrella", "name": "Feature", "color": "#22c55e", "clientId": "umbrella-corporation" },
+    { "id": "fix-umbrella", "name": "Bug Fix", "color": "#ef4444", "clientId": "umbrella-corporation" },
+    { "id": "docs-umbrella", "name": "Documentation", "color": "#3b82f6", "clientId": "umbrella-corporation" },
+    { "id": "refactor-umbrella", "name": "Refactor", "color": "#a855f7", "clientId": "umbrella-corporation" },
+    { "id": "test-umbrella", "name": "Testing", "color": "#eab308", "clientId": "umbrella-corporation" },
+    { "id": "review-umbrella", "name": "Code Review", "color": "#06b6d4", "clientId": "umbrella-corporation" },
+    { "id": "feat-weyland", "name": "Feature", "color": "#22c55e", "clientId": "weyland-yutani" },
+    { "id": "fix-weyland", "name": "Bug Fix", "color": "#ef4444", "clientId": "weyland-yutani" },
+    { "id": "docs-weyland", "name": "Documentation", "color": "#3b82f6", "clientId": "weyland-yutani" },
+    { "id": "refactor-weyland", "name": "Refactor", "color": "#a855f7", "clientId": "weyland-yutani" },
+    { "id": "test-weyland", "name": "Testing", "color": "#eab308", "clientId": "weyland-yutani" },
+    { "id": "review-weyland", "name": "Code Review", "color": "#06b6d4", "clientId": "weyland-yutani" }
+  ],
+  "defaultActivity": "",
+  "debugMode": false,
+  "hideTablesInPreview": true
+}

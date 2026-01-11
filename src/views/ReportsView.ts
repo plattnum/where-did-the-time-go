@@ -1,7 +1,13 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
-import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport, ClientReport } from '../types';
+import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
+import { VIEW_TYPE_REPORTS, TimeEntry, TimeTrackerSettings, TimeRangePreset, ProjectReport, ProjectActivityBreakdown, ActivityReport, ClientReport, Client } from '../types';
 import { DataManager } from '../data/DataManager';
-import { EntryParser } from '../data/EntryParser';
+import { TableParser } from '../data/TableParser';
+import { Logger } from '../utils/Logger';
+import { InvoiceModal, InvoiceModalData } from '../modals/InvoiceModal';
+import { InvoiceGenerator } from '../invoice/InvoiceGenerator';
+
+/** Maximum days allowed for report range to prevent performance issues */
+const MAX_REPORT_DAYS = 90;
 
 /**
  * Reports view showing time breakdowns by project and tag
@@ -19,6 +25,11 @@ export class ReportsView extends ItemView {
     private clientReports: ClientReport[] = [];
     private totalMinutes: number = 0;
 
+    // Store current entries and date range for invoice generation
+    private currentEntries: TimeEntry[] = [];
+    private currentRangeStart: Date | null = null;
+    private currentRangeEnd: Date | null = null;
+
     // DOM references
     private contentContainer: HTMLElement;
     private rangeSelector: HTMLElement;
@@ -28,10 +39,10 @@ export class ReportsView extends ItemView {
     private activityContainer: HTMLElement;
     private clientContainer: HTMLElement;
 
-    // Expanded projects (for activity breakdown)
-    private expandedProjects: Set<string> = new Set();
     // Expanded clients (for project breakdown)
     private expandedClients: Set<string> = new Set();
+    // Expanded projects within clients (key: "clientId:projectName")
+    private expandedClientProjects: Set<string> = new Set();
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -120,6 +131,20 @@ export class ReportsView extends ItemView {
 
         const controls = header.createDiv('reports-header-controls');
 
+        // Export CSV button
+        const exportCsvBtn = controls.createEl('button', {
+            text: 'Export CSV',
+            cls: 'reports-btn',
+        });
+        exportCsvBtn.addEventListener('click', () => this.exportToCSV());
+
+        // Export JSON button
+        const exportJsonBtn = controls.createEl('button', {
+            text: 'Export JSON',
+            cls: 'reports-btn',
+        });
+        exportJsonBtn.addEventListener('click', () => this.exportToJSON());
+
         // Refresh button
         const refreshBtn = controls.createEl('button', {
             text: 'Refresh',
@@ -162,7 +187,7 @@ export class ReportsView extends ItemView {
         const startLabel = this.customDateInputs.createEl('label', { text: 'From: ' });
         const startInput = startLabel.createEl('input', { type: 'date' });
         if (this.customStartDate) {
-            startInput.value = EntryParser.getDateString(this.customStartDate);
+            startInput.value = TableParser.getDateString(this.customStartDate);
         }
         startInput.addEventListener('change', (e) => {
             this.customStartDate = new Date((e.target as HTMLInputElement).value);
@@ -172,7 +197,7 @@ export class ReportsView extends ItemView {
         const endLabel = this.customDateInputs.createEl('label', { text: 'To: ' });
         const endInput = endLabel.createEl('input', { type: 'date' });
         if (this.customEndDate) {
-            endInput.value = EntryParser.getDateString(this.customEndDate);
+            endInput.value = TableParser.getDateString(this.customEndDate);
         }
         endInput.addEventListener('change', (e) => {
             this.customEndDate = new Date((e.target as HTMLInputElement).value);
@@ -292,12 +317,24 @@ export class ReportsView extends ItemView {
     private async loadReport(): Promise<void> {
         const { start, end } = this.getDateRange(this.selectedPreset);
 
-        console.log('ReportsView: Loading report for', start.toDateString(), 'to', end.toDateString());
+        // Check if range exceeds maximum
+        const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysDiff > MAX_REPORT_DAYS) {
+            new Notice(`Report range limited to ${MAX_REPORT_DAYS} days for performance. Please select a shorter range.`);
+            return;
+        }
+
+        Logger.log('ReportsView: Loading report for', start.toDateString(), 'to', end.toDateString());
 
         // Load entries for the date range (includes overlapping entries)
         const entries = await this.dataManager.loadDateRange(start, end);
 
-        console.log('ReportsView: Found', entries.length, 'entries');
+        Logger.log('ReportsView: Found', entries.length, 'entries');
+
+        // Store for invoice generation
+        this.currentEntries = entries;
+        this.currentRangeStart = start;
+        this.currentRangeEnd = end;
 
         // Calculate reports with effective durations (handles midnight-spanning)
         this.calculateReports(entries, start, end);
@@ -306,8 +343,6 @@ export class ReportsView extends ItemView {
 
         // Render the results
         this.renderSummary(start, end);
-        this.renderReportsTable();
-        this.renderActivityTable();
         this.renderClientTable();
     }
 
@@ -443,168 +478,11 @@ export class ReportsView extends ItemView {
         const projectCard = this.summaryContainer.createDiv('reports-summary-card');
         projectCard.createDiv({ text: 'Projects', cls: 'reports-summary-label' });
         projectCard.createDiv({ text: String(this.projectReports.length), cls: 'reports-summary-value' });
-    }
 
-    /**
-     * Render the reports table
-     */
-    private renderReportsTable(): void {
-        this.reportsContainer.empty();
-
-        if (this.projectReports.length === 0) {
-            this.reportsContainer.createDiv({
-                text: 'No time entries found for this period.',
-                cls: 'reports-empty',
-            });
-            return;
-        }
-
-        const table = this.reportsContainer.createEl('table', { cls: 'reports-table' });
-
-        // Header
-        const thead = table.createEl('thead');
-        const headerRow = thead.createEl('tr');
-        headerRow.createEl('th', { text: 'Project' });
-        headerRow.createEl('th', { text: 'Hours', cls: 'reports-col-hours' });
-        headerRow.createEl('th', { text: '%', cls: 'reports-col-percent' });
-        headerRow.createEl('th', { text: '', cls: 'reports-col-bar' });
-
-        // Body
-        const tbody = table.createEl('tbody');
-
-        for (const report of this.projectReports) {
-            // Project row
-            const row = tbody.createEl('tr', { cls: 'reports-project-row' });
-            row.addEventListener('click', () => this.toggleProjectExpand(report.project));
-
-            // Project name with color indicator
-            const nameCell = row.createEl('td', { cls: 'reports-project-name' });
-            const colorDot = nameCell.createSpan('reports-color-dot');
-            colorDot.style.backgroundColor = report.color;
-
-            const expandIcon = nameCell.createSpan('reports-expand-icon');
-            expandIcon.setText(this.expandedProjects.has(report.project) ? '▼' : '▶');
-
-            nameCell.createSpan({ text: report.project });
-
-            // Hours
-            row.createEl('td', {
-                text: this.formatDuration(report.totalMinutes),
-                cls: 'reports-col-hours',
-            });
-
-            // Percentage
-            row.createEl('td', {
-                text: `${report.percentage.toFixed(1)}%`,
-                cls: 'reports-col-percent',
-            });
-
-            // Visual bar
-            const barCell = row.createEl('td', { cls: 'reports-col-bar' });
-            const bar = barCell.createDiv('reports-bar');
-            bar.style.width = `${report.percentage}%`;
-            bar.style.backgroundColor = report.color;
-
-            // Activity breakdown rows (if expanded)
-            if (this.expandedProjects.has(report.project)) {
-                for (const activityReport of report.activityBreakdown) {
-                    const activityRow = tbody.createEl('tr', { cls: 'reports-activity-nested-row' });
-
-                    // Activity name (indented)
-                    const activityNameCell = activityRow.createEl('td', { cls: 'reports-activity-nested-name' });
-                    const activityDot = activityNameCell.createSpan('reports-color-dot');
-                    activityDot.style.backgroundColor = activityReport.color;
-                    activityNameCell.createSpan({ text: activityReport.activity });
-
-                    // Hours
-                    activityRow.createEl('td', {
-                        text: this.formatDuration(activityReport.totalMinutes),
-                        cls: 'reports-col-hours',
-                    });
-
-                    // Percentage (of project - adds up to 100%)
-                    activityRow.createEl('td', {
-                        text: `${activityReport.percentageOfProject.toFixed(1)}%`,
-                        cls: 'reports-col-percent',
-                    });
-
-                    // Visual bar (relative to project)
-                    const activityBarCell = activityRow.createEl('td', { cls: 'reports-col-bar' });
-                    const activityBar = activityBarCell.createDiv('reports-bar reports-bar-nested');
-                    activityBar.style.width = `${activityReport.percentageOfProject}%`;
-                    activityBar.style.backgroundColor = activityReport.color;
-                }
-            }
-        }
-    }
-
-    /**
-     * Toggle project expansion to show/hide activity breakdown
-     */
-    private toggleProjectExpand(project: string): void {
-        if (this.expandedProjects.has(project)) {
-            this.expandedProjects.delete(project);
-        } else {
-            this.expandedProjects.add(project);
-        }
-        this.renderReportsTable();
-    }
-
-    /**
-     * Render the activity breakdown table
-     */
-    private renderActivityTable(): void {
-        this.activityContainer.empty();
-
-        // Only show if there are activities defined or entries with activities
-        if (this.activityReports.length === 0) {
-            return;
-        }
-
-        // Section header
-        const header = this.activityContainer.createDiv('reports-section-header');
-        header.createEl('h3', { text: 'By Activity' });
-
-        const table = this.activityContainer.createEl('table', { cls: 'reports-table' });
-
-        // Header
-        const thead = table.createEl('thead');
-        const headerRow = thead.createEl('tr');
-        headerRow.createEl('th', { text: 'Activity' });
-        headerRow.createEl('th', { text: 'Hours', cls: 'reports-col-hours' });
-        headerRow.createEl('th', { text: '%', cls: 'reports-col-percent' });
-        headerRow.createEl('th', { text: '', cls: 'reports-col-bar' });
-
-        // Body
-        const tbody = table.createEl('tbody');
-
-        for (const report of this.activityReports) {
-            const row = tbody.createEl('tr', { cls: 'reports-activity-row' });
-
-            // Activity name with color indicator
-            const nameCell = row.createEl('td', { cls: 'reports-activity-name' });
-            const colorDot = nameCell.createSpan('reports-color-dot');
-            colorDot.style.backgroundColor = report.color;
-            nameCell.createSpan({ text: report.name });
-
-            // Hours
-            row.createEl('td', {
-                text: this.formatDuration(report.totalMinutes),
-                cls: 'reports-col-hours',
-            });
-
-            // Percentage
-            row.createEl('td', {
-                text: `${report.percentage.toFixed(1)}%`,
-                cls: 'reports-col-percent',
-            });
-
-            // Visual bar
-            const barCell = row.createEl('td', { cls: 'reports-col-bar' });
-            const bar = barCell.createDiv('reports-bar');
-            bar.style.width = `${report.percentage}%`;
-            bar.style.backgroundColor = report.color;
-        }
+        // Client count
+        const clientCard = this.summaryContainer.createDiv('reports-summary-card');
+        clientCard.createDiv({ text: 'Clients', cls: 'reports-summary-label' });
+        clientCard.createDiv({ text: String(this.clientReports.length), cls: 'reports-summary-value' });
     }
 
     /**
@@ -618,27 +496,35 @@ export class ReportsView extends ItemView {
             return;
         }
 
-        // Map: clientId -> { minutes, projectMinutes: Map<projectName, minutes> }
-        const clientMap = new Map<string, { minutes: number; projectMinutes: Map<string, number> }>();
+        // Map: clientId -> { minutes, projects: Map<projectName, { minutes, activities: Map<activityName, minutes> }> }
+        type ProjectData = { minutes: number; activities: Map<string, number> };
+        type ClientData = { minutes: number; projects: Map<string, ProjectData> };
+        const clientMap = new Map<string, ClientData>();
 
         for (const entry of entries) {
             const effectiveMinutes = this.dataManager.getEffectiveDuration(entry, rangeStart, rangeEnd);
             if (effectiveMinutes <= 0) continue;
 
             const projectName = entry.project || '(No Project)';
-
-            // Use client directly from entry (client is required on entries)
+            const activityName = entry.activity || '(No Activity)';
             const clientId = entry.client;
 
             if (!clientMap.has(clientId)) {
-                clientMap.set(clientId, { minutes: 0, projectMinutes: new Map() });
+                clientMap.set(clientId, { minutes: 0, projects: new Map() });
             }
 
             const clientData = clientMap.get(clientId)!;
             clientData.minutes += effectiveMinutes;
 
-            const currentProjectMinutes = clientData.projectMinutes.get(projectName) || 0;
-            clientData.projectMinutes.set(projectName, currentProjectMinutes + effectiveMinutes);
+            if (!clientData.projects.has(projectName)) {
+                clientData.projects.set(projectName, { minutes: 0, activities: new Map() });
+            }
+
+            const projectData = clientData.projects.get(projectName)!;
+            projectData.minutes += effectiveMinutes;
+
+            const currentActivityMinutes = projectData.activities.get(activityName) || 0;
+            projectData.activities.set(activityName, currentActivityMinutes + effectiveMinutes);
         }
 
         // Convert to ClientReport array
@@ -657,25 +543,34 @@ export class ReportsView extends ItemView {
                 ? (data.minutes / totalClientMinutes) * 100
                 : 0;
 
-            // Calculate billable amount
-            let billableAmount = 0;
-            if (client.rateType === 'hourly') {
-                billableAmount = client.rate * (data.minutes / 60);
-            } else {
-                // Daily rate: 8 hours = 1 day
-                billableAmount = client.rate * (data.minutes / 480);
-            }
+            // Calculate billable amount (hourly rate * hours)
+            const billableAmount = client.rate * (data.minutes / 60);
 
-            // Build project breakdown
+            // Build project breakdown with activity breakdown
             const projectBreakdown: ProjectReport[] = [];
-            for (const [projectName, projectMinutes] of data.projectMinutes) {
+            for (const [projectName, projectData] of data.projects) {
                 const projectColor = this.getProjectColor(projectName);
+
+                // Build activity breakdown for this project
+                const activityBreakdown: ProjectActivityBreakdown[] = [];
+                for (const [activityName, activityMinutes] of projectData.activities) {
+                    activityBreakdown.push({
+                        activity: activityName,
+                        color: this.getActivityColor(activityName),
+                        totalMinutes: activityMinutes,
+                        percentageOfProject: projectData.minutes > 0
+                            ? (activityMinutes / projectData.minutes) * 100
+                            : 0,
+                    });
+                }
+                activityBreakdown.sort((a, b) => b.totalMinutes - a.totalMinutes);
+
                 projectBreakdown.push({
                     project: projectName,
                     color: projectColor,
-                    totalMinutes: projectMinutes,
-                    percentage: data.minutes > 0 ? (projectMinutes / data.minutes) * 100 : 0,
-                    activityBreakdown: [],
+                    totalMinutes: projectData.minutes,
+                    percentage: data.minutes > 0 ? (projectData.minutes / data.minutes) * 100 : 0,
+                    activityBreakdown,
                 });
             }
             projectBreakdown.sort((a, b) => b.totalMinutes - a.totalMinutes);
@@ -686,7 +581,6 @@ export class ReportsView extends ItemView {
                 color: client.color,
                 rate: client.rate,
                 currency: client.currency,
-                rateType: client.rateType,
                 totalMinutes: data.minutes,
                 billableAmount,
                 percentage,
@@ -699,26 +593,26 @@ export class ReportsView extends ItemView {
     }
 
     /**
-     * Render the client breakdown table
+     * Render the client breakdown table (Client → Project → Activity hierarchy)
      */
     private renderClientTable(): void {
         this.clientContainer.empty();
 
         // Only show if there are client reports
         if (this.clientReports.length === 0) {
+            this.clientContainer.createDiv({
+                text: 'No time entries found for this period.',
+                cls: 'reports-empty',
+            });
             return;
         }
-
-        // Section header
-        const header = this.clientContainer.createDiv('reports-section-header');
-        header.createEl('h3', { text: 'By Client' });
 
         const table = this.clientContainer.createEl('table', { cls: 'reports-table' });
 
         // Header
         const thead = table.createEl('thead');
         const headerRow = thead.createEl('tr');
-        headerRow.createEl('th', { text: 'Client' });
+        headerRow.createEl('th', { text: 'Client / Project / Activity' });
         headerRow.createEl('th', { text: 'Hours', cls: 'reports-col-hours' });
         headerRow.createEl('th', { text: 'Billable', cls: 'reports-col-billable' });
         headerRow.createEl('th', { text: '%', cls: 'reports-col-percent' });
@@ -728,10 +622,10 @@ export class ReportsView extends ItemView {
         const tbody = table.createEl('tbody');
 
         for (const report of this.clientReports) {
+            // Client row
             const row = tbody.createEl('tr', { cls: 'reports-client-row' });
             row.addEventListener('click', () => this.toggleClientExpand(report.clientId));
 
-            // Client name with color indicator
             const nameCell = row.createEl('td', { cls: 'reports-client-name' });
             const colorDot = nameCell.createSpan('reports-color-dot');
             colorDot.style.backgroundColor = report.color;
@@ -741,61 +635,109 @@ export class ReportsView extends ItemView {
 
             nameCell.createSpan({ text: report.name });
 
-            // Hours
+            // Invoice button (show if client has tracked time)
+            if (report.totalMinutes > 0) {
+                const invoiceBtn = nameCell.createEl('button', {
+                    text: 'Invoice',
+                    cls: 'reports-invoice-btn',
+                });
+                invoiceBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openInvoiceModal(report.clientId, report.billableAmount);
+                });
+            }
+
             row.createEl('td', {
                 text: this.formatDuration(report.totalMinutes),
                 cls: 'reports-col-hours',
             });
 
-            // Billable amount
             row.createEl('td', {
                 text: this.formatCurrency(report.billableAmount, report.currency),
                 cls: 'reports-col-billable',
             });
 
-            // Percentage
             row.createEl('td', {
                 text: `${report.percentage.toFixed(1)}%`,
                 cls: 'reports-col-percent',
             });
 
-            // Visual bar
             const barCell = row.createEl('td', { cls: 'reports-col-bar' });
             const bar = barCell.createDiv('reports-bar');
             bar.style.width = `${report.percentage}%`;
             bar.style.backgroundColor = report.color;
 
-            // Project breakdown rows (if expanded)
+            // Project rows (if client expanded)
             if (this.expandedClients.has(report.clientId)) {
                 for (const projectReport of report.projectBreakdown) {
-                    const projectRow = tbody.createEl('tr', { cls: 'reports-project-nested-row' });
+                    const projectKey = `${report.clientId}:${projectReport.project}`;
+                    const projectExpanded = this.expandedClientProjects.has(projectKey);
+                    const hasActivities = projectReport.activityBreakdown.length > 0;
 
-                    // Project name (indented)
+                    const projectRow = tbody.createEl('tr', { cls: 'reports-project-nested-row' });
+                    if (hasActivities) {
+                        projectRow.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.toggleProjectExpand(projectKey);
+                        });
+                    }
+
                     const projectNameCell = projectRow.createEl('td', { cls: 'reports-project-nested-name' });
                     const projectDot = projectNameCell.createSpan('reports-color-dot');
                     projectDot.style.backgroundColor = projectReport.color;
+
+                    if (hasActivities) {
+                        const projectExpandIcon = projectNameCell.createSpan('reports-expand-icon');
+                        projectExpandIcon.setText(projectExpanded ? '▼' : '▶');
+                    }
+
                     projectNameCell.createSpan({ text: projectReport.project });
 
-                    // Hours
                     projectRow.createEl('td', {
                         text: this.formatDuration(projectReport.totalMinutes),
                         cls: 'reports-col-hours',
                     });
 
-                    // Empty billable cell
                     projectRow.createEl('td', { cls: 'reports-col-billable' });
 
-                    // Percentage (of client)
                     projectRow.createEl('td', {
                         text: `${projectReport.percentage.toFixed(1)}%`,
                         cls: 'reports-col-percent',
                     });
 
-                    // Visual bar (relative to client)
                     const projectBarCell = projectRow.createEl('td', { cls: 'reports-col-bar' });
                     const projectBar = projectBarCell.createDiv('reports-bar reports-bar-nested');
                     projectBar.style.width = `${projectReport.percentage}%`;
                     projectBar.style.backgroundColor = projectReport.color;
+
+                    // Activity rows (if project expanded)
+                    if (projectExpanded && hasActivities) {
+                        for (const activityReport of projectReport.activityBreakdown) {
+                            const activityRow = tbody.createEl('tr', { cls: 'reports-activity-nested-row' });
+
+                            const activityNameCell = activityRow.createEl('td', { cls: 'reports-activity-nested-name' });
+                            const activityDot = activityNameCell.createSpan('reports-color-dot');
+                            activityDot.style.backgroundColor = activityReport.color;
+                            activityNameCell.createSpan({ text: activityReport.activity });
+
+                            activityRow.createEl('td', {
+                                text: this.formatDuration(activityReport.totalMinutes),
+                                cls: 'reports-col-hours',
+                            });
+
+                            activityRow.createEl('td', { cls: 'reports-col-billable' });
+
+                            activityRow.createEl('td', {
+                                text: `${activityReport.percentageOfProject.toFixed(1)}%`,
+                                cls: 'reports-col-percent',
+                            });
+
+                            const activityBarCell = activityRow.createEl('td', { cls: 'reports-col-bar' });
+                            const activityBar = activityBarCell.createDiv('reports-bar reports-bar-activity');
+                            activityBar.style.width = `${activityReport.percentageOfProject}%`;
+                            activityBar.style.backgroundColor = activityReport.color;
+                        }
+                    }
                 }
             }
         }
@@ -837,6 +779,87 @@ export class ReportsView extends ItemView {
             this.expandedClients.add(clientId);
         }
         this.renderClientTable();
+    }
+
+    private toggleProjectExpand(projectKey: string): void {
+        if (this.expandedClientProjects.has(projectKey)) {
+            this.expandedClientProjects.delete(projectKey);
+        } else {
+            this.expandedClientProjects.add(projectKey);
+        }
+        this.renderClientTable();
+    }
+
+    /**
+     * Open the invoice modal for a client
+     */
+    private openInvoiceModal(clientId: string, totalAmount: number): void {
+        const client = this.settings.clients.find(c => c.id === clientId);
+        if (!client) {
+            new Notice('Client not found');
+            return;
+        }
+
+        if (!this.currentRangeStart || !this.currentRangeEnd) {
+            new Notice('No date range selected');
+            return;
+        }
+
+        const modalData: InvoiceModalData = {
+            client,
+            periodStart: this.currentRangeStart,
+            periodEnd: this.currentRangeEnd,
+            totalAmount,
+        };
+
+        const modal = new InvoiceModal(
+            this.app,
+            modalData,
+            async (result) => {
+                await this.generateInvoice(client, result);
+            }
+        );
+        modal.open();
+    }
+
+    /**
+     * Generate the invoice file
+     */
+    private async generateInvoice(client: Client, modalResult: import('../modals/InvoiceModal').InvoiceModalResult): Promise<void> {
+        if (!this.currentRangeStart || !this.currentRangeEnd) {
+            new Notice('No date range selected');
+            return;
+        }
+
+        try {
+            const generator = new InvoiceGenerator(this.app, this.settings, this.dataManager);
+
+            // Generate invoice data
+            const invoiceData = generator.generateInvoiceData(
+                this.currentEntries,
+                client,
+                modalResult,
+                this.currentRangeStart,
+                this.currentRangeEnd
+            );
+
+            // Generate markdown
+            const markdown = generator.generateMarkdown(invoiceData);
+
+            // Save to file
+            const filepath = await generator.saveInvoice(invoiceData, markdown);
+
+            new Notice(`Invoice created: ${filepath}`);
+
+            // Open the file
+            const file = this.app.vault.getAbstractFileByPath(filepath);
+            if (file) {
+                await this.app.workspace.getLeaf().openFile(file as import('obsidian').TFile);
+            }
+        } catch (error) {
+            Logger.log('ReportsView: Error generating invoice', error);
+            new Notice(`Error generating invoice: ${error.message}`);
+        }
     }
 
     // Helper methods
@@ -883,5 +906,181 @@ export class ReportsView extends ItemView {
         if (activityName === '(No Activity)') return '#666';
         const activity = this.settings.activities.find(a => a.name === activityName || a.id === activityName);
         return activity?.color || '#f59e0b';
+    }
+
+    /**
+     * Export current report data to CSV
+     */
+    private async exportToCSV(): Promise<void> {
+        const { start, end } = this.getDateRange(this.selectedPreset);
+
+        // Load entries for the date range
+        const entries = await this.dataManager.loadDateRange(start, end);
+
+        if (entries.length === 0) {
+            Logger.log('ReportsView: No entries to export');
+            return;
+        }
+
+        // Generate CSV content
+        const csv = this.generateCSV(entries);
+
+        // Create filename with date range
+        const startStr = TableParser.getDateString(start);
+        const endStr = TableParser.getDateString(end);
+        const filename = `time-entries-${startStr}-to-${endStr}.csv`;
+
+        // Trigger download
+        this.downloadCSV(csv, filename);
+    }
+
+    /**
+     * Generate CSV content from time entries
+     */
+    private generateCSV(entries: TimeEntry[]): string {
+        // CSV headers - Start/End include full datetime since entries can span days
+        const headers = ['Start', 'End', 'Duration', 'Description', 'Client', 'Project', 'Activity', 'Notes'];
+
+        // Sort entries by date/time
+        const sorted = [...entries].sort((a, b) =>
+            a.startDateTime.getTime() - b.startDateTime.getTime()
+        );
+
+        // Build rows
+        const rows: string[][] = [headers];
+
+        for (const entry of sorted) {
+            // Get client name from settings
+            const client = this.settings.clients.find(c => c.id === entry.client);
+            const clientName = client?.name || entry.client;
+
+            const row = [
+                TableParser.formatDateTime(entry.startDateTime),
+                TableParser.formatDateTime(entry.endDateTime),
+                this.formatDuration(entry.durationMinutes),
+                entry.description || '',
+                clientName,
+                entry.project || '',
+                entry.activity || '',
+                entry.linkedNote || '',
+            ];
+            rows.push(row);
+        }
+
+        // Convert to CSV string with proper escaping
+        return rows.map(row =>
+            row.map(cell => this.escapeCSVCell(cell)).join(',')
+        ).join('\n');
+    }
+
+    /**
+     * Escape a cell value for CSV format
+     */
+    private escapeCSVCell(value: string): string {
+        // If value contains comma, quote, or newline, wrap in quotes and escape quotes
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+            return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+    }
+
+    /**
+     * Trigger browser download of CSV file
+     */
+    private downloadCSV(content: string, filename: string): void {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+
+        Logger.log('ReportsView: Exported CSV -', filename);
+    }
+
+    /**
+     * Export current report data to JSON
+     */
+    private async exportToJSON(): Promise<void> {
+        const { start, end } = this.getDateRange(this.selectedPreset);
+
+        // Load entries for the date range
+        const entries = await this.dataManager.loadDateRange(start, end);
+
+        if (entries.length === 0) {
+            new Notice('No entries to export');
+            return;
+        }
+
+        // Generate JSON content
+        const json = this.generateJSON(entries, start, end);
+
+        // Create filename with date range
+        const startStr = TableParser.getDateString(start);
+        const endStr = TableParser.getDateString(end);
+        const filename = `time-entries-${startStr}-to-${endStr}.json`;
+
+        this.downloadJSON(json, filename);
+    }
+
+    /**
+     * Generate JSON content from time entries
+     */
+    private generateJSON(entries: TimeEntry[], start: Date, end: Date): string {
+        // Sort entries by date/time
+        const sorted = [...entries].sort((a, b) =>
+            a.startDateTime.getTime() - b.startDateTime.getTime()
+        );
+
+        // Build export object
+        const exportData = {
+            exportedAt: new Date().toISOString(),
+            dateRange: {
+                start: TableParser.getDateString(start),
+                end: TableParser.getDateString(end),
+            },
+            totalEntries: sorted.length,
+            entries: sorted.map(entry => ({
+                date: entry.date,
+                start: entry.start,
+                end: entry.end,
+                durationMinutes: entry.durationMinutes,
+                description: entry.description,
+                client: entry.client,
+                project: entry.project || null,
+                activity: entry.activity || null,
+                linkedNote: entry.linkedNote || null,
+            })),
+        };
+
+        return JSON.stringify(exportData, null, 2);
+    }
+
+    /**
+     * Trigger browser download of JSON file
+     */
+    private downloadJSON(content: string, filename: string): void {
+        const blob = new Blob([content], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+
+        Logger.log('ReportsView: Exported JSON -', filename);
     }
 }

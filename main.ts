@@ -1,9 +1,11 @@
-import { Plugin, WorkspaceLeaf } from 'obsidian';
+import { Plugin, WorkspaceLeaf, debounce } from 'obsidian';
 import { TimeTrackerSettings, DEFAULT_SETTINGS, VIEW_TYPE_TIMELINE, VIEW_TYPE_REPORTS } from './src/types';
 import { TimeTrackerSettingTab } from './src/settings';
 import { DataManager } from './src/data/DataManager';
 import { TimelineView } from './src/views/TimelineView';
 import { ReportsView } from './src/views/ReportsView';
+import { EntryModal } from './src/modals/EntryModal';
+import { Logger } from './src/utils/Logger';
 
 export default class WhereDidTheTimeGoPlugin extends Plugin {
     settings: TimeTrackerSettings;
@@ -14,6 +16,9 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
 
         // Load settings
         await this.loadSettings();
+
+        // Initialize logger with debug mode from settings
+        Logger.setDebugMode(this.settings.debugMode);
 
         // Initialize data manager
         this.dataManager = new DataManager(this.app.vault, this.settings);
@@ -58,8 +63,20 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
             },
         });
 
+        // Add command to create new entry
+        this.addCommand({
+            id: 'create-entry',
+            name: 'Create Time Entry',
+            callback: () => {
+                this.openCreateEntryModal();
+            },
+        });
+
         // Add settings tab
         this.addSettingTab(new TimeTrackerSettingTab(this.app, this));
+
+        // Debounced refresh to avoid excessive updates during sync operations
+        const debouncedRefresh = debounce(() => this.refreshTimelineViews(), 500, true);
 
         // Watch for file changes to invalidate cache
         this.registerEvent(
@@ -69,8 +86,8 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
                     const monthMatch = file.name.match(/^(\d{4}-\d{2})\.md$/);
                     if (monthMatch) {
                         this.dataManager.invalidateMonth(monthMatch[1]);
-                        // Refresh open timeline views
-                        this.refreshTimelineViews();
+                        // Refresh open timeline views (debounced)
+                        debouncedRefresh();
                     }
                 }
             })
@@ -87,6 +104,8 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
 
     async saveSettings(): Promise<void> {
         await this.saveData(this.settings);
+        // Update logger debug mode
+        Logger.setDebugMode(this.settings.debugMode);
         // Update data manager with new settings
         if (this.dataManager) {
             this.dataManager.updateSettings(this.settings);
@@ -152,6 +171,29 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
     }
 
     /**
+     * Open the create entry modal directly (for command palette)
+     */
+    private openCreateEntryModal(): void {
+        const now = new Date();
+        // Round to nearest 15 minutes
+        const minutes = Math.floor(now.getMinutes() / 15) * 15;
+        const startTime = `${now.getHours().toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+        const modal = new EntryModal(
+            this.app,
+            this.settings,
+            this.dataManager,
+            {
+                mode: 'create',
+                date: now,
+                startTime,
+            },
+            () => this.refreshTimelineViews()
+        );
+        modal.open();
+    }
+
+    /**
      * Refresh all open timeline views
      */
     private refreshTimelineViews(): void {
@@ -159,8 +201,8 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
         const timelineLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TIMELINE);
         for (const leaf of timelineLeaves) {
             const view = leaf.view as TimelineView;
-            if (view && view.refresh) {
-                view.refresh();
+            if (view && view.updateSettings) {
+                view.updateSettings(this.settings);
             }
         }
 
@@ -168,8 +210,8 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
         const reportsLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_REPORTS);
         for (const leaf of reportsLeaves) {
             const view = leaf.view as ReportsView;
-            if (view && view.refresh) {
-                view.refresh();
+            if (view && view.updateSettings) {
+                view.updateSettings(this.settings);
             }
         }
     }

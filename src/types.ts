@@ -84,12 +84,10 @@ export interface Client {
     archived: boolean;
 
     // Billing
-    /** Billing rate (e.g., 150) */
+    /** Hourly billing rate (e.g., 150) */
     rate: number;
     /** Currency code (USD, EUR, GBP, etc.) */
     currency: string;
-    /** Rate type */
-    rateType: 'hourly' | 'daily';
 
     // Invoice Details
     /** Multi-line billing address (use \n for line breaks) */
@@ -107,11 +105,25 @@ export interface Client {
 }
 
 /**
+ * Bill From information for invoices
+ */
+export interface BillFrom {
+    /** Your name or business name */
+    name: string;
+    /** Multi-line address */
+    address: string;
+}
+
+/**
  * Plugin settings stored in Obsidian's data.json
  */
 export interface TimeTrackerSettings {
     /** Root folder for time tracking files */
     timeTrackingFolder: string;
+    /** Bill From info for invoices */
+    billFrom: BillFrom;
+    /** Folder for generated invoices (relative to vault root) */
+    invoiceFolder: string;
     /** Pixels per hour in timeline view */
     hourHeight: number;
     /** First hour to display (0-23) */
@@ -120,8 +132,6 @@ export interface TimeTrackerSettings {
     dayEndHour: number;
     /** Default project for new entries */
     defaultProject: string;
-    /** Whether to show description in cards */
-    showDescription: boolean;
     /** Use 24-hour format (true) or 12-hour (false) */
     use24HourFormat: boolean;
     /** First day of week: 'monday' or 'sunday' */
@@ -138,6 +148,10 @@ export interface TimeTrackerSettings {
     defaultActivity: string;
     /** List of clients for billing */
     clients: Client[];
+    /** Enable debug logging to console */
+    debugMode: boolean;
+    /** Hide data tables in reading view using %% comment markers */
+    hideTablesInPreview: boolean;
 }
 
 /**
@@ -145,11 +159,15 @@ export interface TimeTrackerSettings {
  */
 export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     timeTrackingFolder: 'TimeTracking',
-    hourHeight: 60,
+    billFrom: {
+        name: '',
+        address: '',
+    },
+    invoiceFolder: 'TimeTracking/Invoices',
+    hourHeight: 200,
     dayStartHour: 6,
     dayEndHour: 22,
     defaultProject: '',
-    showDescription: true,
     use24HourFormat: true,
     weekStart: 'monday',
     autoCreateFolder: true,
@@ -162,7 +180,6 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
             archived: false,
             rate: 0,
             currency: 'USD',
-            rateType: 'hourly',
             paymentTerms: 'N/A',
         },
     ],
@@ -171,6 +188,8 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     ],
     activities: [],
     defaultActivity: '',
+    debugMode: false,
+    hideTablesInPreview: true,
 };
 
 /**
@@ -256,12 +275,10 @@ export interface ClientReport {
     name: string;
     /** Client color */
     color: string;
-    /** Billing rate */
+    /** Hourly billing rate */
     rate: number;
     /** Currency code */
     currency: string;
-    /** Rate type */
-    rateType: 'hourly' | 'daily';
     /** Total minutes for this client */
     totalMinutes: number;
     /** Calculated billable amount (rate * hours or days) */

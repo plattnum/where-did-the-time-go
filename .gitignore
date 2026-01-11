@@ -1,6 +1,12 @@
 node_modules
 dist
-main.js
+/main.js
 .DS_Store
 .idea
 *.local
+
+# Test vault noise
+vaults/*/.obsidian/workspace.json
+vaults/*/.obsidian/workspace-mobile.json
+vaults/*/.obsidian/cache/
+CLAUDE.md

@@ -1,8 +1,9 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Modal, App, setIcon, Notice } from 'obsidian';
 import { VIEW_TYPE_TIMELINE, TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
-import { EntryParser } from '../data/EntryParser';
+import { TableParser } from '../data/TableParser';
 import { EntryModal, EntryModalData } from '../modals/EntryModal';
+import { Logger } from '../utils/Logger';
 
 /**
  * The main timeline view with infinite scrolling
@@ -13,7 +14,7 @@ export class TimelineView extends ItemView {
 
     // Scroll state
     private centerDate: Date = new Date();
-    private visibleDaysBuffer: number = 7; // Days to render before/after visible area
+    private visibleDaysBuffer: number = 1; // Days to render before/after visible area (prev day, today, next day)
     private loadedMonths: Set<string> = new Set();
     private entriesByDate: Map<string, TimeEntry[]> = new Map();
 
@@ -34,6 +35,7 @@ export class TimelineView extends ItemView {
     private dragCurrentY: number = 0;
     private dragStartDate: Date | null = null;
     private selectionEl: HTMLElement | null = null;
+    private dragTooltipEl: HTMLElement | null = null;
 
     // Entry drag state (for moving/resizing existing entries)
     private entryDragMode: 'none' | 'move' | 'resize-top' | 'resize-bottom' = 'none';
@@ -42,7 +44,7 @@ export class TimelineView extends ItemView {
     private entryDragStartY: number = 0;
     private entryDragOriginalTop: number = 0;
     private entryDragOriginalHeight: number = 0;
-    private entryDragDidMove: boolean = false; // Track if actual drag happened
+    private entryDragTooltipEl: HTMLElement | null = null;
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -59,7 +61,7 @@ export class TimelineView extends ItemView {
     }
 
     getDisplayText(): string {
-        return 'Timeline';
+        return '∞ Timeline';
     }
 
     getIcon(): string {
@@ -78,11 +80,19 @@ export class TimelineView extends ItemView {
                 this.settings.dayStartHour * this.settings.hourHeight;
             this.timelineContainer.scrollTop = targetOffset;
             this.updateVisibleDateLabel();
-            console.log('onOpen: scrolled to today, offset=', targetOffset);
+            Logger.log('onOpen: scrolled to today, offset=', targetOffset);
         });
     }
 
     async onClose(): Promise<void> {
+        // Cleanup any active drag listeners (in case view closes mid-drag)
+        document.removeEventListener('mousemove', this.handleEntryDragMove);
+        document.removeEventListener('mouseup', this.handleEntryDragEnd);
+        document.removeEventListener('touchmove', this.handleEntryDragMoveTouch);
+        document.removeEventListener('touchend', this.handleEntryDragEndTouch);
+        document.removeEventListener('touchcancel', this.handleEntryDragEndTouch);
+        this.cleanupEntryDrag();
+
         // Cleanup resize observer
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
@@ -93,20 +103,29 @@ export class TimelineView extends ItemView {
     updateSettings(settings: TimeTrackerSettings): void {
         this.settings = settings;
         this.dayHeight = 24 * this.settings.hourHeight;
-        this.render();
+        // Use refresh() to preserve scroll position (if already rendered)
+        if (this.timelineContainer) {
+            this.refresh();
+        }
     }
 
     async refresh(): Promise<void> {
-        console.log('refresh: clearing caches and re-rendering');
-        // Save current scroll position relative to center date
-        const savedCenterDate = new Date(this.centerDate);
+        Logger.log('refresh: clearing caches and re-rendering');
+        // Save current scroll position
+        const savedScrollTop = this.timelineContainer?.scrollTop ?? 0;
 
+        // Clear data caches but keep centerDate
         this.loadedMonths.clear();
         this.entriesByDate.clear();
-        await this.render();
 
-        // Restore scroll position to where user was
-        this.scrollToDate(savedCenterDate);
+        // Re-render entries only (not full container rebuild)
+        await this.loadVisibleRange();
+        this.renderVisibleDays();
+
+        // Restore exact scroll position
+        if (this.timelineContainer) {
+            this.timelineContainer.scrollTop = savedScrollTop;
+        }
     }
 
     /**
@@ -129,6 +148,8 @@ export class TimelineView extends ItemView {
 
         // Create entries area (right side)
         this.entriesContainer = this.timelineInner.createDiv('timeline-entries');
+        // Set CSS variable for 15-min grid lines
+        this.entriesContainer.style.setProperty('--tt-hour-height', `${this.settings.hourHeight}px`);
 
         // Load initial data and render
         await this.loadVisibleRange();
@@ -137,11 +158,17 @@ export class TimelineView extends ItemView {
         // Set up scroll listener
         this.timelineContainer.addEventListener('scroll', () => this.onScroll());
 
-        // Drag to select time range for new entry
+        // Drag to select time range for new entry (mouse)
         this.entriesContainer.addEventListener('mousedown', (e) => this.handleDragStart(e));
         this.entriesContainer.addEventListener('mousemove', (e) => this.handleDragMove(e));
         this.entriesContainer.addEventListener('mouseup', (e) => this.handleDragEnd(e));
         this.entriesContainer.addEventListener('mouseleave', (e) => this.handleDragCancel(e));
+
+        // Drag to select time range for new entry (touch)
+        this.entriesContainer.addEventListener('touchstart', (e) => this.handleDragStartTouch(e), { passive: false });
+        this.entriesContainer.addEventListener('touchmove', (e) => this.handleDragMoveTouch(e), { passive: false });
+        this.entriesContainer.addEventListener('touchend', (e) => this.handleDragEndTouch(e), { passive: false });
+        this.entriesContainer.addEventListener('touchcancel', () => this.handleDragCancelTouch());
 
         // Double-click on timeline to create new entry (fallback)
         this.entriesContainer.addEventListener('dblclick', (e) => this.handleTimelineDoubleClick(e));
@@ -160,7 +187,7 @@ export class TimelineView extends ItemView {
         const header = container.createDiv('timeline-header');
 
         const titleSection = header.createDiv('timeline-header-title');
-        titleSection.createEl('h2', { text: 'Timeline' });
+        titleSection.createEl('h2', { text: '∞ Timeline' });
 
         // Visible date range label
         this.visibleDateLabel = titleSection.createSpan('timeline-visible-date');
@@ -172,6 +199,7 @@ export class TimelineView extends ItemView {
         const todayBtn = controls.createEl('button', {
             text: 'Today',
             cls: 'timeline-btn',
+            attr: { 'aria-label': 'Go to today' },
         });
         todayBtn.addEventListener('click', () => this.scrollToDate(new Date()));
 
@@ -179,28 +207,31 @@ export class TimelineView extends ItemView {
         const nowBtn = controls.createEl('button', {
             text: 'Now',
             cls: 'timeline-btn timeline-btn-primary',
+            attr: { 'aria-label': 'Scroll to current time' },
         });
         nowBtn.addEventListener('click', () => this.scrollToNow());
 
         // Navigation buttons (1 day at a time)
         const prevBtn = controls.createEl('button', {
-            text: '← Prev',
-            cls: 'timeline-btn',
+            cls: 'timeline-btn timeline-nav-btn',
+            attr: { 'aria-label': 'Previous day' },
         });
+        setIcon(prevBtn, 'chevron-left');
         prevBtn.addEventListener('click', () => this.navigateDays(-1));
 
         const nextBtn = controls.createEl('button', {
-            text: 'Next →',
-            cls: 'timeline-btn',
+            cls: 'timeline-btn timeline-nav-btn',
+            attr: { 'aria-label': 'Next day' },
         });
+        setIcon(nextBtn, 'chevron-right');
         nextBtn.addEventListener('click', () => this.navigateDays(1));
 
         // Jump to date - calendar button
         const jumpBtn = controls.createEl('button', {
-            cls: 'timeline-btn timeline-jump-btn',
+            cls: 'timeline-btn timeline-nav-btn',
+            attr: { 'aria-label': 'Jump to date' },
         });
-        jumpBtn.setAttribute('title', 'Jump to date');
-        jumpBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`;
+        setIcon(jumpBtn, 'calendar');
 
         // Hidden date picker - outside button, visually hidden
         const hiddenDatePicker = controls.createEl('input', {
@@ -220,6 +251,18 @@ export class TimelineView extends ItemView {
         jumpBtn.addEventListener('click', () => {
             (hiddenDatePicker as any).showPicker?.() || hiddenDatePicker.click();
         });
+
+        // Add entry button
+        const addBtn = controls.createEl('button', {
+            cls: 'timeline-btn timeline-btn-add',
+            attr: { 'aria-label': 'Add new entry' },
+        });
+        setIcon(addBtn, 'plus');
+        addBtn.addEventListener('click', () => {
+            const now = new Date();
+            const startTime = `${now.getHours().toString().padStart(2, '0')}:${Math.floor(now.getMinutes() / 15) * 15}`.padEnd(5, '0').substring(0, 5);
+            this.openCreateModal(now, startTime);
+        });
     }
 
     /**
@@ -233,8 +276,8 @@ export class TimelineView extends ItemView {
         // Update the visible date label
         this.updateVisibleDateLabel();
 
-        // Check if we're near the edges and need to re-center
-        const edgeThreshold = this.dayHeight * 3; // 3 days from edge
+        // Edge threshold scales with buffer size (max 3 days, min half a day)
+        const edgeThreshold = this.dayHeight * Math.max(0.5, Math.min(this.visibleDaysBuffer, 3));
 
         if (scrollTop < edgeThreshold) {
             // Near top - shift center date backwards
@@ -263,7 +306,7 @@ export class TimelineView extends ItemView {
         const scrollAdjustment = days * this.dayHeight;
         this.timelineContainer.scrollTop = oldScrollTop - scrollAdjustment;
 
-        console.log('Shifted center by', days, 'days, new center:', this.centerDate.toDateString());
+        Logger.log('Shifted center by', days, 'days, new center:', this.centerDate.toDateString());
     }
 
     /**
@@ -299,7 +342,7 @@ export class TimelineView extends ItemView {
     private formatVisibleDateRange(startDate: Date, endDate: Date): string {
         const sameDay = startDate.toDateString() === endDate.toDateString();
         const sameMonth = startDate.getMonth() === endDate.getMonth() &&
-                          startDate.getFullYear() === endDate.getFullYear();
+            startDate.getFullYear() === endDate.getFullYear();
 
         if (sameDay) {
             // Single day: "Mon, Aug 10, 2026"
@@ -334,42 +377,42 @@ export class TimelineView extends ItemView {
         const endDate = new Date(this.centerDate);
         endDate.setDate(endDate.getDate() + this.visibleDaysBuffer * 2);
 
-        console.log('loadVisibleRange: centerDate=', this.centerDate.toDateString(),
+        Logger.log('loadVisibleRange: centerDate=', this.centerDate.toDateString(),
             'range=', startDate.toDateString(), 'to', endDate.toDateString());
 
         // Determine which months need loading
         // We need to include both the start month and end month
         const months = new Set<string>();
-        const startMonth = EntryParser.getMonthString(startDate);
-        const endMonth = EntryParser.getMonthString(endDate);
+        const startMonth = TableParser.getMonthString(startDate);
+        const endMonth = TableParser.getMonthString(endDate);
 
         const current = new Date(startDate);
         current.setDate(1); // Start from first of month to iterate cleanly
 
-        while (EntryParser.getMonthString(current) <= endMonth) {
-            months.add(EntryParser.getMonthString(current));
+        while (TableParser.getMonthString(current) <= endMonth) {
+            months.add(TableParser.getMonthString(current));
             current.setMonth(current.getMonth() + 1);
         }
 
-        console.log('loadVisibleRange: months to check=', Array.from(months));
+        Logger.log('loadVisibleRange: months to check=', Array.from(months));
 
         // Load any months we haven't loaded yet
         for (const month of months) {
             if (!this.loadedMonths.has(month)) {
-                console.log('loadVisibleRange: loading month', month);
+                Logger.log('loadVisibleRange: loading month', month);
                 const parsed = await this.dataManager.loadMonth(month);
                 this.loadedMonths.add(month);
 
-                console.log('loadVisibleRange: loaded', parsed.entries.length, 'entries for', month);
-                console.log('loadVisibleRange: entriesByDate keys=', Array.from(parsed.entriesByDate.keys()));
+                Logger.log('loadVisibleRange: loaded', parsed.entries.length, 'entries for', month);
+                Logger.log('loadVisibleRange: entriesByDate keys=', Array.from(parsed.entriesByDate.keys()));
 
                 // Merge entries into our map
                 for (const [dateStr, entries] of parsed.entriesByDate) {
                     this.entriesByDate.set(dateStr, entries);
-                    console.log('loadVisibleRange: set', dateStr, 'with', entries.length, 'entries');
+                    Logger.log('loadVisibleRange: set', dateStr, 'with', entries.length, 'entries');
                 }
             } else {
-                console.log('loadVisibleRange: month already loaded', month);
+                Logger.log('loadVisibleRange: month already loaded', month);
             }
         }
     }
@@ -400,7 +443,7 @@ export class TimelineView extends ItemView {
      * Render a single day with ruler and entries
      */
     private renderDay(date: Date, topOffset: number): void {
-        const dateStr = EntryParser.getDateString(date);
+        const dateStr = TableParser.getDateString(date);
         const isToday = this.isToday(date);
 
         // Day header
@@ -438,7 +481,7 @@ export class TimelineView extends ItemView {
         // Render entries for this day
         const entries = this.entriesByDate.get(dateStr) || [];
         if (entries.length > 0) {
-            console.log('renderDay: rendering', entries.length, 'entries for', dateStr);
+            Logger.log('renderDay: rendering', entries.length, 'entries for', dateStr);
         }
         for (const entry of entries) {
             this.renderEntryCard(entry, topOffset);
@@ -448,16 +491,15 @@ export class TimelineView extends ItemView {
     }
 
     /**
-     * Render an entry card as a single unified block (even for midnight-spanning entries)
+     * Render an entry card with v5 design: Header + Body + Footer
+     * Design spec: 200px/hr, responsive by duration (15m/30m/45m/60m+)
      */
     private renderEntryCard(entry: TimeEntry, dayTopOffset: number): void {
         const cardStartMinutes = entry.startDateTime.getHours() * 60 + entry.startDateTime.getMinutes();
-
-        // Calculate total duration in minutes for the full entry
         const totalDurationMinutes = entry.durationMinutes;
 
         const top = dayTopOffset + (cardStartMinutes / 60) * this.settings.hourHeight;
-        const height = Math.max((totalDurationMinutes / 60) * this.settings.hourHeight, 30);
+        const height = Math.max((totalDurationMinutes / 60) * this.settings.hourHeight, 50);
 
         const card = this.entriesContainer.createDiv('timeline-entry-card');
         card.style.top = `${top}px`;
@@ -465,174 +507,228 @@ export class TimelineView extends ItemView {
         card.dataset.entryDate = entry.date;
         card.dataset.entryLine = String(entry.lineNumber);
 
-        // Project color
-        const projectColor = this.getProjectColor(entry.project);
-        card.style.setProperty('--project-color', projectColor);
+        // Client color for left bar and header gradient
+        const clientColor = this.getClientColor(entry.client);
+        card.style.setProperty('--client-color', clientColor);
 
-        // Layout tiers based on duration:
-        // - Very compact (≤30 min): Single line with description in header
-        // - Compact (31-60 min): Two rows but no meta
-        // - Expanded (>60 min): Full layout with meta and note row
-        const isVeryCompact = totalDurationMinutes <= 30;
-        const isCompact = height < 80;
-
-        if (isVeryCompact) {
-            card.addClass('is-very-compact');
-        } else if (isCompact) {
-            card.addClass('is-compact');
+        // Duration-based layout classes
+        const is15m = totalDurationMinutes <= 15;
+        if (is15m) {
+            card.addClass('entry-15m');
+        } else if (totalDurationMinutes <= 30) {
+            card.addClass('entry-30m');
+        } else if (totalDurationMinutes <= 45) {
+            card.addClass('entry-45m');
+        } else {
+            card.addClass('entry-60m');
         }
 
-        // Resize handle - top
-        const resizeTop = card.createDiv('entry-resize-handle entry-resize-top');
-        resizeTop.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-            this.startEntryDrag(e, entry, card, 'resize-top');
-        });
-
-        // Build tooltip (always useful for truncated content)
+        // Tooltip for hover
         const tooltipParts = [
             entry.description || '(No description)',
             `${entry.start} – ${entry.end} (${this.formatDuration(entry.durationMinutes)})`,
+            `Client: ${this.getClientName(entry.client)}`,
         ];
-        if (entry.project) tooltipParts.push(`Project: ${entry.project}`);
-        if (entry.activity) tooltipParts.push(`Activity: ${entry.activity}`);
+        if (entry.project) tooltipParts.push(`Project: ${this.getProjectName(entry.project)}`);
+        if (entry.activity) tooltipParts.push(`Activity: ${this.getActivityName(entry.activity)}`);
         if (entry.linkedNote) tooltipParts.push(`Note: ${entry.linkedNote}`);
         card.setAttribute('title', tooltipParts.join('\n'));
 
-        if (isVeryCompact) {
-            // Single-line layout: Time | Duration | Description | Note Icon
-            const header = card.createDiv('entry-card-header');
+        // === HEADER SECTION ===
+        const header = card.createDiv('entry-card-header');
 
-            const timeInfo = header.createSpan('entry-card-time');
-            timeInfo.setText(`${entry.start} – ${entry.end}`);
+        // Time text + duration badge
+        const timeText = header.createSpan('entry-time-text');
+        timeText.setText(`${entry.start} – ${entry.end}`);
+        const durationBadge = header.createSpan('entry-duration-badge');
+        durationBadge.setText(this.formatDuration(entry.durationMinutes));
 
-            const duration = header.createSpan('entry-card-duration');
-            duration.setText(this.formatDuration(entry.durationMinutes));
+        // 15m layout: Tiny tags inline in header
+        if (is15m) {
+            const tinyTags = header.createDiv('entry-tiny-tags');
 
-            // Description inline (will truncate with CSS)
-            const desc = header.createSpan('entry-card-inline-desc');
-            desc.setText(entry.description || '');
+            // Client tag
+            const clientTag = tinyTags.createSpan('tiny-tag');
+            clientTag.setText(this.getClientName(entry.client).substring(0, 3).toUpperCase());
+            clientTag.style.setProperty('--tag-color', clientColor);
 
-            // Note icon at end
-            if (entry.linkedNote) {
-                const noteIcon = header.createSpan('entry-linked-icon');
-                noteIcon.setText('📄');
-                noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
-                noteIcon.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.openLinkedNote(entry.linkedNote!);
-                });
-            }
-        } else {
-            // Multi-row layout
-            const header = card.createDiv('entry-card-header');
-            const timeInfo = header.createDiv('entry-card-time');
-            timeInfo.setText(`${entry.start} – ${entry.end}`);
-            const duration = header.createSpan('entry-card-duration');
-            duration.setText(this.formatDuration(entry.durationMinutes));
-
-            // Note icon in header for compact cards
-            if (isCompact && entry.linkedNote) {
-                const noteIcon = header.createSpan('entry-linked-icon');
-                noteIcon.setText('📄');
-                noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
-                noteIcon.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.openLinkedNote(entry.linkedNote!);
-                });
+            // Project tag
+            if (entry.project) {
+                const projectTag = tinyTags.createSpan('tiny-tag');
+                projectTag.setText(this.getProjectName(entry.project).substring(0, 3).toUpperCase());
+                projectTag.style.setProperty('--tag-color', this.getProjectColor(entry.project));
             }
 
-            // Description row
-            const descRow = card.createDiv('entry-card-description');
-            descRow.setText(entry.description || '(No description)');
+            // Activity tag
+            if (entry.activity) {
+                const activityTag = tinyTags.createSpan('tiny-tag');
+                activityTag.setText(this.getActivityName(entry.activity).substring(0, 3).toUpperCase());
+                const actColor = this.getActivityColor(entry.activity);
+                if (actColor) activityTag.style.setProperty('--tag-color', actColor);
+            }
 
-            // Expanded layout: Meta row + Linked note row
-            if (!isCompact) {
-                const meta = card.createDiv('entry-card-meta');
+            // Inline description (truncated)
+            const inlineDesc = header.createSpan('entry-inline-desc');
+            inlineDesc.setText(entry.description || '');
+        }
 
-                if (entry.project) {
-                    const chip = meta.createSpan('entry-chip project-chip');
-                    chip.setText(entry.project);
-                }
+        // Icons (right side of header)
+        const icons = header.createDiv('entry-header-icons');
 
-                if (entry.activity) {
-                    const chip = meta.createSpan('entry-chip activity-chip');
-                    chip.setText(entry.activity);
-                    // Apply activity color if defined
-                    const activityColor = this.getActivityColor(entry.activity);
-                    if (activityColor) {
-                        chip.style.setProperty('--activity-color', activityColor);
-                    }
-                }
+        // Linked note icon (paperclip)
+        if (entry.linkedNote) {
+            const noteIcon = icons.createSpan('entry-icon');
+            setIcon(noteIcon, 'paperclip');
+            noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
+            noteIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openLinkedNote(entry.linkedNote!);
+            });
+        }
 
-                // Linked note on its own row for expanded cards
-                if (entry.linkedNote) {
-                    const noteRow = card.createDiv('entry-card-note-row');
-                    const noteLink = noteRow.createSpan('entry-linked-note');
-                    noteLink.setText(`📄 ${this.getNoteName(entry.linkedNote)}`);
-                    noteLink.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.openLinkedNote(entry.linkedNote!);
-                    });
-                }
+        // Edit icon (pencil)
+        const editIcon = icons.createSpan('entry-icon');
+        setIcon(editIcon, 'pencil');
+        editIcon.setAttribute('title', 'Edit entry');
+        editIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openEditModal(entry);
+        });
+
+        // Delete icon (trash)
+        const deleteIcon = icons.createSpan('entry-icon entry-icon-delete');
+        setIcon(deleteIcon, 'trash-2');
+        deleteIcon.setAttribute('title', 'Delete entry');
+        deleteIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.confirmDeleteEntry(entry);
+        });
+
+        // === BODY SECTION (30m+ only) ===
+        if (!is15m) {
+            const body = card.createDiv('entry-card-body');
+            const desc = body.createDiv('entry-body-desc');
+            if (entry.description) {
+                desc.textContent = entry.description;
             }
         }
 
-        // Resize handle - bottom
+        // === FOOTER / POWERLINE (30m+ only) ===
+        if (!is15m) {
+            const footer = card.createDiv('entry-card-footer');
+
+            // Client segment
+            const clientSeg = footer.createSpan('powerline-seg');
+            clientSeg.setText(this.getClientName(entry.client));
+            clientSeg.style.setProperty('--seg-color', clientColor);
+
+            // Project segment
+            if (entry.project) {
+                const projectSeg = footer.createSpan('powerline-seg');
+                projectSeg.setText(this.getProjectName(entry.project));
+                projectSeg.style.setProperty('--seg-color', this.getProjectColor(entry.project));
+            }
+
+            // Activity segment
+            if (entry.activity) {
+                const activitySeg = footer.createSpan('powerline-seg');
+                activitySeg.setText(this.getActivityName(entry.activity));
+                const actColor = this.getActivityColor(entry.activity);
+                if (actColor) activitySeg.style.setProperty('--seg-color', actColor);
+            }
+        }
+
+        // === RESIZE HANDLE ===
         const resizeBottom = card.createDiv('entry-resize-handle entry-resize-bottom');
         resizeBottom.addEventListener('mousedown', (e) => {
             e.stopPropagation();
             this.startEntryDrag(e, entry, card, 'resize-bottom');
         });
+        resizeBottom.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            this.startEntryDragTouch(e, entry, card, 'resize-bottom');
+        }, { passive: false });
 
-        // Mousedown on card body for move (but not on resize handles)
+        // === DRAG TO MOVE ===
         card.addEventListener('mousedown', (e) => {
             const target = e.target as HTMLElement;
             if (target.classList.contains('entry-resize-handle')) return;
+            if (target.closest('.entry-icon')) return;
             e.stopPropagation();
             this.startEntryDrag(e, entry, card, 'move');
         });
-
-        // Click to edit (only if we didn't drag)
-        card.addEventListener('click', (e) => {
-            if (this.entryDragDidMove) {
-                this.entryDragDidMove = false;
-                return;
-            }
+        card.addEventListener('touchstart', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('entry-resize-handle')) return;
+            if (target.closest('.entry-icon')) return;
             e.stopPropagation();
-            this.openEditModal(entry);
-        });
+            this.startEntryDragTouch(e, entry, card, 'move');
+        }, { passive: false });
     }
 
     /**
-     * Start dragging an entry (move or resize)
+     * Start dragging an entry (move or resize) - mouse version
      */
     private startEntryDrag(e: MouseEvent, entry: TimeEntry, card: HTMLElement, mode: 'move' | 'resize-top' | 'resize-bottom'): void {
         e.preventDefault();
-        this.entryDragMode = mode;
-        this.entryDragEntry = entry;
-        this.entryDragCard = card;
-        this.entryDragStartY = e.clientY;
-        this.entryDragOriginalTop = parseFloat(card.style.top);
-        this.entryDragOriginalHeight = parseFloat(card.style.height);
-
-        card.addClass('is-dragging');
+        this.initEntryDrag(e.clientY, entry, card, mode);
         document.addEventListener('mousemove', this.handleEntryDragMove);
         document.addEventListener('mouseup', this.handleEntryDragEnd);
     }
 
     /**
-     * Handle entry drag movement
+     * Start dragging an entry (move or resize) - touch version
+     */
+    private startEntryDragTouch(e: TouchEvent, entry: TimeEntry, card: HTMLElement, mode: 'move' | 'resize-top' | 'resize-bottom'): void {
+        if (e.touches.length !== 1) return;
+        e.preventDefault();
+        this.initEntryDrag(e.touches[0].clientY, entry, card, mode);
+        document.addEventListener('touchmove', this.handleEntryDragMoveTouch, { passive: false });
+        document.addEventListener('touchend', this.handleEntryDragEndTouch);
+        document.addEventListener('touchcancel', this.handleEntryDragEndTouch);
+    }
+
+    /**
+     * Initialize entry drag state (shared by mouse and touch)
+     */
+    private initEntryDrag(clientY: number, entry: TimeEntry, card: HTMLElement, mode: 'move' | 'resize-top' | 'resize-bottom'): void {
+        this.entryDragMode = mode;
+        this.entryDragEntry = entry;
+        this.entryDragCard = card;
+        this.entryDragStartY = clientY;
+        this.entryDragOriginalTop = parseFloat(card.style.top);
+        this.entryDragOriginalHeight = parseFloat(card.style.height);
+
+        card.addClass('is-dragging');
+
+        // Create tooltip for time feedback
+        this.entryDragTooltipEl = this.timelineInner.createDiv('timeline-drag-tooltip');
+        this.updateEntryDragTooltip();
+    }
+
+    /**
+     * Handle entry drag movement - mouse version
      */
     private handleEntryDragMove = (e: MouseEvent): void => {
+        this.updateEntryDragPosition(e.clientY);
+    };
+
+    /**
+     * Handle entry drag movement - touch version
+     */
+    private handleEntryDragMoveTouch = (e: TouchEvent): void => {
+        if (e.touches.length !== 1) return;
+        e.preventDefault(); // Prevent scrolling while dragging
+        this.updateEntryDragPosition(e.touches[0].clientY);
+    };
+
+    /**
+     * Update entry position during drag (shared by mouse and touch)
+     */
+    private updateEntryDragPosition(clientY: number): void {
         if (this.entryDragMode === 'none' || !this.entryDragCard) return;
 
-        const deltaY = e.clientY - this.entryDragStartY;
-
-        // Mark that actual dragging occurred
-        if (Math.abs(deltaY) > 3) {
-            this.entryDragDidMove = true;
-        }
+        const deltaY = clientY - this.entryDragStartY;
 
         if (this.entryDragMode === 'move') {
             // Move the whole card
@@ -653,21 +749,43 @@ export class TimelineView extends ItemView {
                 this.entryDragCard.style.height = `${newHeight}px`;
             }
         }
-    };
+
+        // Update tooltip with current times
+        this.updateEntryDragTooltip();
+    }
 
     /**
-     * End entry drag and save changes
+     * End entry drag and save changes - mouse version
      */
     private handleEntryDragEnd = async (e: MouseEvent): Promise<void> => {
         document.removeEventListener('mousemove', this.handleEntryDragMove);
         document.removeEventListener('mouseup', this.handleEntryDragEnd);
+        await this.finalizeEntryDrag(e.clientY);
+    };
 
+    /**
+     * End entry drag and save changes - touch version
+     */
+    private handleEntryDragEndTouch = async (e: TouchEvent): Promise<void> => {
+        document.removeEventListener('touchmove', this.handleEntryDragMoveTouch);
+        document.removeEventListener('touchend', this.handleEntryDragEndTouch);
+        document.removeEventListener('touchcancel', this.handleEntryDragEndTouch);
+
+        // Use changedTouches for touchend (touches array is empty)
+        const clientY = e.changedTouches?.[0]?.clientY ?? this.entryDragStartY;
+        await this.finalizeEntryDrag(clientY);
+    };
+
+    /**
+     * Finalize entry drag - calculate new times and save (shared by mouse and touch)
+     */
+    private async finalizeEntryDrag(clientY: number): Promise<void> {
         if (this.entryDragMode === 'none' || !this.entryDragCard || !this.entryDragEntry) {
             this.cleanupEntryDrag();
             return;
         }
 
-        const deltaY = e.clientY - this.entryDragStartY;
+        const deltaY = clientY - this.entryDragStartY;
 
         // If barely moved, treat as click (will open edit modal)
         if (Math.abs(deltaY) < 5) {
@@ -701,22 +819,21 @@ export class TimelineView extends ItemView {
         const endHours = Math.floor(endTotalMins / 60) % 24;
         const endMins = Math.round(endTotalMins % 60 / 15) * 15;
 
-        // Determine end date (might be next day if spans midnight)
+        // Determine end date (might span multiple days)
         const endDate = new Date(newDate);
-        if (endTotalMins >= 24 * 60) {
-            endDate.setDate(endDate.getDate() + 1);
+        const daysToAdd = Math.floor(endTotalMins / (24 * 60));
+        if (daysToAdd > 0) {
+            endDate.setDate(endDate.getDate() + daysToAdd);
         }
 
         const newStartTime = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`;
         const newEndTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
-        const newDateStr = EntryParser.getDateString(newDate);
-        const endDateStr = EntryParser.getDateString(endDate);
+        const newDateStr = TableParser.getDateString(newDate);
+        const endDateStr = TableParser.getDateString(endDate);
 
         // Build full datetime strings (required by updateEntry)
         const fullStart = `${newDateStr} ${newStartTime}`;
         const fullEnd = `${endDateStr} ${newEndTime}`;
-
-        console.log('Drag complete:', { newDateStr, fullStart, fullEnd });
 
         try {
             await this.dataManager.updateEntry(entry, {
@@ -726,7 +843,8 @@ export class TimelineView extends ItemView {
             });
             await this.refresh();
         } catch (err) {
-            console.error('Failed to update entry after drag:', err);
+            Logger.error('Failed to update entry after drag:', err);
+            new Notice('Failed to move entry. It may overlap with another entry.');
             // Revert visual position
             card.style.top = `${this.entryDragOriginalTop}px`;
             card.style.height = `${this.entryDragOriginalHeight}px`;
@@ -742,10 +860,45 @@ export class TimelineView extends ItemView {
         if (this.entryDragCard) {
             this.entryDragCard.removeClass('is-dragging');
         }
+        if (this.entryDragTooltipEl) {
+            this.entryDragTooltipEl.remove();
+            this.entryDragTooltipEl = null;
+        }
         this.entryDragMode = 'none';
         this.entryDragEntry = null;
         this.entryDragCard = null;
-        // Note: Don't reset entryDragDidMove here - it's reset in the click handler
+    }
+
+    /**
+     * Update the entry drag tooltip with current start/end times
+     */
+    private updateEntryDragTooltip(): void {
+        if (!this.entryDragTooltipEl || !this.entryDragCard) return;
+
+        const newTop = parseFloat(this.entryDragCard.style.top);
+        const newHeight = parseFloat(this.entryDragCard.style.height);
+
+        // Convert pixel positions to times
+        const newStartMinutes = (newTop / this.settings.hourHeight) * 60;
+        const newDurationMinutes = (newHeight / this.settings.hourHeight) * 60;
+
+        // Calculate which day and time
+        const dayIndex = Math.floor(newTop / this.dayHeight);
+        const minutesInDay = newStartMinutes - (dayIndex * 24 * 60);
+        const endMinutesInDay = minutesInDay + newDurationMinutes;
+
+        // Round to 15 minutes
+        const startHours = Math.floor(minutesInDay / 60) % 24;
+        const startMins = Math.round(minutesInDay % 60 / 15) * 15;
+        const endHours = Math.floor(endMinutesInDay / 60) % 24;
+        const endMins = Math.round(endMinutesInDay % 60 / 15) * 15;
+
+        const startTime = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`;
+        const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+
+        this.entryDragTooltipEl.setText(`${startTime} – ${endTime}`);
+        // Position tooltip below the card
+        this.entryDragTooltipEl.style.top = `${newTop + newHeight + 8}px`;
     }
 
     /**
@@ -855,11 +1008,35 @@ export class TimelineView extends ItemView {
     }
 
     /**
-     * Get just the note name from a full path
+     * Get display name for a client from settings
      */
-    private getNoteName(notePath: string): string {
-        const parts = notePath.split('/');
-        return parts[parts.length - 1];
+    private getClientName(clientId: string): string {
+        const client = this.settings.clients.find(c => c.id === clientId || c.name === clientId);
+        return client?.name || clientId;
+    }
+
+    /**
+     * Get color for a client from settings
+     */
+    private getClientColor(clientId: string): string {
+        const client = this.settings.clients.find(c => c.id === clientId || c.name === clientId);
+        return client?.color || '#4f46e5';
+    }
+
+    /**
+     * Get display name for a project from settings
+     */
+    private getProjectName(projectId: string): string {
+        const project = this.settings.projects.find(p => p.id === projectId || p.name === projectId);
+        return project?.name || projectId;
+    }
+
+    /**
+     * Get display name for an activity from settings
+     */
+    private getActivityName(activityId: string): string {
+        const activity = this.settings.activities.find(a => a.id === activityId || a.name === activityId);
+        return activity?.name || activityId;
     }
 
     /**
@@ -872,7 +1049,7 @@ export class TimelineView extends ItemView {
         if (file) {
             this.app.workspace.openLinkText(notePath, '', false);
         } else {
-            console.warn('Linked note not found:', fullPath);
+            Logger.warn('Linked note not found:', fullPath);
         }
     }
 
@@ -882,7 +1059,7 @@ export class TimelineView extends ItemView {
      * Open modal to edit an existing entry
      */
     private openEditModal(entry: TimeEntry): void {
-        console.log('Opening edit modal for entry:', entry);
+        Logger.log('Opening edit modal for entry:', entry);
         const data: EntryModalData = {
             mode: 'edit',
             entry,
@@ -902,7 +1079,7 @@ export class TimelineView extends ItemView {
      * Open modal to create a new entry
      */
     private openCreateModal(date: Date, startTime?: string): void {
-        console.log('Opening create modal for date:', date, 'time:', startTime);
+        Logger.log('Opening create modal for date:', date, 'time:', startTime);
         const data: EntryModalData = {
             mode: 'create',
             date,
@@ -920,6 +1097,16 @@ export class TimelineView extends ItemView {
     }
 
     /**
+     * Show confirmation dialog and delete entry if confirmed
+     */
+    private confirmDeleteEntry(entry: TimeEntry): void {
+        new ConfirmDeleteModal(this.app, entry, async () => {
+            await this.dataManager.deleteEntry(entry);
+            this.refresh();
+        }).open();
+    }
+
+    /**
      * Handle double-click on timeline to create new entry
      */
     private handleTimelineDoubleClick(e: MouseEvent): void {
@@ -934,7 +1121,7 @@ export class TimelineView extends ItemView {
         const rect = this.timelineInner.getBoundingClientRect();
         const clickY = e.clientY - rect.top;
 
-        console.log('Double-click debug:', {
+        Logger.log('Double-click debug:', {
             clientY: e.clientY,
             rectTop: rect.top,
             clickY: clickY,
@@ -956,7 +1143,7 @@ export class TimelineView extends ItemView {
 
         const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-        console.log('Double-clicked at:', clickedDate.toDateString(), startTime);
+        Logger.log('Double-clicked at:', clickedDate.toDateString(), startTime);
         this.openCreateModal(clickedDate, startTime);
     }
 
@@ -998,6 +1185,9 @@ export class TimelineView extends ItemView {
 
         // Create selection element on timelineInner (so positioning matches our Y calculations)
         this.selectionEl = this.timelineInner.createDiv('timeline-drag-selection');
+
+        // Create tooltip for time feedback
+        this.dragTooltipEl = this.timelineInner.createDiv('timeline-drag-tooltip');
         this.updateSelectionElement();
 
         e.preventDefault();
@@ -1051,7 +1241,7 @@ export class TimelineView extends ItemView {
         const startTime = this.roundToTimeString(startHours);
         const endTime = this.roundToTimeString(endHours);
 
-        console.log('Drag selection:', clickedDate.toDateString(), startTime, '-', endTime);
+        Logger.log('Drag selection:', clickedDate.toDateString(), startTime, '-', endTime);
 
         this.cleanupDrag();
         this.openCreateModalWithRange(clickedDate, startTime, endTime);
@@ -1066,8 +1256,124 @@ export class TimelineView extends ItemView {
         }
     }
 
+    // Touch versions of drag-to-create handlers
+
     /**
-     * Update the visual selection element position
+     * Handle touch start - begin selecting time range (touch version)
+     */
+    private handleDragStartTouch(e: TouchEvent): void {
+        if (e.touches.length !== 1) return;
+
+        // Don't start drag on entry cards
+        const target = e.target as HTMLElement;
+        if (target.closest('.timeline-entry-card')) {
+            return;
+        }
+
+        // Prevent multiple drags
+        if (this.isDragging) return;
+
+        this.isDragging = true;
+
+        // Clean up any stale selection element
+        if (this.selectionEl) {
+            this.selectionEl.remove();
+            this.selectionEl = null;
+        }
+
+        const rect = this.timelineInner.getBoundingClientRect();
+        this.dragStartY = e.touches[0].clientY - rect.top;
+        this.dragCurrentY = this.dragStartY;
+
+        // Calculate the date for this position
+        const dayIndex = Math.floor(this.dragStartY / this.dayHeight) - this.visibleDaysBuffer;
+        this.dragStartDate = new Date(this.centerDate);
+        this.dragStartDate.setDate(this.dragStartDate.getDate() + dayIndex);
+
+        // Create selection element
+        this.selectionEl = this.timelineInner.createDiv('timeline-drag-selection');
+
+        // Create tooltip for time feedback
+        this.dragTooltipEl = this.timelineInner.createDiv('timeline-drag-tooltip');
+        this.updateSelectionElement();
+
+        e.preventDefault();
+    }
+
+    /**
+     * Handle touch move - update selection visual (touch version)
+     */
+    private handleDragMoveTouch(e: TouchEvent): void {
+        if (!this.isDragging || !this.selectionEl || e.touches.length !== 1) return;
+
+        e.preventDefault(); // Prevent scrolling while creating entry
+
+        const rect = this.timelineInner.getBoundingClientRect();
+        this.dragCurrentY = e.touches[0].clientY - rect.top;
+        this.updateSelectionElement();
+    }
+
+    /**
+     * Handle touch end - open create modal with selected time range (touch version)
+     */
+    private handleDragEndTouch(e: TouchEvent): void {
+        if (!this.isDragging) return;
+
+        // Use changedTouches for touchend
+        const touch = e.changedTouches?.[0];
+        if (!touch) {
+            this.cleanupDrag();
+            return;
+        }
+
+        const rect = this.timelineInner.getBoundingClientRect();
+        const endY = touch.clientY - rect.top;
+
+        // Calculate start and end times
+        const minY = Math.min(this.dragStartY, endY);
+        const maxY = Math.max(this.dragStartY, endY);
+
+        // Only open modal if drag was significant (more than ~15 min worth)
+        const minDrag = this.settings.hourHeight / 4; // 15 minutes
+        if (maxY - minY < minDrag) {
+            this.cleanupDrag();
+            return;
+        }
+
+        // Calculate date and times from Y positions
+        const dayIndex = Math.floor(minY / this.dayHeight) - this.visibleDaysBuffer;
+        const clickedDate = new Date(this.centerDate);
+        clickedDate.setDate(clickedDate.getDate() + dayIndex);
+
+        // Calculate times within the day
+        const dayTopY = (dayIndex + this.visibleDaysBuffer) * this.dayHeight;
+        const startYInDay = minY - dayTopY;
+        const endYInDay = maxY - dayTopY;
+
+        const startHours = startYInDay / this.settings.hourHeight;
+        const endHours = endYInDay / this.settings.hourHeight;
+
+        // Round to nearest 15 minutes
+        const startTime = this.roundToTimeString(startHours);
+        const endTime = this.roundToTimeString(endHours);
+
+        Logger.log('Touch drag selection:', clickedDate.toDateString(), startTime, '-', endTime);
+
+        this.cleanupDrag();
+        this.openCreateModalWithRange(clickedDate, startTime, endTime);
+    }
+
+    /**
+     * Handle touch cancel (touch version)
+     */
+    private handleDragCancelTouch(): void {
+        if (this.isDragging) {
+            this.cleanupDrag();
+        }
+    }
+
+    /**
+     * Update the visual selection element position and tooltip
      */
     private updateSelectionElement(): void {
         if (!this.selectionEl) return;
@@ -1078,6 +1384,25 @@ export class TimelineView extends ItemView {
 
         this.selectionEl.style.top = `${minY}px`;
         this.selectionEl.style.height = `${height}px`;
+
+        // Update tooltip with time range
+        if (this.dragTooltipEl) {
+            // Calculate times from Y positions
+            const dayIndex = Math.floor(minY / this.dayHeight) - this.visibleDaysBuffer;
+            const dayTopY = (dayIndex + this.visibleDaysBuffer) * this.dayHeight;
+            const startYInDay = minY - dayTopY;
+            const endYInDay = maxY - dayTopY;
+
+            const startHours = startYInDay / this.settings.hourHeight;
+            const endHours = endYInDay / this.settings.hourHeight;
+
+            const startTime = this.roundToTimeString(startHours);
+            const endTime = this.roundToTimeString(endHours);
+
+            this.dragTooltipEl.setText(`${startTime} – ${endTime}`);
+            // Position tooltip near the bottom of selection, offset to the right
+            this.dragTooltipEl.style.top = `${maxY + 8}px`;
+        }
     }
 
     /**
@@ -1088,6 +1413,10 @@ export class TimelineView extends ItemView {
         if (this.selectionEl) {
             this.selectionEl.remove();
             this.selectionEl = null;
+        }
+        if (this.dragTooltipEl) {
+            this.dragTooltipEl.remove();
+            this.dragTooltipEl = null;
         }
         this.dragStartDate = null;
     }
@@ -1106,7 +1435,7 @@ export class TimelineView extends ItemView {
      * Open create modal with pre-filled start and end times
      */
     private openCreateModalWithRange(date: Date, startTime: string, endTime: string): void {
-        console.log('Opening create modal with range:', date, startTime, '-', endTime);
+        Logger.log('Opening create modal with range:', date, startTime, '-', endTime);
         const data: EntryModalData = {
             mode: 'create',
             date,
@@ -1122,5 +1451,65 @@ export class TimelineView extends ItemView {
             () => this.refresh()
         );
         modal.open();
+    }
+}
+
+/**
+ * Confirmation modal for deleting an entry
+ */
+class ConfirmDeleteModal extends Modal {
+    private entry: TimeEntry;
+    private onConfirm: () => Promise<void>;
+
+    constructor(app: App, entry: TimeEntry, onConfirm: () => Promise<void>) {
+        super(app);
+        this.entry = entry;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen(): void {
+        const { contentEl } = this;
+        contentEl.empty();
+        contentEl.addClass('time-tracker-confirm-delete');
+
+        contentEl.createEl('h2', { text: 'Delete Entry' });
+
+        // Show entry details
+        const details = contentEl.createDiv('delete-entry-details');
+        details.createEl('p', {
+            text: `${this.entry.start} – ${this.entry.end}`,
+            cls: 'delete-entry-time',
+        });
+        if (this.entry.description) {
+            details.createEl('p', {
+                text: this.entry.description,
+                cls: 'delete-entry-desc',
+            });
+        }
+
+        contentEl.createEl('p', {
+            text: 'Are you sure you want to delete this entry? This cannot be undone.',
+            cls: 'delete-confirm-message',
+        });
+
+        // Buttons
+        const buttonContainer = contentEl.createDiv('delete-button-container');
+
+        const cancelBtn = buttonContainer.createEl('button', { text: 'Cancel' });
+        cancelBtn.addEventListener('click', () => this.close());
+
+        const deleteBtn = buttonContainer.createEl('button', {
+            text: 'Delete',
+            cls: 'mod-warning',
+        });
+        deleteBtn.addEventListener('click', async () => {
+            await this.onConfirm();
+            this.close();
+        });
+    }
+
+    onClose(): void {
+        const { contentEl } = this;
+        contentEl.empty();
     }
 }

@@ -46,6 +46,16 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        new Setting(containerEl)
+            .setName('Hide tables in reading view')
+            .setDesc('Wrap data tables in %% comment markers to hide them in reading view. Disable to see raw table data.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.hideTablesInPreview)
+                .onChange(async (value) => {
+                    this.plugin.settings.hideTablesInPreview = value;
+                    await this.plugin.saveSettings();
+                }));
+
         // Timeline Display Settings
         containerEl.createEl('h2', { text: 'Timeline Display' });
 
@@ -53,7 +63,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             .setName('Hour height')
             .setDesc('Height in pixels for each hour in the timeline view')
             .addSlider(slider => slider
-                .setLimits(40, 120, 10)
+                .setLimits(200, 240, 10)
                 .setValue(this.plugin.settings.hourHeight)
                 .setDynamicTooltip()
                 .onChange(async (value) => {
@@ -100,16 +110,6 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
-            .setName('Show description')
-            .setDesc('Show entry descriptions in timeline cards')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.showDescription)
-                .onChange(async (value) => {
-                    this.plugin.settings.showDescription = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
             .setName('Description max length')
             .setDesc('Maximum characters for entry descriptions (0 = no limit)')
             .addText(text => text
@@ -130,6 +130,46 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.weekStart)
                 .onChange(async (value: 'monday' | 'sunday') => {
                     this.plugin.settings.weekStart = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // Bill From Section (for invoices)
+        containerEl.createEl('h2', { text: 'Bill From' });
+        containerEl.createEl('p', {
+            text: 'Your billing information that appears on invoices.',
+            cls: 'setting-item-description'
+        });
+
+        new Setting(containerEl)
+            .setName('Name')
+            .setDesc('Your name or business name')
+            .addText(text => text
+                .setPlaceholder('Your Name / Business Name')
+                .setValue(this.plugin.settings.billFrom.name)
+                .onChange(async (value) => {
+                    this.plugin.settings.billFrom.name = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Address')
+            .setDesc('Your billing address (multi-line)')
+            .addTextArea(textarea => textarea
+                .setPlaceholder('123 Main Street\nCity, State 12345\nCountry')
+                .setValue(this.plugin.settings.billFrom.address)
+                .onChange(async (value) => {
+                    this.plugin.settings.billFrom.address = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Invoice folder')
+            .setDesc('Folder where invoices will be saved (created automatically)')
+            .addText(text => text
+                .setPlaceholder('TimeTracking/Invoices')
+                .setValue(this.plugin.settings.invoiceFolder)
+                .onChange(async (value) => {
+                    this.plugin.settings.invoiceFolder = value || 'TimeTracking/Invoices';
                     await this.plugin.saveSettings();
                 }));
 
@@ -160,6 +200,19 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                         }
                     );
                     modal.open();
+                }));
+
+        // Developer Settings
+        containerEl.createEl('h2', { text: 'Developer' });
+
+        new Setting(containerEl)
+            .setName('Debug mode')
+            .setDesc('Enable verbose logging to the developer console (useful for troubleshooting)')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.debugMode)
+                .onChange(async (value) => {
+                    this.plugin.settings.debugMode = value;
+                    await this.plugin.saveSettings();
                 }));
     }
 
@@ -203,10 +256,8 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             // Client name
             clientHeader.createSpan({ text: client.name, cls: 'client-name' });
 
-            // Rate badge
-            const rateDisplay = client.rateType === 'hourly'
-                ? `${client.currency} ${client.rate}/hr`
-                : `${client.currency} ${client.rate}/day`;
+            // Rate badge (always hourly)
+            const rateDisplay = `${client.currency} ${client.rate}/hr`;
             clientHeader.createSpan({ text: rateDisplay, cls: 'client-rate-badge' });
 
             // Edit button (stops propagation)
