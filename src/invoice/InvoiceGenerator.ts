@@ -79,14 +79,11 @@ export class InvoiceGenerator {
         for (const [projectName, minutes] of projectHours) {
             const hours = minutes / 60;
 
-            // Get rate: project override or client rate
+            // Get hourly rate: project override or client rate
             const project = this.settings.projects.find(
                 p => (p.name === projectName || p.id === projectName) && p.clientId === client.id
             );
-            const rate = project?.rateOverride ?? client.rate;
-
-            // For daily rates, convert to hourly (assuming 8-hour day)
-            const hourlyRate = client.rateType === 'daily' ? rate / 8 : rate;
+            const hourlyRate = project?.rateOverride ?? client.rate;
             const amount = hours * hourlyRate;
 
             // Use project name as description

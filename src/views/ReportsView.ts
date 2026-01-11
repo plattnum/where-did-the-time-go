@@ -543,14 +543,8 @@ export class ReportsView extends ItemView {
                 ? (data.minutes / totalClientMinutes) * 100
                 : 0;
 
-            // Calculate billable amount
-            let billableAmount = 0;
-            if (client.rateType === 'hourly') {
-                billableAmount = client.rate * (data.minutes / 60);
-            } else {
-                // Daily rate: 8 hours = 1 day
-                billableAmount = client.rate * (data.minutes / 480);
-            }
+            // Calculate billable amount (hourly rate * hours)
+            const billableAmount = client.rate * (data.minutes / 60);
 
             // Build project breakdown with activity breakdown
             const projectBreakdown: ProjectReport[] = [];
@@ -587,7 +581,6 @@ export class ReportsView extends ItemView {
                 color: client.color,
                 rate: client.rate,
                 currency: client.currency,
-                rateType: client.rateType,
                 totalMinutes: data.minutes,
                 billableAmount,
                 percentage,

@@ -84,12 +84,10 @@ export interface Client {
     archived: boolean;
 
     // Billing
-    /** Billing rate (e.g., 150) */
+    /** Hourly billing rate (e.g., 150) */
     rate: number;
     /** Currency code (USD, EUR, GBP, etc.) */
     currency: string;
-    /** Rate type */
-    rateType: 'hourly' | 'daily';
 
     // Invoice Details
     /** Multi-line billing address (use \n for line breaks) */
@@ -182,7 +180,6 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
             archived: false,
             rate: 0,
             currency: 'USD',
-            rateType: 'hourly',
             paymentTerms: 'N/A',
         },
     ],
@@ -278,12 +275,10 @@ export interface ClientReport {
     name: string;
     /** Client color */
     color: string;
-    /** Billing rate */
+    /** Hourly billing rate */
     rate: number;
     /** Currency code */
     currency: string;
-    /** Rate type */
-    rateType: 'hourly' | 'daily';
     /** Total minutes for this client */
     totalMinutes: number;
     /** Calculated billable amount (rate * hours or days) */

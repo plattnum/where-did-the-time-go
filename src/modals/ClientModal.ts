@@ -28,7 +28,6 @@ export class ClientModal extends Modal {
     private colorValue: string;
     private rateValue: number;
     private currencyValue: string;
-    private rateTypeValue: 'hourly' | 'daily';
     private addressValue: string;
     private emailValue: string;
     private taxIdValue: string;
@@ -52,7 +51,6 @@ export class ClientModal extends Modal {
             this.colorValue = data.client.color;
             this.rateValue = data.client.rate;
             this.currencyValue = data.client.currency;
-            this.rateTypeValue = data.client.rateType;
             this.addressValue = data.client.address || '';
             this.emailValue = data.client.email || '';
             this.taxIdValue = data.client.taxId || '';
@@ -64,7 +62,6 @@ export class ClientModal extends Modal {
             this.colorValue = this.getRandomColor();
             this.rateValue = 100;
             this.currencyValue = 'USD';
-            this.rateTypeValue = 'hourly';
             this.addressValue = '';
             this.emailValue = '';
             this.taxIdValue = '';
@@ -137,18 +134,6 @@ export class ClientModal extends Modal {
                 .setValue(this.currencyValue)
                 .onChange(value => {
                     this.currencyValue = value;
-                }));
-
-        // Rate type
-        new Setting(contentEl)
-            .setName('Rate Type')
-            .setDesc('How the rate is calculated')
-            .addDropdown(dropdown => dropdown
-                .addOption('hourly', 'Hourly')
-                .addOption('daily', 'Daily')
-                .setValue(this.rateTypeValue)
-                .onChange(value => {
-                    this.rateTypeValue = value as 'hourly' | 'daily';
                 }));
 
         // Invoice details section header
@@ -272,7 +257,6 @@ export class ClientModal extends Modal {
                 : false,
             rate: this.rateValue,
             currency: this.currencyValue,
-            rateType: this.rateTypeValue,
             address: this.addressValue.trim() || undefined,
             email: this.emailValue.trim() || undefined,
             taxId: this.taxIdValue.trim() || undefined,

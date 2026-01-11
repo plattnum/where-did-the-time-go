@@ -256,10 +256,8 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             // Client name
             clientHeader.createSpan({ text: client.name, cls: 'client-name' });
 
-            // Rate badge
-            const rateDisplay = client.rateType === 'hourly'
-                ? `${client.currency} ${client.rate}/hr`
-                : `${client.currency} ${client.rate}/day`;
+            // Rate badge (always hourly)
+            const rateDisplay = `${client.currency} ${client.rate}/hr`;
             clientHeader.createSpan({ text: rateDisplay, cls: 'client-rate-badge' });
 
             // Edit button (stops propagation)
