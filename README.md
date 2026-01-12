@@ -86,6 +86,12 @@ Once approved:
 3. Copy the files into that folder
 4. Enable the plugin in Settings → Community Plugins
 
+### Using BRAT
+1. Install the [BRAT plugin](https://github.com/TfTHacker/obsidian42-brat)
+2. Open BRAT settings → Add Beta Plugin
+3. Enter: `https://github.com/plattnum/where-did-the-time-go`
+4. Enable the plugin in Settings → Community Plugins
+
 ## Usage
 
 ### Creating Entries
