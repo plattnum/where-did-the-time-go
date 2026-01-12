@@ -94,6 +94,12 @@ Once approved:
 
 ## Usage
 
+After enabling, you'll see two icons in the left sidebar:
+
+<img src="docs/left-sidebar-icons.png" width="60" alt="Sidebar Icons">
+
+Click to open the **∞ Timeline** or **Reports** view.
+
 ### Creating Entries
 - **Click + drag** on the timeline to create an entry
 - **Click** the + button in the toolbar
