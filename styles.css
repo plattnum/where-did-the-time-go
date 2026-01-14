@@ -523,6 +523,24 @@
     background: color-mix(in srgb, var(--tt-accent) 10%, var(--tt-bg-secondary));
     border-bottom: 2px solid var(--tt-accent);
     z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.day-header-date {
+    flex: 1;
+}
+
+.day-header-total {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--tt-accent);
+    color: white;
+    white-space: nowrap;
 }
 
 /* Current time indicator */

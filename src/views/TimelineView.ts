@@ -446,10 +446,24 @@ export class TimelineView extends ItemView {
         const dateStr = TableParser.getDateString(date);
         const isToday = this.isToday(date);
 
+        // Get entries for this day to calculate total
+        const entries = this.entriesByDate.get(dateStr) || [];
+        const totalMinutes = entries.reduce((sum, entry) => sum + entry.durationMinutes, 0);
+
         // Day header
         const dayHeader = this.entriesContainer.createDiv('timeline-day-header');
         dayHeader.style.top = `${topOffset}px`;
-        dayHeader.setText(this.formatDayHeader(date));
+
+        // Date text
+        const dateText = dayHeader.createSpan('day-header-date');
+        dateText.setText(this.formatDayHeader(date));
+
+        // Daily total badge (only show if there's logged time)
+        if (totalMinutes > 0) {
+            const totalBadge = dayHeader.createSpan('day-header-total');
+            totalBadge.setText(this.formatDuration(totalMinutes));
+        }
+
         if (isToday) {
             dayHeader.addClass('is-today');
         }
@@ -479,7 +493,6 @@ export class TimelineView extends ItemView {
         }
 
         // Render entries for this day
-        const entries = this.entriesByDate.get(dateStr) || [];
         if (entries.length > 0) {
             Logger.log('renderDay: rendering', entries.length, 'entries for', dateStr);
         }
