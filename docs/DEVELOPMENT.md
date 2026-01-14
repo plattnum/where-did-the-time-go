@@ -68,3 +68,26 @@ Time entries are stored in your vault as markdown tables:
 ```
 
 One file per month. Human-readable. Don't edit manually while the plugin is running.
+
+## Releasing
+
+Releases are triggered by pushing a git tag. The GitHub Action builds the plugin and creates a draft release.
+
+```bash
+# 1. Bump version in manifest.json and versions.json
+npm run version
+
+# 2. Commit the version bump
+git add manifest.json versions.json
+git commit -m "chore: Bump version to X.Y.Z"
+
+# 3. Create and push a tag
+git tag X.Y.Z
+git push origin main --tags
+```
+
+This triggers the release workflow which:
+1. Builds the plugin
+2. Creates a **draft** release with `main.js`, `manifest.json`, and `styles.css` attached
+
+Go to [GitHub Releases](https://github.com/plattnum/where-did-the-time-go/releases) to review and publish the draft.
