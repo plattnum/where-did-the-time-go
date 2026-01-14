@@ -3,7 +3,7 @@
     "name": "Where Did The Time Go?",
     "version": "1.0.0",
     "minAppVersion": "0.15.0",
-    "description": "A plugin to track time.",
+    "description": "Visual time tracking with infinite-scroll timeline, hierarchical reports, and one-click invoicing. Data stays in your vault as markdown.",
     "author": "Plattnum",
     "authorUrl": "https://github.com/plattnum",
     "isDesktopOnly": false

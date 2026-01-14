@@ -12864,9 +12864,16 @@ var TimelineView = class extends import_obsidian5.ItemView {
   renderDay(date, topOffset) {
     const dateStr = TableParser.getDateString(date);
     const isToday = this.isToday(date);
+    const entries = this.entriesByDate.get(dateStr) || [];
+    const totalMinutes = entries.reduce((sum, entry) => sum + entry.durationMinutes, 0);
     const dayHeader = this.entriesContainer.createDiv("timeline-day-header");
     dayHeader.style.top = `${topOffset}px`;
-    dayHeader.setText(this.formatDayHeader(date));
+    const dateText = dayHeader.createSpan("day-header-date");
+    dateText.setText(this.formatDayHeader(date));
+    if (totalMinutes > 0) {
+      const totalBadge = dayHeader.createSpan("day-header-total");
+      totalBadge.setText(this.formatDuration(totalMinutes));
+    }
     if (isToday) {
       dayHeader.addClass("is-today");
     }
@@ -12885,7 +12892,6 @@ var TimelineView = class extends import_obsidian5.ItemView {
       const nowLine = this.entriesContainer.createDiv("timeline-now-line");
       nowLine.style.top = `${nowTop}px`;
     }
-    const entries = this.entriesByDate.get(dateStr) || [];
     if (entries.length > 0) {
       Logger.log("renderDay: rendering", entries.length, "entries for", dateStr);
     }
