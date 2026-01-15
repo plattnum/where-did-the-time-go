@@ -77,7 +77,7 @@ export class ReportsView extends ItemView {
 
     updateSettings(settings: TimeTrackerSettings): void {
         this.settings = settings;
-        this.loadReport();
+        void this.loadReport();
     }
 
     async refresh(): Promise<void> {
@@ -104,7 +104,7 @@ export class ReportsView extends ItemView {
 
         // Custom date inputs (hidden by default)
         this.customDateInputs = this.contentContainer.createDiv('reports-custom-dates');
-        this.customDateInputs.style.display = 'none';
+        this.customDateInputs.addClass('is-hidden');
         this.renderCustomDateInputs();
 
         // Summary section
@@ -127,7 +127,7 @@ export class ReportsView extends ItemView {
         const header = container.createDiv('reports-header');
 
         const titleSection = header.createDiv('reports-header-title');
-        titleSection.createEl('h2', { text: 'Time Reports' });
+        titleSection.createEl('h2', { text: 'Time reports' });
 
         const controls = header.createDiv('reports-header-controls');
 
@@ -136,21 +136,21 @@ export class ReportsView extends ItemView {
             text: 'Export CSV',
             cls: 'reports-btn',
         });
-        exportCsvBtn.addEventListener('click', () => this.exportToCSV());
+        exportCsvBtn.addEventListener('click', () => { void this.exportToCSV(); });
 
         // Export JSON button
         const exportJsonBtn = controls.createEl('button', {
             text: 'Export JSON',
             cls: 'reports-btn',
         });
-        exportJsonBtn.addEventListener('click', () => this.exportToJSON());
+        exportJsonBtn.addEventListener('click', () => { void this.exportToJSON(); });
 
         // Refresh button
         const refreshBtn = controls.createEl('button', {
             text: 'Refresh',
             cls: 'reports-btn',
         });
-        refreshBtn.addEventListener('click', () => this.loadReport());
+        refreshBtn.addEventListener('click', () => { void this.loadReport(); });
     }
 
     /**
@@ -191,7 +191,7 @@ export class ReportsView extends ItemView {
         }
         startInput.addEventListener('change', (e) => {
             this.customStartDate = new Date((e.target as HTMLInputElement).value);
-            this.loadReport();
+            void this.loadReport();
         });
 
         const endLabel = this.customDateInputs.createEl('label', { text: 'To: ' });
@@ -201,7 +201,7 @@ export class ReportsView extends ItemView {
         }
         endInput.addEventListener('change', (e) => {
             this.customEndDate = new Date((e.target as HTMLInputElement).value);
-            this.loadReport();
+            void this.loadReport();
         });
     }
 
@@ -214,7 +214,7 @@ export class ReportsView extends ItemView {
 
         // Show/hide custom date inputs
         if (preset === 'custom') {
-            this.customDateInputs.style.display = 'flex';
+            this.customDateInputs.removeClass('is-hidden');
             // Set default custom range to this week if not set
             if (!this.customStartDate || !this.customEndDate) {
                 const { start, end } = this.getDateRange('this-week');
@@ -223,10 +223,10 @@ export class ReportsView extends ItemView {
                 this.renderCustomDateInputs();
             }
         } else {
-            this.customDateInputs.style.display = 'none';
+            this.customDateInputs.addClass('is-hidden');
         }
 
-        this.loadReport();
+        void this.loadReport();
     }
 
     /**
@@ -369,7 +369,7 @@ export class ReportsView extends ItemView {
                 projectMap.set(projectName, { minutes: 0, activityMap: new Map() });
             }
 
-            const projectData = projectMap.get(projectName)!;
+            const projectData = projectMap.get(projectName);
             projectData.minutes += effectiveMinutes;
             this.totalMinutes += effectiveMinutes;
 
@@ -513,14 +513,14 @@ export class ReportsView extends ItemView {
                 clientMap.set(clientId, { minutes: 0, projects: new Map() });
             }
 
-            const clientData = clientMap.get(clientId)!;
+            const clientData = clientMap.get(clientId);
             clientData.minutes += effectiveMinutes;
 
             if (!clientData.projects.has(projectName)) {
                 clientData.projects.set(projectName, { minutes: 0, activities: new Map() });
             }
 
-            const projectData = clientData.projects.get(projectName)!;
+            const projectData = clientData.projects.get(projectName);
             projectData.minutes += effectiveMinutes;
 
             const currentActivityMinutes = projectData.activities.get(activityName) || 0;
@@ -612,7 +612,7 @@ export class ReportsView extends ItemView {
         // Header
         const thead = table.createEl('thead');
         const headerRow = thead.createEl('tr');
-        headerRow.createEl('th', { text: 'Client / Project / Activity' });
+        headerRow.createEl('th', { text: 'Client / project / activity' });
         headerRow.createEl('th', { text: 'Hours', cls: 'reports-col-hours' });
         headerRow.createEl('th', { text: 'Billable', cls: 'reports-col-billable' });
         headerRow.createEl('th', { text: '%', cls: 'reports-col-percent' });
@@ -815,8 +815,8 @@ export class ReportsView extends ItemView {
         const modal = new InvoiceModal(
             this.app,
             modalData,
-            async (result) => {
-                await this.generateInvoice(client, result);
+            (result) => {
+                void this.generateInvoice(client, result);
             }
         );
         modal.open();
@@ -858,7 +858,8 @@ export class ReportsView extends ItemView {
             }
         } catch (error) {
             Logger.log('ReportsView: Error generating invoice', error);
-            new Notice(`Error generating invoice: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            new Notice(`Error generating invoice: ${errorMessage}`);
         }
     }
 
@@ -994,7 +995,7 @@ export class ReportsView extends ItemView {
         const link = document.createElement('a');
         link.href = url;
         link.download = filename;
-        link.style.display = 'none';
+        link.classList.add('is-hidden');
 
         document.body.appendChild(link);
         link.click();
@@ -1073,7 +1074,7 @@ export class ReportsView extends ItemView {
         const link = document.createElement('a');
         link.href = url;
         link.download = filename;
-        link.style.display = 'none';
+        link.classList.add('is-hidden');
 
         document.body.appendChild(link);
         link.click();

@@ -1,8 +1,43 @@
-import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponent, Notice, FuzzySuggestModal, TFile } from 'obsidian';
+import { App, Modal, Setting, DropdownComponent, TextComponent, Notice, FuzzySuggestModal, TFile } from 'obsidian';
 import { TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
 import { Logger } from '../utils/Logger';
+
+/**
+ * Simple confirmation modal to replace browser confirm()
+ */
+class ConfirmModal extends Modal {
+    private message: string;
+    private onConfirm: () => void;
+
+    constructor(app: App, message: string, onConfirm: () => void) {
+        super(app);
+        this.message = message;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen(): void {
+        const { contentEl } = this;
+        contentEl.createEl('p', { text: this.message });
+
+        const buttonRow = contentEl.createDiv('modal-button-row');
+
+        const cancelBtn = buttonRow.createEl('button', { text: 'Cancel' });
+        cancelBtn.addEventListener('click', () => this.close());
+
+        const confirmBtn = buttonRow.createEl('button', { text: 'Delete', cls: 'mod-warning' });
+        confirmBtn.addEventListener('click', () => {
+            this.onConfirm();
+            this.close();
+        });
+    }
+
+    onClose(): void {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
 
 /**
  * Mode for the entry modal
@@ -162,8 +197,8 @@ export class EntryModal extends Modal {
                 text.onChange((value) => {
                     this.startDateValue = value;
                     this.recalculateDuration();
-                    this.validateOverlap();
-                    this.findAdjacentEntries();
+                    void this.validateOverlap();
+                    void this.findAdjacentEntries();
                 });
             })
             .addText((text) => {
@@ -173,8 +208,8 @@ export class EntryModal extends Modal {
                 text.onChange((value) => {
                     this.startTimeValue = value;
                     this.recalculateDuration();
-                    this.validateOverlap();
-                    this.findAdjacentEntries();
+                    void this.validateOverlap();
+                    void this.findAdjacentEntries();
                 });
             });
 
@@ -183,7 +218,7 @@ export class EntryModal extends Modal {
             cls: 'time-magnet-btn',
             text: '🧲',
         });
-        this.startSnapHint.style.display = 'none'; // Hidden until adjacent entry found
+        this.startSnapHint.addClass('is-hidden'); // Hidden until adjacent entry found
         this.startSnapHint.addEventListener('click', (e) => {
             e.preventDefault();
             this.snapStartToPrevious();
@@ -200,7 +235,7 @@ export class EntryModal extends Modal {
                 text.onChange((value) => {
                     this.durationValue = value;
                     this.updateEndFromDuration();
-                    this.validateOverlap();
+                    void this.validateOverlap();
                 });
             });
 
@@ -216,8 +251,8 @@ export class EntryModal extends Modal {
                 text.onChange((value) => {
                     this.endDateValue = value;
                     this.recalculateDuration();
-                    this.validateOverlap();
-                    this.findAdjacentEntries();
+                    void this.validateOverlap();
+                    void this.findAdjacentEntries();
                 });
             })
             .addText((text) => {
@@ -227,8 +262,8 @@ export class EntryModal extends Modal {
                 text.onChange((value) => {
                     this.endTimeValue = value;
                     this.recalculateDuration();
-                    this.validateOverlap();
-                    this.findAdjacentEntries();
+                    void this.validateOverlap();
+                    void this.findAdjacentEntries();
                 });
             });
 
@@ -237,7 +272,7 @@ export class EntryModal extends Modal {
             cls: 'time-magnet-btn',
             text: '🧲',
         });
-        this.endSnapHint.style.display = 'none'; // Hidden until adjacent entry found
+        this.endSnapHint.addClass('is-hidden'); // Hidden until adjacent entry found
         this.endSnapHint.addEventListener('click', (e) => {
             e.preventDefault();
             this.snapEndToNext();
@@ -245,7 +280,7 @@ export class EntryModal extends Modal {
 
         // Overlap warning banner (hidden by default)
         this.warningBanner = contentEl.createDiv('overlap-warning-banner');
-        this.warningBanner.style.display = 'none';
+        this.warningBanner.addClass('is-hidden');
 
         // Client dropdown (required)
         new Setting(contentEl)
@@ -323,13 +358,13 @@ export class EntryModal extends Modal {
 
         // Linked note
         const linkedNoteSetting = new Setting(contentEl)
-            .setName('Linked Note');
+            .setName('Linked note');
 
         let linkedNoteInput: TextComponent;
         linkedNoteSetting.addText((text) => {
             linkedNoteInput = text;
             text.setValue(this.linkedNoteValue);
-            text.setPlaceholder('path/to/note');
+            text.setPlaceholder('Enter note path');
             text.onChange((value) => {
                 this.linkedNoteValue = value;
             });
@@ -351,7 +386,7 @@ export class EntryModal extends Modal {
 
         // Create new note button
         linkedNoteSetting.addButton((btn) => {
-            btn.setButtonText('Create New')
+            btn.setButtonText('Create new')
                 .setTooltip('Create a new linked note')
                 .onClick(() => {
                     this.showCreateNoteInput(contentEl, linkedNoteInput);
@@ -384,11 +419,11 @@ export class EntryModal extends Modal {
             text: 'Save',
             cls: 'mod-cta',
         });
-        this.saveButton.addEventListener('click', () => this.handleSave());
+        this.saveButton.addEventListener('click', () => { void this.handleSave(); });
 
         // Check for overlaps and find adjacent entries on initial load
-        this.validateOverlap();
-        this.findAdjacentEntries();
+        void this.validateOverlap();
+        void this.findAdjacentEntries();
     }
 
     onClose(): void {
@@ -481,16 +516,27 @@ export class EntryModal extends Modal {
     /**
      * Handle delete button click
      */
-    private async handleDelete(): Promise<void> {
+    private handleDelete(): void {
         if (this.data.mode !== 'edit' || !this.data.entry) {
             return;
         }
 
-        // Confirm delete
-        const confirmed = confirm('Are you sure you want to delete this entry?');
-        if (!confirmed) {
-            return;
-        }
+        // Show confirmation modal
+        const modal = new ConfirmModal(
+            this.app,
+            'Are you sure you want to delete this entry?',
+            () => {
+                void this.performDelete();
+            }
+        );
+        modal.open();
+    }
+
+    /**
+     * Perform the actual entry deletion
+     */
+    private async performDelete(): Promise<void> {
+        if (!this.data.entry) return;
 
         try {
             await this.dataManager.deleteEntry(this.data.entry);
@@ -604,6 +650,7 @@ export class EntryModal extends Modal {
         this.hasInvalidDuration = diffMins <= 0;
 
         this.durationValue = this.formatDurationMinutes(diffMins);
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- false positive: null check, not promise
         if (this.durationInput) {
             this.durationInput.setValue(this.durationValue);
             // Add visual error state for invalid duration
@@ -627,10 +674,10 @@ export class EntryModal extends Modal {
         this.endDateValue = TableParser.getDateString(end);
         this.endTimeValue = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
 
-        if (this.endDateInput) {
+        if (this.endDateInput !== null) {
             this.endDateInput.setValue(this.endDateValue);
         }
-        if (this.endTimeInput) {
+        if (this.endTimeInput !== null) {
             this.endTimeInput.setValue(this.endTimeValue);
         }
     }
@@ -714,22 +761,21 @@ export class EntryModal extends Modal {
             text: 'Cancel',
         });
 
-        createBtn.addEventListener('click', async () => {
+        createBtn.addEventListener('click', () => {
             const noteName = nameInput.value.trim().replace(/^-+|-+$/g, '');
             if (!noteName) {
                 new Notice('Please enter a note name');
                 return;
             }
 
-            try {
-                const notePath = await this.createLinkedNote(noteName);
+            void this.createLinkedNote(noteName).then((notePath) => {
                 linkedNoteInput.setValue(notePath);
                 this.linkedNoteValue = notePath;
                 createNoteRow.remove();
                 new Notice('Note created!');
-            } catch (err) {
-                new Notice(`Failed to create note: ${err}`);
-            }
+            }).catch((err: Error) => {
+                new Notice(`Failed to create note: ${err.message}`);
+            });
         });
 
         cancelBtn.addEventListener('click', () => {
@@ -786,7 +832,7 @@ export class EntryModal extends Modal {
         dropdown.selectEl.empty();
 
         // Add empty option
-        dropdown.addOption('', '(No project)');
+        dropdown.addOption('', 'No project');
 
         // Add projects belonging to the selected client
         for (const project of this.settings.projects) {
@@ -800,7 +846,7 @@ export class EntryModal extends Modal {
      * Update project dropdown when client changes
      */
     private updateProjectDropdown(): void {
-        if (!this.projectDropdown) return;
+        if (this.projectDropdown === null) return;
 
         this.populateProjectDropdown(this.projectDropdown);
 
@@ -822,7 +868,7 @@ export class EntryModal extends Modal {
         dropdown.selectEl.empty();
 
         // Add empty option
-        dropdown.addOption('', '(No activity)');
+        dropdown.addOption('', 'No activity');
 
         // Add activities belonging to the selected client
         for (const activity of this.settings.activities) {
@@ -836,7 +882,7 @@ export class EntryModal extends Modal {
      * Update activity dropdown when client changes
      */
     private updateActivityDropdown(): void {
-        if (!this.activityDropdown) return;
+        if (this.activityDropdown === null) return;
 
         this.populateActivityDropdown(this.activityDropdown);
 
@@ -859,10 +905,10 @@ export class EntryModal extends Modal {
         const requestId = ++this.validationRequestId;
 
         // Read directly from inputs to ensure we validate what the user sees
-        const startDate = this.startDateInput ? this.startDateInput.getValue() : this.startDateValue;
-        const startTime = this.startTimeInput ? this.startTimeInput.getValue() : this.startTimeValue;
-        const endDate = this.endDateInput ? this.endDateInput.getValue() : this.endDateValue;
-        const endTime = this.endTimeInput ? this.endTimeInput.getValue() : this.endTimeValue;
+        const startDate = this.startDateInput !== null ? this.startDateInput.getValue() : this.startDateValue;
+        const startTime = this.startTimeInput !== null ? this.startTimeInput.getValue() : this.startTimeValue;
+        const endDate = this.endDateInput !== null ? this.endDateInput.getValue() : this.endDateValue;
+        const endTime = this.endTimeInput !== null ? this.endTimeInput.getValue() : this.endTimeValue;
 
         // Build datetime from current values
         const startDateTime = new Date(`${startDate}T${startTime}`);
@@ -940,7 +986,7 @@ export class EntryModal extends Modal {
         // Update warning banner
         if (this.warningBanner) {
             if (hasAnyConflict) {
-                this.warningBanner.style.display = 'block';
+                this.warningBanner.removeClass('is-hidden');
                 this.warningBanner.empty();
 
                 const icon = this.warningBanner.createSpan('overlap-warning-icon');
@@ -950,7 +996,7 @@ export class EntryModal extends Modal {
 
                 // Show start overlap (START is inside this entry)
                 if (hasStartOverlap) {
-                    const entry = this.startOverlap!;
+                    const entry = this.startOverlap;
                     const entryLabel = this.formatEntryLabel(entry);
                     const msg = textContainer.createDiv('overlap-message');
                     msg.setText(`Start overlaps with ${entryLabel} (${entry.start} – ${entry.end})`);
@@ -958,7 +1004,7 @@ export class EntryModal extends Modal {
 
                 // Show end overlap (END is inside this entry)
                 if (hasEndOverlap) {
-                    const entry = this.endOverlap!;
+                    const entry = this.endOverlap;
                     const entryLabel = this.formatEntryLabel(entry);
                     const msg = textContainer.createDiv('overlap-message');
                     msg.setText(`End overlaps with ${entryLabel} (${entry.start} – ${entry.end})`);
@@ -966,7 +1012,7 @@ export class EntryModal extends Modal {
 
                 // Show encompassed entry (we fully contain this entry)
                 if (hasEncompassed) {
-                    const entry = this.encompassedEntry!;
+                    const entry = this.encompassedEntry;
                     const entryLabel = this.formatEntryLabel(entry);
                     const msg = textContainer.createDiv('overlap-message');
                     msg.setText(`Conflicts with ${entryLabel} (${entry.start} – ${entry.end})`);
@@ -979,7 +1025,7 @@ export class EntryModal extends Modal {
                 }
             } else if (this.hasInvalidDuration) {
                 // Show only duration warning
-                this.warningBanner.style.display = 'block';
+                this.warningBanner.removeClass('is-hidden');
                 this.warningBanner.empty();
 
                 const icon = this.warningBanner.createSpan('overlap-warning-icon');
@@ -989,7 +1035,7 @@ export class EntryModal extends Modal {
                 const msg = textContainer.createDiv('overlap-message');
                 msg.setText('End time must be after start time');
             } else {
-                this.warningBanner.style.display = 'none';
+                this.warningBanner.addClass('is-hidden');
             }
         }
 
@@ -1082,24 +1128,24 @@ export class EntryModal extends Modal {
         // Start magnet - snaps to end of previous entry
         if (this.startSnapHint) {
             if (this.previousEntry) {
-                this.startSnapHint.style.display = 'inline-flex';
+                this.startSnapHint.removeClass('is-hidden');
                 const prevEnd = this.previousEntry.end;
                 const prevClient = this.getClientName(this.previousEntry.client);
                 this.startSnapHint.setAttribute('aria-label', `Snap to ${prevEnd} (end of ${prevClient})`);
             } else {
-                this.startSnapHint.style.display = 'none';
+                this.startSnapHint.addClass('is-hidden');
             }
         }
 
         // End magnet - snaps to start of next entry
         if (this.endSnapHint) {
             if (this.nextEntry) {
-                this.endSnapHint.style.display = 'inline-flex';
+                this.endSnapHint.removeClass('is-hidden');
                 const nextStart = this.nextEntry.start;
                 const nextClient = this.getClientName(this.nextEntry.client);
                 this.endSnapHint.setAttribute('aria-label', `Snap to ${nextStart} (start of ${nextClient})`);
             } else {
-                this.endSnapHint.style.display = 'none';
+                this.endSnapHint.addClass('is-hidden');
             }
         }
     }
@@ -1114,16 +1160,16 @@ export class EntryModal extends Modal {
         this.startDateValue = TableParser.getDateString(this.previousEntry.endDateTime);
         this.startTimeValue = this.previousEntry.end;
 
-        if (this.startDateInput) {
+        if (this.startDateInput !== null) {
             this.startDateInput.setValue(this.startDateValue);
         }
-        if (this.startTimeInput) {
+        if (this.startTimeInput !== null) {
             this.startTimeInput.setValue(this.startTimeValue);
         }
 
         this.recalculateDuration();
-        this.validateOverlap();
-        this.findAdjacentEntries();
+        void this.validateOverlap();
+        void this.findAdjacentEntries();
     }
 
     /**
@@ -1136,16 +1182,16 @@ export class EntryModal extends Modal {
         this.endDateValue = TableParser.getDateString(this.nextEntry.startDateTime);
         this.endTimeValue = this.nextEntry.start;
 
-        if (this.endDateInput) {
+        if (this.endDateInput !== null) {
             this.endDateInput.setValue(this.endDateValue);
         }
-        if (this.endTimeInput) {
+        if (this.endTimeInput !== null) {
             this.endTimeInput.setValue(this.endTimeValue);
         }
 
         this.recalculateDuration();
-        this.validateOverlap();
-        this.findAdjacentEntries();
+        void this.validateOverlap();
+        void this.findAdjacentEntries();
     }
 }
 

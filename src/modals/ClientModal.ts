@@ -82,10 +82,10 @@ export class ClientModal extends Modal {
 
         // Name
         new Setting(contentEl)
-            .setName('Client Name')
+            .setName('Client name')
             .setDesc('Display name for this client')
             .addText(text => text
-                .setPlaceholder('Acme Corp')
+                .setPlaceholder('Acme corp')
                 .setValue(this.nameValue)
                 .onChange(value => {
                     this.nameValue = value;
@@ -123,28 +123,28 @@ export class ClientModal extends Modal {
             .setName('Currency')
             .setDesc('Currency code')
             .addDropdown(dropdown => dropdown
-                .addOption('USD', 'USD - US Dollar')
-                .addOption('EUR', 'EUR - Euro')
-                .addOption('GBP', 'GBP - British Pound')
-                .addOption('CAD', 'CAD - Canadian Dollar')
-                .addOption('AUD', 'AUD - Australian Dollar')
-                .addOption('JPY', 'JPY - Japanese Yen')
-                .addOption('CHF', 'CHF - Swiss Franc')
-                .addOption('INR', 'INR - Indian Rupee')
+                .addOption('USD', 'USD')
+                .addOption('EUR', 'EUR')
+                .addOption('GBP', 'GBP')
+                .addOption('CAD', 'CAD')
+                .addOption('AUD', 'AUD')
+                .addOption('JPY', 'JPY')
+                .addOption('CHF', 'CHF')
+                .addOption('INR', 'INR')
                 .setValue(this.currencyValue)
                 .onChange(value => {
                     this.currencyValue = value;
                 }));
 
         // Invoice details section header
-        contentEl.createEl('h3', { text: 'Invoice Details' });
+        contentEl.createEl('h3', { text: 'Invoice details' });
 
         // Address (textarea)
         new Setting(contentEl)
-            .setName('Billing Address')
+            .setName('Billing address')
             .setDesc('Multi-line address for invoices')
             .addTextArea(textarea => textarea
-                .setPlaceholder('123 Main Street\nSuite 400\nSan Francisco, CA 94102')
+                .setPlaceholder('Enter address')
                 .setValue(this.addressValue)
                 .onChange(value => {
                     this.addressValue = value;
@@ -155,7 +155,7 @@ export class ClientModal extends Modal {
             .setName('Email')
             .setDesc('Invoice recipient email')
             .addText(text => text
-                .setPlaceholder('billing@example.com')
+                .setPlaceholder('Enter email')
                 .setValue(this.emailValue)
                 .onChange(value => {
                     this.emailValue = value;
@@ -164,7 +164,7 @@ export class ClientModal extends Modal {
         // Tax ID
         new Setting(contentEl)
             .setName('Tax ID')
-            .setDesc('VAT number or tax ID')
+            .setDesc('Tax identification number')
             .addText(text => text
                 .setPlaceholder('VAT123456789')
                 .setValue(this.taxIdValue)
@@ -174,7 +174,7 @@ export class ClientModal extends Modal {
 
         // Payment terms
         new Setting(contentEl)
-            .setName('Payment Terms')
+            .setName('Payment terms')
             .setDesc('When payment is due')
             .addDropdown(dropdown => dropdown
                 .addOption('Due on receipt', 'Due on receipt')
@@ -208,7 +208,7 @@ export class ClientModal extends Modal {
                 cls: 'mod-warning',
             });
             deleteBtn.addEventListener('click', () => {
-                this.onDelete!();
+                this.onDelete();
                 this.close();
             });
         }

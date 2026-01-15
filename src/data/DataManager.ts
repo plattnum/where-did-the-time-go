@@ -101,7 +101,7 @@ export class DataManager {
         // Check cache first
         if (this.cache.has(monthStr)) {
             Logger.log('DataManager: Cache hit for', monthStr);
-            return this.cache.get(monthStr)!;
+            return this.cache.get(monthStr);
         }
 
         const filePath = this.getMonthFilePath(monthStr);
@@ -128,9 +128,9 @@ export class DataManager {
 
         // Prune cache if over limit (FIFO - Map maintains insertion order)
         if (this.cache.size > DataManager.MAX_CACHED_MONTHS) {
-            const oldestKey = this.cache.keys().next().value;
-            if (oldestKey) {
-                this.cache.delete(oldestKey);
+            const firstKey = this.cache.keys().next() as IteratorResult<string, undefined>;
+            if (!firstKey.done && firstKey.value) {
+                this.cache.delete(firstKey.value);
             }
         }
 

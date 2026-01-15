@@ -19,6 +19,11 @@
     --tt-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+/* Utility classes */
+.is-hidden {
+    display: none !important;
+}
+
 /* Main container */
 .time-tracker-timeline {
     display: flex;

@@ -53,12 +53,12 @@ export class TableParser {
 
         // Parse markdown to AST
         const processor = this.createParser();
-        const tree = processor.parse(content) as Root;
+        const tree = processor.parse(content);
 
         // Find table nodes
         for (const node of tree.children) {
             if (node.type === 'table') {
-                const tableEntries = this.parseTable(node as Table);
+                const tableEntries = this.parseTable(node);
                 for (const entry of tableEntries) {
                     entries.push(entry);
 
@@ -66,7 +66,7 @@ export class TableParser {
                     if (!entriesByDate.has(entry.date)) {
                         entriesByDate.set(entry.date, []);
                     }
-                    entriesByDate.get(entry.date)!.push(entry);
+                    entriesByDate.get(entry.date).push(entry);
                 }
             }
         }
@@ -83,7 +83,7 @@ export class TableParser {
      */
     private static parseTable(table: Table): TimeEntry[] {
         const entries: TimeEntry[] = [];
-        const rows = table.children as TableRow[];
+        const rows = table.children;
 
         if (rows.length < 2) {
             return entries; // Need at least header + one data row
@@ -110,7 +110,7 @@ export class TableParser {
      */
     private static getHeaderMap(headerRow: TableRow): Map<string, number> {
         const map = new Map<string, number>();
-        const cells = headerRow.children as TableCell[];
+        const cells = headerRow.children;
 
         for (let i = 0; i < cells.length; i++) {
             const text = this.getCellText(cells[i]).toLowerCase();
@@ -124,7 +124,7 @@ export class TableParser {
      * Parse a table row into a TimeEntry
      */
     private static parseRow(row: TableRow, headerMap: Map<string, number>, rowIndex: number): TimeEntry | null {
-        const cells = row.children as TableCell[];
+        const cells = row.children;
 
         const getValue = (header: string): string => {
             const index = headerMap.get(header.toLowerCase());

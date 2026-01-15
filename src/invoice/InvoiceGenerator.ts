@@ -1,5 +1,5 @@
 import { App, TFolder } from 'obsidian';
-import { TimeEntry, TimeTrackerSettings, Client, Project, BillFrom } from '../types';
+import { TimeEntry, TimeTrackerSettings, Client, BillFrom } from '../types';
 import { InvoiceModalResult } from '../modals/InvoiceModal';
 import { DataManager } from '../data/DataManager';
 import { Logger } from '../utils/Logger';

@@ -70,7 +70,7 @@ export class InvoiceModal extends Modal {
         contentEl.addClass('invoice-modal');
 
         // Title
-        contentEl.createEl('h2', { text: 'Generate Invoice' });
+        contentEl.createEl('h2', { text: 'Generate invoice' });
 
         // Client info (read-only)
         const clientInfo = contentEl.createDiv('invoice-client-info');
@@ -86,10 +86,10 @@ export class InvoiceModal extends Modal {
 
         // Invoice Number (required)
         new Setting(contentEl)
-            .setName('Invoice Number')
-            .setDesc('Unique identifier for this invoice (e.g., INV-2025-001)')
+            .setName('Invoice number')
+            .setDesc('Unique identifier for this invoice')
             .addText(text => text
-                .setPlaceholder('INV-2025-001')
+                .setPlaceholder('Enter invoice number')
                 .setValue(this.invoiceNumber)
                 .onChange(value => {
                     this.invoiceNumber = value;
@@ -97,7 +97,7 @@ export class InvoiceModal extends Modal {
 
         // Issue Date
         new Setting(contentEl)
-            .setName('Issue Date')
+            .setName('Issue date')
             .setDesc('Date the invoice is issued')
             .addText(text => {
                 text.inputEl.type = 'date';
@@ -112,7 +112,7 @@ export class InvoiceModal extends Modal {
 
         // Payment Terms
         new Setting(contentEl)
-            .setName('Payment Terms')
+            .setName('Payment terms')
             .setDesc('When payment is due')
             .addDropdown(dropdown => dropdown
                 .addOption('Due on receipt', 'Due on receipt')
@@ -128,7 +128,7 @@ export class InvoiceModal extends Modal {
 
         // Due Date (calculated, read-only display)
         const dueDateSetting = new Setting(contentEl)
-            .setName('Due Date')
+            .setName('Due date')
             .setDesc('Automatically calculated from issue date and terms');
 
         this.dueDateDisplay = dueDateSetting.controlEl.createDiv('invoice-due-date');
@@ -143,7 +143,7 @@ export class InvoiceModal extends Modal {
 
         // Generate button
         const generateBtn = buttonRow.createEl('button', {
-            text: 'Generate Invoice',
+            text: 'Generate invoice',
             cls: 'mod-cta',
         });
         generateBtn.addEventListener('click', () => this.handleGenerate());
