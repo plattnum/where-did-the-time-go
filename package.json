@@ -1,6 +1,6 @@
 {
   "name": "where-did-the-time-go",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Obsidian plugin to track where your time went",
   "main": "main.js",
   "scripts": {
