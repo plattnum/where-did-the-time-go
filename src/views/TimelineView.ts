@@ -105,7 +105,7 @@ export class TimelineView extends ItemView {
         this.dayHeight = 24 * this.settings.hourHeight;
         // Use refresh() to preserve scroll position (if already rendered)
         if (this.timelineContainer) {
-            this.refresh();
+            void this.refresh();
         }
     }
 
@@ -156,7 +156,7 @@ export class TimelineView extends ItemView {
         this.renderVisibleDays();
 
         // Set up scroll listener
-        this.timelineContainer.addEventListener('scroll', () => this.onScroll());
+        this.timelineContainer.addEventListener('scroll', () => { void this.onScroll(); });
 
         // Drag to select time range for new entry (mouse)
         this.entriesContainer.addEventListener('mousedown', (e) => this.handleDragStart(e));
@@ -187,7 +187,9 @@ export class TimelineView extends ItemView {
         const header = container.createDiv('timeline-header');
 
         const titleSection = header.createDiv('timeline-header-title');
-        titleSection.createEl('h2', { text: '∞ timeline' });
+        const title = titleSection.createEl('h2');
+        title.createSpan({ text: '∞ ' });
+        title.createSpan({ text: 'Timeline' });
 
         // Visible date range label
         this.visibleDateLabel = titleSection.createSpan('timeline-visible-date');
@@ -249,7 +251,13 @@ export class TimelineView extends ItemView {
         });
 
         jumpBtn.addEventListener('click', () => {
-            (hiddenDatePicker as unknown).showPicker?.() || hiddenDatePicker.click();
+            // Try to use native date picker showPicker(), fall back to click
+            const picker = hiddenDatePicker as HTMLInputElement & { showPicker?: () => void };
+            if (picker.showPicker) {
+                picker.showPicker();
+            } else {
+                hiddenDatePicker.click();
+            }
         });
 
         // Add entry button
@@ -769,23 +777,23 @@ export class TimelineView extends ItemView {
     /**
      * End entry drag and save changes - mouse version
      */
-    private handleEntryDragEnd = async (e: MouseEvent): Promise<void> => {
+    private handleEntryDragEnd = (e: MouseEvent): void => {
         document.removeEventListener('mousemove', this.handleEntryDragMove);
         document.removeEventListener('mouseup', this.handleEntryDragEnd);
-        await this.finalizeEntryDrag(e.clientY);
+        void this.finalizeEntryDrag(e.clientY);
     };
 
     /**
      * End entry drag and save changes - touch version
      */
-    private handleEntryDragEndTouch = async (e: TouchEvent): Promise<void> => {
+    private handleEntryDragEndTouch = (e: TouchEvent): void => {
         document.removeEventListener('touchmove', this.handleEntryDragMoveTouch);
         document.removeEventListener('touchend', this.handleEntryDragEndTouch);
         document.removeEventListener('touchcancel', this.handleEntryDragEndTouch);
 
         // Use changedTouches for touchend (touches array is empty)
         const clientY = e.changedTouches?.[0]?.clientY ?? this.entryDragStartY;
-        await this.finalizeEntryDrag(clientY);
+        void this.finalizeEntryDrag(clientY);
     };
 
     /**
@@ -920,7 +928,7 @@ export class TimelineView extends ItemView {
         this.centerDate = new Date(date);
         this.centerDate.setHours(0, 0, 0, 0);
 
-        this.loadVisibleRange().then(() => {
+        void this.loadVisibleRange().then(() => {
             this.renderVisibleDays();
 
             // Position the configured dayStartHour at the top of the viewport
@@ -947,7 +955,7 @@ export class TimelineView extends ItemView {
         this.centerDate = new Date(now);
         this.centerDate.setHours(0, 0, 0, 0);
 
-        this.loadVisibleRange().then(() => {
+        void this.loadVisibleRange().then(() => {
             this.renderVisibleDays();
 
             // Calculate scroll position to put current time in view
@@ -1059,7 +1067,7 @@ export class TimelineView extends ItemView {
         const fullPath = notePath.endsWith('.md') ? notePath : `${notePath}.md`;
         const file = this.app.vault.getAbstractFileByPath(fullPath);
         if (file) {
-            this.app.workspace.openLinkText(notePath, '', false);
+            void this.app.workspace.openLinkText(notePath, '', false);
         } else {
             Logger.warn('Linked note not found:', fullPath);
         }
@@ -1082,7 +1090,7 @@ export class TimelineView extends ItemView {
             this.settings,
             this.dataManager,
             data,
-            () => this.refresh()
+            () => { void this.refresh(); }
         );
         modal.open();
     }
@@ -1103,7 +1111,7 @@ export class TimelineView extends ItemView {
             this.settings,
             this.dataManager,
             data,
-            () => this.refresh()
+            () => { void this.refresh(); }
         );
         modal.open();
     }
@@ -1112,9 +1120,8 @@ export class TimelineView extends ItemView {
      * Show confirmation dialog and delete entry if confirmed
      */
     private confirmDeleteEntry(entry: TimeEntry): void {
-        new ConfirmDeleteModal(this.app, entry, async () => {
-            await this.dataManager.deleteEntry(entry);
-            this.refresh();
+        new ConfirmDeleteModal(this.app, entry, () => {
+            void this.dataManager.deleteEntry(entry).then(() => this.refresh());
         }).open();
     }
 
@@ -1460,7 +1467,7 @@ export class TimelineView extends ItemView {
             this.settings,
             this.dataManager,
             data,
-            () => this.refresh()
+            () => { void this.refresh(); }
         );
         modal.open();
     }
@@ -1471,9 +1478,9 @@ export class TimelineView extends ItemView {
  */
 class ConfirmDeleteModal extends Modal {
     private entry: TimeEntry;
-    private onConfirm: () => Promise<void>;
+    private onConfirm: () => void;
 
-    constructor(app: App, entry: TimeEntry, onConfirm: () => Promise<void>) {
+    constructor(app: App, entry: TimeEntry, onConfirm: () => void) {
         super(app);
         this.entry = entry;
         this.onConfirm = onConfirm;
@@ -1514,8 +1521,8 @@ class ConfirmDeleteModal extends Modal {
             text: 'Delete',
             cls: 'mod-warning',
         });
-        deleteBtn.addEventListener('click', async () => {
-            await this.onConfirm();
+        deleteBtn.addEventListener('click', () => {
+            this.onConfirm();
             this.close();
         });
     }

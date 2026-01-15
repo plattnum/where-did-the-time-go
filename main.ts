@@ -12,7 +12,7 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
     dataManager: DataManager;
 
     async onload(): Promise<void> {
-        console.log('Loading Where Did The Time Go plugin');
+        Logger.debug('Loading Where Did The Time Go plugin');
 
         // Load settings
         await this.loadSettings();
@@ -36,37 +36,37 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
         );
 
         // Add ribbon icon to open timeline
-        this.addRibbonIcon('clock', 'Open Timeline', () => {
-            this.activateTimelineView();
+        this.addRibbonIcon('clock', 'Open timeline', () => {
+            void this.activateTimelineView();
         });
 
         // Add ribbon icon to open reports
-        this.addRibbonIcon('pie-chart', 'Open Reports', () => {
-            this.activateReportsView();
+        this.addRibbonIcon('pie-chart', 'Open reports', () => {
+            void this.activateReportsView();
         });
 
         // Add command to open timeline
         this.addCommand({
             id: 'open-timeline',
-            name: 'Open Timeline',
+            name: 'Open timeline',
             callback: () => {
-                this.activateTimelineView();
+                void this.activateTimelineView();
             },
         });
 
         // Add command to open reports
         this.addCommand({
             id: 'open-reports',
-            name: 'Open Reports',
+            name: 'Open reports',
             callback: () => {
-                this.activateReportsView();
+                void this.activateReportsView();
             },
         });
 
         // Add command to create new entry
         this.addCommand({
             id: 'create-entry',
-            name: 'Create Time Entry',
+            name: 'Create time entry',
             callback: () => {
                 this.openCreateEntryModal();
             },
@@ -95,11 +95,11 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
     }
 
     onunload(): void {
-        console.log('Unloading Where Did The Time Go plugin');
+        Logger.debug('Unloading Where Did The Time Go plugin');
     }
 
     async loadSettings(): Promise<void> {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<TimeTrackerSettings> | null);
     }
 
     async saveSettings(): Promise<void> {
@@ -138,7 +138,7 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
         }
 
         if (leaf) {
-            workspace.revealLeaf(leaf);
+            void workspace.revealLeaf(leaf);
         }
     }
 
@@ -166,7 +166,7 @@ export default class WhereDidTheTimeGoPlugin extends Plugin {
         }
 
         if (leaf) {
-            workspace.revealLeaf(leaf);
+            void workspace.revealLeaf(leaf);
         }
     }
 

@@ -192,10 +192,11 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     const modal = new ClientModal(
                         this.app,
                         { mode: 'create' },
-                        async (client) => {
+                        (client) => {
                             this.plugin.settings.clients.push(client);
-                            await this.plugin.saveSettings();
-                            this.renderClientsList(clientsContainer);
+                            void this.plugin.saveSettings().then(() => {
+                                this.renderClientsList(clientsContainer);
+                            });
                         }
                     );
                     modal.open();
@@ -267,12 +268,13 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 const modal = new ClientModal(
                     this.app,
                     { mode: 'edit', client },
-                    async (updatedClient) => {
+                    (updatedClient) => {
                         this.plugin.settings.clients[clientIndex] = updatedClient;
-                        await this.plugin.saveSettings();
-                        this.renderClientsList(container);
+                        void this.plugin.saveSettings().then(() => {
+                            this.renderClientsList(container);
+                        });
                     },
-                    async () => {
+                    () => {
                         // Delete client - also delete orphaned projects/activities
                         this.plugin.settings.projects = this.plugin.settings.projects.filter(
                             p => p.clientId !== client.id
@@ -281,8 +283,9 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                             a => a.clientId !== client.id
                         );
                         this.plugin.settings.clients.splice(clientIndex, 1);
-                        await this.plugin.saveSettings();
-                        this.renderClientsList(container);
+                        void this.plugin.saveSettings().then(() => {
+                            this.renderClientsList(container);
+                        });
                     }
                 );
                 modal.open();
@@ -298,17 +301,18 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 projectsHeader.createSpan({ text: 'Projects', cls: 'client-section-title' });
 
                 const addProjectBtn = projectsHeader.createEl('button', { text: 'Add', cls: 'client-add-btn' });
-                addProjectBtn.addEventListener('click', async () => {
+                addProjectBtn.addEventListener('click', () => {
                     const newProject: Project = {
                         id: `project-${Date.now()}`,
-                        name: 'New Project',
+                        name: 'New project',
                         color: this.getRandomColor(),
                         archived: false,
                         clientId: client.id,
                     };
                     this.plugin.settings.projects.push(newProject);
-                    await this.plugin.saveSettings();
-                    this.renderClientsList(container);
+                    void this.plugin.saveSettings().then(() => {
+                        this.renderClientsList(container);
+                    });
                 });
 
                 // List projects for this client
@@ -329,16 +333,17 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 activitiesHeader.createSpan({ text: 'Activities', cls: 'client-section-title' });
 
                 const addActivityBtn = activitiesHeader.createEl('button', { text: 'Add', cls: 'client-add-btn' });
-                addActivityBtn.addEventListener('click', async () => {
+                addActivityBtn.addEventListener('click', () => {
                     const newActivity: Activity = {
                         id: `activity-${Date.now()}`,
-                        name: 'New Activity',
+                        name: 'New activity',
                         color: this.getRandomColor(),
                         clientId: client.id,
                     };
                     this.plugin.settings.activities.push(newActivity);
-                    await this.plugin.saveSettings();
-                    this.renderClientsList(container);
+                    void this.plugin.saveSettings().then(() => {
+                        this.renderClientsList(container);
+                    });
                 });
 
                 // List activities for this client
@@ -366,18 +371,18 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
         // Color picker
         const colorPicker = item.createEl('input', { type: 'color', cls: 'client-item-color' });
         colorPicker.value = project.color;
-        colorPicker.addEventListener('change', async () => {
+        colorPicker.addEventListener('change', () => {
             project.color = colorPicker.value;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
         });
 
         // Name input
         const nameInput = item.createEl('input', { type: 'text', cls: 'client-item-name' });
         nameInput.value = project.name;
-        nameInput.addEventListener('change', async () => {
+        nameInput.addEventListener('change', () => {
             project.name = nameInput.value;
             project.id = this.slugify(nameInput.value);
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
         });
 
         // Archive toggle
@@ -386,19 +391,21 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             cls: 'client-item-btn',
         });
         archiveBtn.title = project.archived ? 'Unarchive' : 'Archive';
-        archiveBtn.addEventListener('click', async () => {
+        archiveBtn.addEventListener('click', () => {
             project.archived = !project.archived;
-            await this.plugin.saveSettings();
-            this.renderClientsList(parentContainer);
+            void this.plugin.saveSettings().then(() => {
+                this.renderClientsList(parentContainer);
+            });
         });
 
         // Delete button
         const deleteBtn = item.createEl('button', { text: '🗑', cls: 'client-item-btn' });
         deleteBtn.title = 'Delete';
-        deleteBtn.addEventListener('click', async () => {
+        deleteBtn.addEventListener('click', () => {
             this.plugin.settings.projects.splice(index, 1);
-            await this.plugin.saveSettings();
-            this.renderClientsList(parentContainer);
+            void this.plugin.saveSettings().then(() => {
+                this.renderClientsList(parentContainer);
+            });
         });
     }
 
@@ -411,27 +418,28 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
         // Color picker
         const colorPicker = item.createEl('input', { type: 'color', cls: 'client-item-color' });
         colorPicker.value = activity.color;
-        colorPicker.addEventListener('change', async () => {
+        colorPicker.addEventListener('change', () => {
             activity.color = colorPicker.value;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
         });
 
         // Name input
         const nameInput = item.createEl('input', { type: 'text', cls: 'client-item-name' });
         nameInput.value = activity.name;
-        nameInput.addEventListener('change', async () => {
+        nameInput.addEventListener('change', () => {
             activity.name = nameInput.value;
             activity.id = this.slugify(nameInput.value);
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
         });
 
         // Delete button
         const deleteBtn = item.createEl('button', { text: '🗑', cls: 'client-item-btn' });
         deleteBtn.title = 'Delete';
-        deleteBtn.addEventListener('click', async () => {
+        deleteBtn.addEventListener('click', () => {
             this.plugin.settings.activities.splice(index, 1);
-            await this.plugin.saveSettings();
-            this.renderClientsList(parentContainer);
+            void this.plugin.saveSettings().then(() => {
+                this.renderClientsList(parentContainer);
+            });
         });
     }
 

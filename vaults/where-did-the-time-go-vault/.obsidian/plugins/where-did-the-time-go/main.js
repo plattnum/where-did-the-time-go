@@ -211,7 +211,7 @@ var ClientModal = class extends import_obsidian.Modal {
     contentEl.createEl("h2", {
       text: this.data.mode === "edit" ? "Edit Client" : "Add Client"
     });
-    new import_obsidian.Setting(contentEl).setName("Client Name").setDesc("Display name for this client").addText((text5) => text5.setPlaceholder("Acme Corp").setValue(this.nameValue).onChange((value) => {
+    new import_obsidian.Setting(contentEl).setName("Client name").setDesc("Display name for this client").addText((text5) => text5.setPlaceholder("Acme corp").setValue(this.nameValue).onChange((value) => {
       this.nameValue = value;
     }));
     new import_obsidian.Setting(contentEl).setName("Color").setDesc("Color for UI display").addColorPicker((picker) => picker.setValue(this.colorValue).onChange((value) => {
@@ -224,20 +224,20 @@ var ClientModal = class extends import_obsidian.Modal {
         this.rateValue = num;
       }
     }));
-    new import_obsidian.Setting(contentEl).setName("Currency").setDesc("Currency code").addDropdown((dropdown) => dropdown.addOption("USD", "USD - US Dollar").addOption("EUR", "EUR - Euro").addOption("GBP", "GBP - British Pound").addOption("CAD", "CAD - Canadian Dollar").addOption("AUD", "AUD - Australian Dollar").addOption("JPY", "JPY - Japanese Yen").addOption("CHF", "CHF - Swiss Franc").addOption("INR", "INR - Indian Rupee").setValue(this.currencyValue).onChange((value) => {
+    new import_obsidian.Setting(contentEl).setName("Currency").setDesc("Currency code").addDropdown((dropdown) => dropdown.addOption("USD", "USD").addOption("EUR", "EUR").addOption("GBP", "GBP").addOption("CAD", "CAD").addOption("AUD", "AUD").addOption("JPY", "JPY").addOption("CHF", "CHF").addOption("INR", "INR").setValue(this.currencyValue).onChange((value) => {
       this.currencyValue = value;
     }));
-    contentEl.createEl("h3", { text: "Invoice Details" });
-    new import_obsidian.Setting(contentEl).setName("Billing Address").setDesc("Multi-line address for invoices").addTextArea((textarea) => textarea.setPlaceholder("123 Main Street\nSuite 400\nSan Francisco, CA 94102").setValue(this.addressValue).onChange((value) => {
+    contentEl.createEl("h3", { text: "Invoice details" });
+    new import_obsidian.Setting(contentEl).setName("Billing address").setDesc("Multi-line address for invoices").addTextArea((textarea) => textarea.setPlaceholder("Enter address").setValue(this.addressValue).onChange((value) => {
       this.addressValue = value;
     }));
-    new import_obsidian.Setting(contentEl).setName("Email").setDesc("Invoice recipient email").addText((text5) => text5.setPlaceholder("billing@example.com").setValue(this.emailValue).onChange((value) => {
+    new import_obsidian.Setting(contentEl).setName("Email").setDesc("Invoice recipient email").addText((text5) => text5.setPlaceholder("Enter email").setValue(this.emailValue).onChange((value) => {
       this.emailValue = value;
     }));
-    new import_obsidian.Setting(contentEl).setName("Tax ID").setDesc("VAT number or tax ID").addText((text5) => text5.setPlaceholder("VAT123456789").setValue(this.taxIdValue).onChange((value) => {
+    new import_obsidian.Setting(contentEl).setName("Tax ID").setDesc("Tax identification number").addText((text5) => text5.setPlaceholder("VAT123456789").setValue(this.taxIdValue).onChange((value) => {
       this.taxIdValue = value;
     }));
-    new import_obsidian.Setting(contentEl).setName("Payment Terms").setDesc("When payment is due").addDropdown((dropdown) => dropdown.addOption("Due on receipt", "Due on receipt").addOption("Net 15", "Net 15").addOption("Net 30", "Net 30").addOption("Net 45", "Net 45").addOption("Net 60", "Net 60").setValue(this.paymentTermsValue).onChange((value) => {
+    new import_obsidian.Setting(contentEl).setName("Payment terms").setDesc("When payment is due").addDropdown((dropdown) => dropdown.addOption("Due on receipt", "Due on receipt").addOption("Net 15", "Net 15").addOption("Net 30", "Net 30").addOption("Net 45", "Net 45").addOption("Net 60", "Net 60").setValue(this.paymentTermsValue).onChange((value) => {
       this.paymentTermsValue = value;
     }));
     new import_obsidian.Setting(contentEl).setName("Notes").setDesc("Internal notes about this client").addTextArea((textarea) => textarea.setPlaceholder("Optional internal notes...").setValue(this.notesValue).onChange((value) => {
@@ -328,13 +328,12 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h1", { text: "Where Did The Time Go?" });
     containerEl.createEl("p", {
       text: "Configure your time tracking settings.",
       cls: "setting-item-description"
     });
-    containerEl.createEl("h2", { text: "Storage" });
-    new import_obsidian2.Setting(containerEl).setName("Time tracking folder").setDesc("Folder where time entries will be stored (relative to vault root)").addText((text5) => text5.setPlaceholder("TimeTracking").setValue(this.plugin.settings.timeTrackingFolder).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Storage").setHeading();
+    new import_obsidian2.Setting(containerEl).setName("Time tracking folder").setDesc("Folder where time entries will be stored (relative to vault root)").addText((text5) => text5.setPlaceholder("Enter folder name").setValue(this.plugin.settings.timeTrackingFolder).onChange(async (value) => {
       this.plugin.settings.timeTrackingFolder = value || "TimeTracking";
       await this.plugin.saveSettings();
     }));
@@ -346,7 +345,7 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
       this.plugin.settings.hideTablesInPreview = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h2", { text: "Timeline Display" });
+    new import_obsidian2.Setting(containerEl).setName("Timeline display").setHeading();
     new import_obsidian2.Setting(containerEl).setName("Hour height").setDesc("Height in pixels for each hour in the timeline view").addSlider((slider) => slider.setLimits(200, 240, 10).setValue(this.plugin.settings.hourHeight).setDynamicTooltip().onChange(async (value) => {
       this.plugin.settings.hourHeight = value;
       await this.plugin.saveSettings();
@@ -371,7 +370,7 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian2.Setting(containerEl).setName("24-hour format").setDesc("Use 24-hour time format (e.g., 14:00) instead of 12-hour (e.g., 2:00 PM)").addToggle((toggle) => toggle.setValue(this.plugin.settings.use24HourFormat).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("24-hour format").setDesc("Use 24-hour time format instead of 12-hour").addToggle((toggle) => toggle.setValue(this.plugin.settings.use24HourFormat).onChange(async (value) => {
       this.plugin.settings.use24HourFormat = value;
       await this.plugin.saveSettings();
     }));
@@ -384,43 +383,44 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
       this.plugin.settings.weekStart = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h2", { text: "Bill From" });
+    new import_obsidian2.Setting(containerEl).setName("Bill from").setHeading();
     containerEl.createEl("p", {
       text: "Your billing information that appears on invoices.",
       cls: "setting-item-description"
     });
-    new import_obsidian2.Setting(containerEl).setName("Name").setDesc("Your name or business name").addText((text5) => text5.setPlaceholder("Your Name / Business Name").setValue(this.plugin.settings.billFrom.name).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Name").setDesc("Your name or business name").addText((text5) => text5.setPlaceholder("Enter name").setValue(this.plugin.settings.billFrom.name).onChange(async (value) => {
       this.plugin.settings.billFrom.name = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Address").setDesc("Your billing address (multi-line)").addTextArea((textarea) => textarea.setPlaceholder("123 Main Street\nCity, State 12345\nCountry").setValue(this.plugin.settings.billFrom.address).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Address").setDesc("Your billing address (multi-line)").addTextArea((textarea) => textarea.setPlaceholder("Enter address").setValue(this.plugin.settings.billFrom.address).onChange(async (value) => {
       this.plugin.settings.billFrom.address = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Invoice folder").setDesc("Folder where invoices will be saved (created automatically)").addText((text5) => text5.setPlaceholder("TimeTracking/Invoices").setValue(this.plugin.settings.invoiceFolder).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Invoice folder").setDesc("Folder where invoices will be saved (created automatically)").addText((text5) => text5.setPlaceholder("Enter folder path").setValue(this.plugin.settings.invoiceFolder).onChange(async (value) => {
       this.plugin.settings.invoiceFolder = value || "TimeTracking/Invoices";
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h2", { text: "Clients" });
+    new import_obsidian2.Setting(containerEl).setName("Clients").setHeading();
     containerEl.createEl("p", {
       text: "Define clients for billing. Projects can be assigned to clients for invoicing.",
       cls: "setting-item-description"
     });
     const clientsContainer = containerEl.createDiv("clients-container");
     this.renderClientsList(clientsContainer);
-    new import_obsidian2.Setting(containerEl).addButton((button) => button.setButtonText("Add Client").setCta().onClick(() => {
+    new import_obsidian2.Setting(containerEl).addButton((button) => button.setButtonText("Add client").setCta().onClick(() => {
       const modal = new ClientModal(
         this.app,
         { mode: "create" },
-        async (client) => {
+        (client) => {
           this.plugin.settings.clients.push(client);
-          await this.plugin.saveSettings();
-          this.renderClientsList(clientsContainer);
+          void this.plugin.saveSettings().then(() => {
+            this.renderClientsList(clientsContainer);
+          });
         }
       );
       modal.open();
     }));
-    containerEl.createEl("h2", { text: "Developer" });
+    new import_obsidian2.Setting(containerEl).setName("Developer").setHeading();
     new import_obsidian2.Setting(containerEl).setName("Debug mode").setDesc("Enable verbose logging to the developer console (useful for troubleshooting)").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
       this.plugin.settings.debugMode = value;
       await this.plugin.saveSettings();
@@ -463,12 +463,13 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
         const modal = new ClientModal(
           this.app,
           { mode: "edit", client },
-          async (updatedClient) => {
+          (updatedClient) => {
             this.plugin.settings.clients[clientIndex] = updatedClient;
-            await this.plugin.saveSettings();
-            this.renderClientsList(container);
+            void this.plugin.saveSettings().then(() => {
+              this.renderClientsList(container);
+            });
           },
-          async () => {
+          () => {
             this.plugin.settings.projects = this.plugin.settings.projects.filter(
               (p) => p.clientId !== client.id
             );
@@ -476,8 +477,9 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
               (a) => a.clientId !== client.id
             );
             this.plugin.settings.clients.splice(clientIndex, 1);
-            await this.plugin.saveSettings();
-            this.renderClientsList(container);
+            void this.plugin.saveSettings().then(() => {
+              this.renderClientsList(container);
+            });
           }
         );
         modal.open();
@@ -487,18 +489,19 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
         const projectsSection = expandedContent.createDiv("client-section");
         const projectsHeader = projectsSection.createDiv("client-section-header");
         projectsHeader.createSpan({ text: "Projects", cls: "client-section-title" });
-        const addProjectBtn = projectsHeader.createEl("button", { text: "+ Add", cls: "client-add-btn" });
-        addProjectBtn.addEventListener("click", async () => {
+        const addProjectBtn = projectsHeader.createEl("button", { text: "Add", cls: "client-add-btn" });
+        addProjectBtn.addEventListener("click", () => {
           const newProject = {
             id: `project-${Date.now()}`,
-            name: "New Project",
+            name: "New project",
             color: this.getRandomColor(),
             archived: false,
             clientId: client.id
           };
           this.plugin.settings.projects.push(newProject);
-          await this.plugin.saveSettings();
-          this.renderClientsList(container);
+          void this.plugin.saveSettings().then(() => {
+            this.renderClientsList(container);
+          });
         });
         const clientProjects = this.plugin.settings.projects.filter((p) => p.clientId === client.id);
         if (clientProjects.length === 0) {
@@ -513,17 +516,18 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
         const activitiesSection = expandedContent.createDiv("client-section");
         const activitiesHeader = activitiesSection.createDiv("client-section-header");
         activitiesHeader.createSpan({ text: "Activities", cls: "client-section-title" });
-        const addActivityBtn = activitiesHeader.createEl("button", { text: "+ Add", cls: "client-add-btn" });
-        addActivityBtn.addEventListener("click", async () => {
+        const addActivityBtn = activitiesHeader.createEl("button", { text: "Add", cls: "client-add-btn" });
+        addActivityBtn.addEventListener("click", () => {
           const newActivity = {
             id: `activity-${Date.now()}`,
-            name: "New Activity",
+            name: "New activity",
             color: this.getRandomColor(),
             clientId: client.id
           };
           this.plugin.settings.activities.push(newActivity);
-          await this.plugin.saveSettings();
-          this.renderClientsList(container);
+          void this.plugin.saveSettings().then(() => {
+            this.renderClientsList(container);
+          });
         });
         const clientActivities = this.plugin.settings.activities.filter((a) => a.clientId === client.id);
         if (clientActivities.length === 0) {
@@ -547,33 +551,35 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
       item.addClass("is-archived");
     const colorPicker = item.createEl("input", { type: "color", cls: "client-item-color" });
     colorPicker.value = project.color;
-    colorPicker.addEventListener("change", async () => {
+    colorPicker.addEventListener("change", () => {
       project.color = colorPicker.value;
-      await this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     });
     const nameInput = item.createEl("input", { type: "text", cls: "client-item-name" });
     nameInput.value = project.name;
-    nameInput.addEventListener("change", async () => {
+    nameInput.addEventListener("change", () => {
       project.name = nameInput.value;
       project.id = this.slugify(nameInput.value);
-      await this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     });
     const archiveBtn = item.createEl("button", {
       text: project.archived ? "\u21A9" : "\u{1F4E6}",
       cls: "client-item-btn"
     });
     archiveBtn.title = project.archived ? "Unarchive" : "Archive";
-    archiveBtn.addEventListener("click", async () => {
+    archiveBtn.addEventListener("click", () => {
       project.archived = !project.archived;
-      await this.plugin.saveSettings();
-      this.renderClientsList(parentContainer);
+      void this.plugin.saveSettings().then(() => {
+        this.renderClientsList(parentContainer);
+      });
     });
     const deleteBtn = item.createEl("button", { text: "\u{1F5D1}", cls: "client-item-btn" });
     deleteBtn.title = "Delete";
-    deleteBtn.addEventListener("click", async () => {
+    deleteBtn.addEventListener("click", () => {
       this.plugin.settings.projects.splice(index2, 1);
-      await this.plugin.saveSettings();
-      this.renderClientsList(parentContainer);
+      void this.plugin.saveSettings().then(() => {
+        this.renderClientsList(parentContainer);
+      });
     });
   }
   /**
@@ -583,23 +589,24 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
     const item = container.createDiv("client-item");
     const colorPicker = item.createEl("input", { type: "color", cls: "client-item-color" });
     colorPicker.value = activity.color;
-    colorPicker.addEventListener("change", async () => {
+    colorPicker.addEventListener("change", () => {
       activity.color = colorPicker.value;
-      await this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     });
     const nameInput = item.createEl("input", { type: "text", cls: "client-item-name" });
     nameInput.value = activity.name;
-    nameInput.addEventListener("change", async () => {
+    nameInput.addEventListener("change", () => {
       activity.name = nameInput.value;
       activity.id = this.slugify(nameInput.value);
-      await this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     });
     const deleteBtn = item.createEl("button", { text: "\u{1F5D1}", cls: "client-item-btn" });
     deleteBtn.title = "Delete";
-    deleteBtn.addEventListener("click", async () => {
+    deleteBtn.addEventListener("click", () => {
       this.plugin.settings.activities.splice(index2, 1);
-      await this.plugin.saveSettings();
-      this.renderClientsList(parentContainer);
+      void this.plugin.saveSettings().then(() => {
+        this.renderClientsList(parentContainer);
+      });
     });
   }
   slugify(text5) {
@@ -10950,12 +10957,17 @@ var Logger = class {
   static setDebugMode(enabled) {
     this.debugMode = enabled;
     if (enabled) {
-      console.log(this.prefix, "Debug mode enabled");
+      console.debug(this.prefix, "Debug mode enabled");
     }
   }
   static log(...args) {
     if (this.debugMode) {
-      console.log(this.prefix, ...args);
+      console.debug(this.prefix, ...args);
+    }
+  }
+  static debug(...args) {
+    if (this.debugMode) {
+      console.debug(this.prefix, ...args);
     }
   }
   static warn(...args) {
@@ -11374,9 +11386,9 @@ var _DataManager = class {
     Logger.log("DataManager: Parsed", parsed.entries.length, "entries");
     this.cache.set(monthStr, parsed);
     if (this.cache.size > _DataManager.MAX_CACHED_MONTHS) {
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey) {
-        this.cache.delete(oldestKey);
+      const firstKey = this.cache.keys().next();
+      if (!firstKey.done && firstKey.value) {
+        this.cache.delete(firstKey.value);
       }
     }
     return parsed;
@@ -11665,6 +11677,29 @@ var import_obsidian5 = require("obsidian");
 
 // src/modals/EntryModal.ts
 var import_obsidian4 = require("obsidian");
+var ConfirmModal = class extends import_obsidian4.Modal {
+  constructor(app, message, onConfirm) {
+    super(app);
+    this.message = message;
+    this.onConfirm = onConfirm;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.createEl("p", { text: this.message });
+    const buttonRow = contentEl.createDiv("modal-button-row");
+    const cancelBtn = buttonRow.createEl("button", { text: "Cancel" });
+    cancelBtn.addEventListener("click", () => this.close());
+    const confirmBtn = buttonRow.createEl("button", { text: "Delete", cls: "mod-warning" });
+    confirmBtn.addEventListener("click", () => {
+      this.onConfirm();
+      this.close();
+    });
+  }
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+};
 var EntryModal = class extends import_obsidian4.Modal {
   constructor(app, settings, dataManager, data, onSave) {
     super(app);
@@ -11751,8 +11786,8 @@ var EntryModal = class extends import_obsidian4.Modal {
       text5.onChange((value) => {
         this.startDateValue = value;
         this.recalculateDuration();
-        this.validateOverlap();
-        this.findAdjacentEntries();
+        void this.validateOverlap();
+        void this.findAdjacentEntries();
       });
     }).addText((text5) => {
       this.startTimeInput = text5;
@@ -11761,15 +11796,15 @@ var EntryModal = class extends import_obsidian4.Modal {
       text5.onChange((value) => {
         this.startTimeValue = value;
         this.recalculateDuration();
-        this.validateOverlap();
-        this.findAdjacentEntries();
+        void this.validateOverlap();
+        void this.findAdjacentEntries();
       });
     });
     this.startSnapHint = startSetting.controlEl.createEl("button", {
       cls: "time-magnet-btn",
       text: "\u{1F9F2}"
     });
-    this.startSnapHint.style.display = "none";
+    this.startSnapHint.addClass("is-hidden");
     this.startSnapHint.addEventListener("click", (e) => {
       e.preventDefault();
       this.snapStartToPrevious();
@@ -11782,7 +11817,7 @@ var EntryModal = class extends import_obsidian4.Modal {
       text5.onChange((value) => {
         this.durationValue = value;
         this.updateEndFromDuration();
-        this.validateOverlap();
+        void this.validateOverlap();
       });
     });
     const endRow = contentEl.createDiv("time-row");
@@ -11793,8 +11828,8 @@ var EntryModal = class extends import_obsidian4.Modal {
       text5.onChange((value) => {
         this.endDateValue = value;
         this.recalculateDuration();
-        this.validateOverlap();
-        this.findAdjacentEntries();
+        void this.validateOverlap();
+        void this.findAdjacentEntries();
       });
     }).addText((text5) => {
       this.endTimeInput = text5;
@@ -11803,21 +11838,21 @@ var EntryModal = class extends import_obsidian4.Modal {
       text5.onChange((value) => {
         this.endTimeValue = value;
         this.recalculateDuration();
-        this.validateOverlap();
-        this.findAdjacentEntries();
+        void this.validateOverlap();
+        void this.findAdjacentEntries();
       });
     });
     this.endSnapHint = endSetting.controlEl.createEl("button", {
       cls: "time-magnet-btn",
       text: "\u{1F9F2}"
     });
-    this.endSnapHint.style.display = "none";
+    this.endSnapHint.addClass("is-hidden");
     this.endSnapHint.addEventListener("click", (e) => {
       e.preventDefault();
       this.snapEndToNext();
     });
     this.warningBanner = contentEl.createDiv("overlap-warning-banner");
-    this.warningBanner.style.display = "none";
+    this.warningBanner.addClass("is-hidden");
     new import_obsidian4.Setting(contentEl).setName("Client").addDropdown((dropdown) => {
       for (const client of this.settings.clients) {
         if (!client.archived) {
@@ -11874,12 +11909,12 @@ var EntryModal = class extends import_obsidian4.Modal {
         updateCounter(cleaned.length);
       });
     });
-    const linkedNoteSetting = new import_obsidian4.Setting(contentEl).setName("Linked Note");
+    const linkedNoteSetting = new import_obsidian4.Setting(contentEl).setName("Linked note");
     let linkedNoteInput;
     linkedNoteSetting.addText((text5) => {
       linkedNoteInput = text5;
       text5.setValue(this.linkedNoteValue);
-      text5.setPlaceholder("path/to/note");
+      text5.setPlaceholder("Enter note path");
       text5.onChange((value) => {
         this.linkedNoteValue = value;
       });
@@ -11894,7 +11929,7 @@ var EntryModal = class extends import_obsidian4.Modal {
       });
     });
     linkedNoteSetting.addButton((btn) => {
-      btn.setButtonText("Create New").setTooltip("Create a new linked note").onClick(() => {
+      btn.setButtonText("Create new").setTooltip("Create a new linked note").onClick(() => {
         this.showCreateNoteInput(contentEl, linkedNoteInput);
       });
     });
@@ -11915,9 +11950,11 @@ var EntryModal = class extends import_obsidian4.Modal {
       text: "Save",
       cls: "mod-cta"
     });
-    this.saveButton.addEventListener("click", () => this.handleSave());
-    this.validateOverlap();
-    this.findAdjacentEntries();
+    this.saveButton.addEventListener("click", () => {
+      void this.handleSave();
+    });
+    void this.validateOverlap();
+    void this.findAdjacentEntries();
   }
   onClose() {
     for (const handler of this.cleanupHandlers) {
@@ -11989,14 +12026,25 @@ var EntryModal = class extends import_obsidian4.Modal {
   /**
    * Handle delete button click
    */
-  async handleDelete() {
+  handleDelete() {
     if (this.data.mode !== "edit" || !this.data.entry) {
       return;
     }
-    const confirmed = confirm("Are you sure you want to delete this entry?");
-    if (!confirmed) {
+    const modal = new ConfirmModal(
+      this.app,
+      "Are you sure you want to delete this entry?",
+      () => {
+        void this.performDelete();
+      }
+    );
+    modal.open();
+  }
+  /**
+   * Perform the actual entry deletion
+   */
+  async performDelete() {
+    if (!this.data.entry)
       return;
-    }
     try {
       await this.dataManager.deleteEntry(this.data.entry);
       this.onSave();
@@ -12111,10 +12159,10 @@ var EntryModal = class extends import_obsidian4.Modal {
     const end = new Date(start.getTime() + durationMins * 6e4);
     this.endDateValue = TableParser.getDateString(end);
     this.endTimeValue = `${end.getHours().toString().padStart(2, "0")}:${end.getMinutes().toString().padStart(2, "0")}`;
-    if (this.endDateInput) {
+    if (this.endDateInput !== null) {
       this.endDateInput.setValue(this.endDateValue);
     }
-    if (this.endTimeInput) {
+    if (this.endTimeInput !== null) {
       this.endTimeInput.setValue(this.endTimeValue);
     }
   }
@@ -12171,21 +12219,20 @@ var EntryModal = class extends import_obsidian4.Modal {
     const cancelBtn = createNoteRow.createEl("button", {
       text: "Cancel"
     });
-    createBtn.addEventListener("click", async () => {
+    createBtn.addEventListener("click", () => {
       const noteName = nameInput.value.trim().replace(/^-+|-+$/g, "");
       if (!noteName) {
         new import_obsidian4.Notice("Please enter a note name");
         return;
       }
-      try {
-        const notePath = await this.createLinkedNote(noteName);
+      void this.createLinkedNote(noteName).then((notePath) => {
         linkedNoteInput.setValue(notePath);
         this.linkedNoteValue = notePath;
         createNoteRow.remove();
         new import_obsidian4.Notice("Note created!");
-      } catch (err) {
-        new import_obsidian4.Notice(`Failed to create note: ${err}`);
-      }
+      }).catch((err) => {
+        new import_obsidian4.Notice(`Failed to create note: ${err.message}`);
+      });
     });
     cancelBtn.addEventListener("click", () => {
       createNoteRow.remove();
@@ -12224,7 +12271,7 @@ var EntryModal = class extends import_obsidian4.Modal {
    */
   populateProjectDropdown(dropdown) {
     dropdown.selectEl.empty();
-    dropdown.addOption("", "(No project)");
+    dropdown.addOption("", "No project");
     for (const project of this.settings.projects) {
       if (!project.archived && project.clientId === this.clientValue) {
         dropdown.addOption(project.name, project.name);
@@ -12235,7 +12282,7 @@ var EntryModal = class extends import_obsidian4.Modal {
    * Update project dropdown when client changes
    */
   updateProjectDropdown() {
-    if (!this.projectDropdown)
+    if (this.projectDropdown === null)
       return;
     this.populateProjectDropdown(this.projectDropdown);
     const currentProject = this.settings.projects.find(
@@ -12251,7 +12298,7 @@ var EntryModal = class extends import_obsidian4.Modal {
    */
   populateActivityDropdown(dropdown) {
     dropdown.selectEl.empty();
-    dropdown.addOption("", "(No activity)");
+    dropdown.addOption("", "No activity");
     for (const activity of this.settings.activities) {
       if (activity.clientId === this.clientValue) {
         dropdown.addOption(activity.name, activity.name);
@@ -12262,7 +12309,7 @@ var EntryModal = class extends import_obsidian4.Modal {
    * Update activity dropdown when client changes
    */
   updateActivityDropdown() {
-    if (!this.activityDropdown)
+    if (this.activityDropdown === null)
       return;
     this.populateActivityDropdown(this.activityDropdown);
     const currentActivity = this.settings.activities.find(
@@ -12279,10 +12326,10 @@ var EntryModal = class extends import_obsidian4.Modal {
    */
   async validateOverlap() {
     const requestId = ++this.validationRequestId;
-    const startDate = this.startDateInput ? this.startDateInput.getValue() : this.startDateValue;
-    const startTime = this.startTimeInput ? this.startTimeInput.getValue() : this.startTimeValue;
-    const endDate = this.endDateInput ? this.endDateInput.getValue() : this.endDateValue;
-    const endTime = this.endTimeInput ? this.endTimeInput.getValue() : this.endTimeValue;
+    const startDate = this.startDateInput !== null ? this.startDateInput.getValue() : this.startDateValue;
+    const startTime = this.startTimeInput !== null ? this.startTimeInput.getValue() : this.startTimeValue;
+    const endDate = this.endDateInput !== null ? this.endDateInput.getValue() : this.endDateValue;
+    const endTime = this.endTimeInput !== null ? this.endTimeInput.getValue() : this.endTimeValue;
     const startDateTime = new Date(`${startDate}T${startTime}`);
     const endDateTime = new Date(`${endDate}T${endTime}`);
     if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
@@ -12337,7 +12384,7 @@ var EntryModal = class extends import_obsidian4.Modal {
     }
     if (this.warningBanner) {
       if (hasAnyConflict) {
-        this.warningBanner.style.display = "block";
+        this.warningBanner.removeClass("is-hidden");
         this.warningBanner.empty();
         const icon = this.warningBanner.createSpan("overlap-warning-icon");
         icon.setText("\u26A0\uFE0F");
@@ -12365,7 +12412,7 @@ var EntryModal = class extends import_obsidian4.Modal {
           msg.setText("End time must be after start time");
         }
       } else if (this.hasInvalidDuration) {
-        this.warningBanner.style.display = "block";
+        this.warningBanner.removeClass("is-hidden");
         this.warningBanner.empty();
         const icon = this.warningBanner.createSpan("overlap-warning-icon");
         icon.setText("\u26A0\uFE0F");
@@ -12373,7 +12420,7 @@ var EntryModal = class extends import_obsidian4.Modal {
         const msg = textContainer.createDiv("overlap-message");
         msg.setText("End time must be after start time");
       } else {
-        this.warningBanner.style.display = "none";
+        this.warningBanner.addClass("is-hidden");
       }
     }
     this.updateSaveButtonState();
@@ -12441,22 +12488,22 @@ var EntryModal = class extends import_obsidian4.Modal {
   updateMagnetButtons() {
     if (this.startSnapHint) {
       if (this.previousEntry) {
-        this.startSnapHint.style.display = "inline-flex";
+        this.startSnapHint.removeClass("is-hidden");
         const prevEnd = this.previousEntry.end;
         const prevClient = this.getClientName(this.previousEntry.client);
         this.startSnapHint.setAttribute("aria-label", `Snap to ${prevEnd} (end of ${prevClient})`);
       } else {
-        this.startSnapHint.style.display = "none";
+        this.startSnapHint.addClass("is-hidden");
       }
     }
     if (this.endSnapHint) {
       if (this.nextEntry) {
-        this.endSnapHint.style.display = "inline-flex";
+        this.endSnapHint.removeClass("is-hidden");
         const nextStart = this.nextEntry.start;
         const nextClient = this.getClientName(this.nextEntry.client);
         this.endSnapHint.setAttribute("aria-label", `Snap to ${nextStart} (start of ${nextClient})`);
       } else {
-        this.endSnapHint.style.display = "none";
+        this.endSnapHint.addClass("is-hidden");
       }
     }
   }
@@ -12468,15 +12515,15 @@ var EntryModal = class extends import_obsidian4.Modal {
       return;
     this.startDateValue = TableParser.getDateString(this.previousEntry.endDateTime);
     this.startTimeValue = this.previousEntry.end;
-    if (this.startDateInput) {
+    if (this.startDateInput !== null) {
       this.startDateInput.setValue(this.startDateValue);
     }
-    if (this.startTimeInput) {
+    if (this.startTimeInput !== null) {
       this.startTimeInput.setValue(this.startTimeValue);
     }
     this.recalculateDuration();
-    this.validateOverlap();
-    this.findAdjacentEntries();
+    void this.validateOverlap();
+    void this.findAdjacentEntries();
   }
   /**
    * Snap end time to start of next entry
@@ -12486,15 +12533,15 @@ var EntryModal = class extends import_obsidian4.Modal {
       return;
     this.endDateValue = TableParser.getDateString(this.nextEntry.startDateTime);
     this.endTimeValue = this.nextEntry.start;
-    if (this.endDateInput) {
+    if (this.endDateInput !== null) {
       this.endDateInput.setValue(this.endDateValue);
     }
-    if (this.endTimeInput) {
+    if (this.endTimeInput !== null) {
       this.endTimeInput.setValue(this.endTimeValue);
     }
     this.recalculateDuration();
-    this.validateOverlap();
-    this.findAdjacentEntries();
+    void this.validateOverlap();
+    void this.findAdjacentEntries();
   }
 };
 var NoteSuggestModal = class extends import_obsidian4.FuzzySuggestModal {
@@ -12561,21 +12608,21 @@ var TimelineView = class extends import_obsidian5.ItemView {
     /**
      * End entry drag and save changes - mouse version
      */
-    this.handleEntryDragEnd = async (e) => {
+    this.handleEntryDragEnd = (e) => {
       document.removeEventListener("mousemove", this.handleEntryDragMove);
       document.removeEventListener("mouseup", this.handleEntryDragEnd);
-      await this.finalizeEntryDrag(e.clientY);
+      void this.finalizeEntryDrag(e.clientY);
     };
     /**
      * End entry drag and save changes - touch version
      */
-    this.handleEntryDragEndTouch = async (e) => {
+    this.handleEntryDragEndTouch = (e) => {
       var _a, _b, _c;
       document.removeEventListener("touchmove", this.handleEntryDragMoveTouch);
       document.removeEventListener("touchend", this.handleEntryDragEndTouch);
       document.removeEventListener("touchcancel", this.handleEntryDragEndTouch);
       const clientY = (_c = (_b = (_a = e.changedTouches) == null ? void 0 : _a[0]) == null ? void 0 : _b.clientY) != null ? _c : this.entryDragStartY;
-      await this.finalizeEntryDrag(clientY);
+      void this.finalizeEntryDrag(clientY);
     };
     this.settings = settings;
     this.dataManager = dataManager;
@@ -12584,7 +12631,7 @@ var TimelineView = class extends import_obsidian5.ItemView {
     return VIEW_TYPE_TIMELINE;
   }
   getDisplayText() {
-    return "\u221E Timeline";
+    return "\u221E timeline";
   }
   getIcon() {
     return "clock";
@@ -12617,7 +12664,7 @@ var TimelineView = class extends import_obsidian5.ItemView {
     this.settings = settings;
     this.dayHeight = 24 * this.settings.hourHeight;
     if (this.timelineContainer) {
-      this.refresh();
+      void this.refresh();
     }
   }
   async refresh() {
@@ -12647,7 +12694,9 @@ var TimelineView = class extends import_obsidian5.ItemView {
     this.entriesContainer.style.setProperty("--tt-hour-height", `${this.settings.hourHeight}px`);
     await this.loadVisibleRange();
     this.renderVisibleDays();
-    this.timelineContainer.addEventListener("scroll", () => this.onScroll());
+    this.timelineContainer.addEventListener("scroll", () => {
+      void this.onScroll();
+    });
     this.entriesContainer.addEventListener("mousedown", (e) => this.handleDragStart(e));
     this.entriesContainer.addEventListener("mousemove", (e) => this.handleDragMove(e));
     this.entriesContainer.addEventListener("mouseup", (e) => this.handleDragEnd(e));
@@ -12668,7 +12717,9 @@ var TimelineView = class extends import_obsidian5.ItemView {
   renderHeader(container) {
     const header = container.createDiv("timeline-header");
     const titleSection = header.createDiv("timeline-header-title");
-    titleSection.createEl("h2", { text: "\u221E Timeline" });
+    const title = titleSection.createEl("h2");
+    title.createSpan({ text: "\u221E " });
+    title.createSpan({ text: "Timeline" });
     this.visibleDateLabel = titleSection.createSpan("timeline-visible-date");
     this.visibleDateLabel.setText("");
     const controls = header.createDiv("timeline-header-controls");
@@ -12715,8 +12766,12 @@ var TimelineView = class extends import_obsidian5.ItemView {
       }
     });
     jumpBtn.addEventListener("click", () => {
-      var _a;
-      ((_a = hiddenDatePicker.showPicker) == null ? void 0 : _a.call(hiddenDatePicker)) || hiddenDatePicker.click();
+      const picker = hiddenDatePicker;
+      if (picker.showPicker) {
+        picker.showPicker();
+      } else {
+        hiddenDatePicker.click();
+      }
     });
     const addBtn = controls.createEl("button", {
       cls: "timeline-btn timeline-btn-add",
@@ -12817,7 +12872,6 @@ var TimelineView = class extends import_obsidian5.ItemView {
       endDate.toDateString()
     );
     const months = /* @__PURE__ */ new Set();
-    const startMonth = TableParser.getMonthString(startDate);
     const endMonth = TableParser.getMonthString(endDate);
     const current = new Date(startDate);
     current.setDate(1);
@@ -13196,7 +13250,7 @@ var TimelineView = class extends import_obsidian5.ItemView {
   scrollToDate(date) {
     this.centerDate = new Date(date);
     this.centerDate.setHours(0, 0, 0, 0);
-    this.loadVisibleRange().then(() => {
+    void this.loadVisibleRange().then(() => {
       this.renderVisibleDays();
       const targetOffset = this.visibleDaysBuffer * this.dayHeight + this.settings.dayStartHour * this.settings.hourHeight;
       this.timelineContainer.scrollTop = targetOffset;
@@ -13218,7 +13272,7 @@ var TimelineView = class extends import_obsidian5.ItemView {
     const now = new Date();
     this.centerDate = new Date(now);
     this.centerDate.setHours(0, 0, 0, 0);
-    this.loadVisibleRange().then(() => {
+    void this.loadVisibleRange().then(() => {
       this.renderVisibleDays();
       const currentHour = now.getHours() + now.getMinutes() / 60;
       const viewportHeight = this.timelineContainer.clientHeight;
@@ -13313,7 +13367,7 @@ var TimelineView = class extends import_obsidian5.ItemView {
     const fullPath = notePath.endsWith(".md") ? notePath : `${notePath}.md`;
     const file = this.app.vault.getAbstractFileByPath(fullPath);
     if (file) {
-      this.app.workspace.openLinkText(notePath, "", false);
+      void this.app.workspace.openLinkText(notePath, "", false);
     } else {
       Logger.warn("Linked note not found:", fullPath);
     }
@@ -13333,7 +13387,9 @@ var TimelineView = class extends import_obsidian5.ItemView {
       this.settings,
       this.dataManager,
       data,
-      () => this.refresh()
+      () => {
+        void this.refresh();
+      }
     );
     modal.open();
   }
@@ -13352,7 +13408,9 @@ var TimelineView = class extends import_obsidian5.ItemView {
       this.settings,
       this.dataManager,
       data,
-      () => this.refresh()
+      () => {
+        void this.refresh();
+      }
     );
     modal.open();
   }
@@ -13360,9 +13418,8 @@ var TimelineView = class extends import_obsidian5.ItemView {
    * Show confirmation dialog and delete entry if confirmed
    */
   confirmDeleteEntry(entry) {
-    new ConfirmDeleteModal(this.app, entry, async () => {
-      await this.dataManager.deleteEntry(entry);
-      this.refresh();
+    new ConfirmDeleteModal(this.app, entry, () => {
+      void this.dataManager.deleteEntry(entry).then(() => this.refresh());
     }).open();
   }
   /**
@@ -13617,7 +13674,9 @@ var TimelineView = class extends import_obsidian5.ItemView {
       this.settings,
       this.dataManager,
       data,
-      () => this.refresh()
+      () => {
+        void this.refresh();
+      }
     );
     modal.open();
   }
@@ -13632,7 +13691,7 @@ var ConfirmDeleteModal = class extends import_obsidian5.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("time-tracker-confirm-delete");
-    contentEl.createEl("h2", { text: "Delete Entry" });
+    contentEl.createEl("h2", { text: "Delete entry" });
     const details = contentEl.createDiv("delete-entry-details");
     details.createEl("p", {
       text: `${this.entry.start} \u2013 ${this.entry.end}`,
@@ -13655,8 +13714,8 @@ var ConfirmDeleteModal = class extends import_obsidian5.Modal {
       text: "Delete",
       cls: "mod-warning"
     });
-    deleteBtn.addEventListener("click", async () => {
-      await this.onConfirm();
+    deleteBtn.addEventListener("click", () => {
+      this.onConfirm();
       this.close();
     });
   }
@@ -13686,7 +13745,7 @@ var InvoiceModal = class extends import_obsidian6.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("invoice-modal");
-    contentEl.createEl("h2", { text: "Generate Invoice" });
+    contentEl.createEl("h2", { text: "Generate invoice" });
     const clientInfo = contentEl.createDiv("invoice-client-info");
     clientInfo.createEl("strong", { text: this.data.client.name });
     clientInfo.createEl("span", {
@@ -13697,10 +13756,10 @@ var InvoiceModal = class extends import_obsidian6.Modal {
       text: ` \u2022 ${this.formatCurrency(this.data.totalAmount, this.data.client.currency)}`,
       cls: "invoice-amount"
     });
-    new import_obsidian6.Setting(contentEl).setName("Invoice Number").setDesc("Unique identifier for this invoice (e.g., INV-2025-001)").addText((text5) => text5.setPlaceholder("INV-2025-001").setValue(this.invoiceNumber).onChange((value) => {
+    new import_obsidian6.Setting(contentEl).setName("Invoice number").setDesc("Unique identifier for this invoice").addText((text5) => text5.setPlaceholder("Enter invoice number").setValue(this.invoiceNumber).onChange((value) => {
       this.invoiceNumber = value;
     }));
-    new import_obsidian6.Setting(contentEl).setName("Issue Date").setDesc("Date the invoice is issued").addText((text5) => {
+    new import_obsidian6.Setting(contentEl).setName("Issue date").setDesc("Date the invoice is issued").addText((text5) => {
       text5.inputEl.type = "date";
       text5.setValue(this.formatDateForInput(this.issueDate));
       text5.onChange((value) => {
@@ -13709,18 +13768,18 @@ var InvoiceModal = class extends import_obsidian6.Modal {
         this.updateDueDate();
       });
     });
-    new import_obsidian6.Setting(contentEl).setName("Payment Terms").setDesc("When payment is due").addDropdown((dropdown) => dropdown.addOption("Due on receipt", "Due on receipt").addOption("Net 15", "Net 15").addOption("Net 30", "Net 30").addOption("Net 45", "Net 45").addOption("Net 60", "Net 60").setValue(this.paymentTerms).onChange((value) => {
+    new import_obsidian6.Setting(contentEl).setName("Payment terms").setDesc("When payment is due").addDropdown((dropdown) => dropdown.addOption("Due on receipt", "Due on receipt").addOption("Net 15", "Net 15").addOption("Net 30", "Net 30").addOption("Net 45", "Net 45").addOption("Net 60", "Net 60").setValue(this.paymentTerms).onChange((value) => {
       this.paymentTerms = value;
       this.updateDueDate();
     }));
-    const dueDateSetting = new import_obsidian6.Setting(contentEl).setName("Due Date").setDesc("Automatically calculated from issue date and terms");
+    const dueDateSetting = new import_obsidian6.Setting(contentEl).setName("Due date").setDesc("Automatically calculated from issue date and terms");
     this.dueDateDisplay = dueDateSetting.controlEl.createDiv("invoice-due-date");
     this.dueDateDisplay.setText(this.formatDateDisplay(this.dueDate));
     const buttonRow = contentEl.createDiv("modal-button-row");
     const cancelBtn = buttonRow.createEl("button", { text: "Cancel" });
     cancelBtn.addEventListener("click", () => this.close());
     const generateBtn = buttonRow.createEl("button", {
-      text: "Generate Invoice",
+      text: "Generate invoice",
       cls: "mod-cta"
     });
     generateBtn.addEventListener("click", () => this.handleGenerate());
@@ -14025,7 +14084,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
   }
   updateSettings(settings) {
     this.settings = settings;
-    this.loadReport();
+    void this.loadReport();
   }
   async refresh() {
     await this.loadReport();
@@ -14042,7 +14101,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
     this.rangeSelector = this.contentContainer.createDiv("reports-range-selector");
     this.renderRangeSelector();
     this.customDateInputs = this.contentContainer.createDiv("reports-custom-dates");
-    this.customDateInputs.style.display = "none";
+    this.customDateInputs.addClass("is-hidden");
     this.renderCustomDateInputs();
     this.summaryContainer = this.contentContainer.createDiv("reports-summary");
     this.reportsContainer = this.contentContainer.createDiv("reports-table-container");
@@ -14055,23 +14114,29 @@ var ReportsView = class extends import_obsidian8.ItemView {
   renderHeader(container) {
     const header = container.createDiv("reports-header");
     const titleSection = header.createDiv("reports-header-title");
-    titleSection.createEl("h2", { text: "Time Reports" });
+    titleSection.createEl("h2", { text: "Time reports" });
     const controls = header.createDiv("reports-header-controls");
     const exportCsvBtn = controls.createEl("button", {
       text: "Export CSV",
       cls: "reports-btn"
     });
-    exportCsvBtn.addEventListener("click", () => this.exportToCSV());
+    exportCsvBtn.addEventListener("click", () => {
+      void this.exportToCSV();
+    });
     const exportJsonBtn = controls.createEl("button", {
       text: "Export JSON",
       cls: "reports-btn"
     });
-    exportJsonBtn.addEventListener("click", () => this.exportToJSON());
+    exportJsonBtn.addEventListener("click", () => {
+      void this.exportToJSON();
+    });
     const refreshBtn = controls.createEl("button", {
       text: "Refresh",
       cls: "reports-btn"
     });
-    refreshBtn.addEventListener("click", () => this.loadReport());
+    refreshBtn.addEventListener("click", () => {
+      void this.loadReport();
+    });
   }
   /**
    * Render time range preset buttons
@@ -14107,7 +14172,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
     }
     startInput.addEventListener("change", (e) => {
       this.customStartDate = new Date(e.target.value);
-      this.loadReport();
+      void this.loadReport();
     });
     const endLabel = this.customDateInputs.createEl("label", { text: "To: " });
     const endInput = endLabel.createEl("input", { type: "date" });
@@ -14116,7 +14181,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
     }
     endInput.addEventListener("change", (e) => {
       this.customEndDate = new Date(e.target.value);
-      this.loadReport();
+      void this.loadReport();
     });
   }
   /**
@@ -14126,7 +14191,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
     this.selectedPreset = preset;
     this.renderRangeSelector();
     if (preset === "custom") {
-      this.customDateInputs.style.display = "flex";
+      this.customDateInputs.removeClass("is-hidden");
       if (!this.customStartDate || !this.customEndDate) {
         const { start, end } = this.getDateRange("this-week");
         this.customStartDate = start;
@@ -14134,9 +14199,9 @@ var ReportsView = class extends import_obsidian8.ItemView {
         this.renderCustomDateInputs();
       }
     } else {
-      this.customDateInputs.style.display = "none";
+      this.customDateInputs.addClass("is-hidden");
     }
-    this.loadReport();
+    void this.loadReport();
   }
   /**
    * Get date range for a preset
@@ -14412,7 +14477,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
     const table = this.clientContainer.createEl("table", { cls: "reports-table" });
     const thead = table.createEl("thead");
     const headerRow = thead.createEl("tr");
-    headerRow.createEl("th", { text: "Client / Project / Activity" });
+    headerRow.createEl("th", { text: "Client / project / activity" });
     headerRow.createEl("th", { text: "Hours", cls: "reports-col-hours" });
     headerRow.createEl("th", { text: "Billable", cls: "reports-col-billable" });
     headerRow.createEl("th", { text: "%", cls: "reports-col-percent" });
@@ -14572,8 +14637,8 @@ var ReportsView = class extends import_obsidian8.ItemView {
     const modal = new InvoiceModal(
       this.app,
       modalData,
-      async (result) => {
-        await this.generateInvoice(client, result);
+      (result) => {
+        void this.generateInvoice(client, result);
       }
     );
     modal.open();
@@ -14604,7 +14669,8 @@ var ReportsView = class extends import_obsidian8.ItemView {
       }
     } catch (error) {
       Logger.log("ReportsView: Error generating invoice", error);
-      new import_obsidian8.Notice(`Error generating invoice: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      new import_obsidian8.Notice(`Error generating invoice: ${errorMessage}`);
     }
   }
   // Helper methods
@@ -14711,7 +14777,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
     const link2 = document.createElement("a");
     link2.href = url;
     link2.download = filename;
-    link2.style.display = "none";
+    link2.classList.add("is-hidden");
     document.body.appendChild(link2);
     link2.click();
     document.body.removeChild(link2);
@@ -14771,7 +14837,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
     const link2 = document.createElement("a");
     link2.href = url;
     link2.download = filename;
-    link2.style.display = "none";
+    link2.classList.add("is-hidden");
     document.body.appendChild(link2);
     link2.click();
     document.body.removeChild(link2);
@@ -14783,7 +14849,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
 // main.ts
 var WhereDidTheTimeGoPlugin = class extends import_obsidian9.Plugin {
   async onload() {
-    console.log("Loading Where Did The Time Go plugin");
+    Logger.debug("Loading Where Did The Time Go plugin");
     await this.loadSettings();
     Logger.setDebugMode(this.settings.debugMode);
     this.dataManager = new DataManager(this.app.vault, this.settings);
@@ -14795,29 +14861,29 @@ var WhereDidTheTimeGoPlugin = class extends import_obsidian9.Plugin {
       VIEW_TYPE_REPORTS,
       (leaf) => new ReportsView(leaf, this.settings, this.dataManager)
     );
-    this.addRibbonIcon("clock", "Open Timeline", () => {
-      this.activateTimelineView();
+    this.addRibbonIcon("clock", "Open timeline", () => {
+      void this.activateTimelineView();
     });
-    this.addRibbonIcon("pie-chart", "Open Reports", () => {
-      this.activateReportsView();
+    this.addRibbonIcon("pie-chart", "Open reports", () => {
+      void this.activateReportsView();
     });
     this.addCommand({
       id: "open-timeline",
-      name: "Open Timeline",
+      name: "Open timeline",
       callback: () => {
-        this.activateTimelineView();
+        void this.activateTimelineView();
       }
     });
     this.addCommand({
       id: "open-reports",
-      name: "Open Reports",
+      name: "Open reports",
       callback: () => {
-        this.activateReportsView();
+        void this.activateReportsView();
       }
     });
     this.addCommand({
       id: "create-entry",
-      name: "Create Time Entry",
+      name: "Create time entry",
       callback: () => {
         this.openCreateEntryModal();
       }
@@ -14837,7 +14903,7 @@ var WhereDidTheTimeGoPlugin = class extends import_obsidian9.Plugin {
     );
   }
   onunload() {
-    console.log("Unloading Where Did The Time Go plugin");
+    Logger.debug("Unloading Where Did The Time Go plugin");
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -14869,7 +14935,7 @@ var WhereDidTheTimeGoPlugin = class extends import_obsidian9.Plugin {
       }
     }
     if (leaf) {
-      workspace.revealLeaf(leaf);
+      void workspace.revealLeaf(leaf);
     }
   }
   /**
@@ -14891,7 +14957,7 @@ var WhereDidTheTimeGoPlugin = class extends import_obsidian9.Plugin {
       }
     }
     if (leaf) {
-      workspace.revealLeaf(leaf);
+      void workspace.revealLeaf(leaf);
     }
   }
   /**

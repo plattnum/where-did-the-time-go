@@ -28,6 +28,9 @@ export default tseslint.config(
             "esbuild.config.mjs",
             "version-bump.mjs",
             "versions.json",
+            "jest.config.js",
+            "scripts/**",
+            "**/*.test.ts",
         ],
     },
 );

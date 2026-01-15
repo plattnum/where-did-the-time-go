@@ -19,6 +19,12 @@ export class Logger {
         }
     }
 
+    static debug(...args: unknown[]): void {
+        if (this.debugMode) {
+            console.debug(this.prefix, ...args);
+        }
+    }
+
     static warn(...args: unknown[]): void {
         if (this.debugMode) {
             console.warn(this.prefix, ...args);
