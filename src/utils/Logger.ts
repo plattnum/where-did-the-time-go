@@ -9,13 +9,13 @@ export class Logger {
     static setDebugMode(enabled: boolean): void {
         this.debugMode = enabled;
         if (enabled) {
-            console.log(this.prefix, 'Debug mode enabled');
+            console.debug(this.prefix, 'Debug mode enabled');
         }
     }
 
     static log(...args: unknown[]): void {
         if (this.debugMode) {
-            console.log(this.prefix, ...args);
+            console.debug(this.prefix, ...args);
         }
     }
 
