@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import type { TimeTrackerSettings, Project, Activity, Client } from './types';
+import type { Project, Activity } from './types';
 import type WhereDidTheTimeGoPlugin from '../main';
 import { ClientModal } from './modals/ClientModal';
 

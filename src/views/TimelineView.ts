@@ -383,7 +383,6 @@ export class TimelineView extends ItemView {
         // Determine which months need loading
         // We need to include both the start month and end month
         const months = new Set<string>();
-        const startMonth = TableParser.getMonthString(startDate);
         const endMonth = TableParser.getMonthString(endDate);
 
         const current = new Date(startDate);

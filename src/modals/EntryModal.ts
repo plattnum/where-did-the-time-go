@@ -1,4 +1,4 @@
-import { App, Modal, Setting, DropdownComponent, TextComponent, TextAreaComponent, Notice, FuzzySuggestModal, TFile } from 'obsidian';
+import { App, Modal, Setting, DropdownComponent, TextComponent, Notice, FuzzySuggestModal, TFile } from 'obsidian';
 import { TimeEntry, TimeTrackerSettings } from '../types';
 import { DataManager } from '../data/DataManager';
 import { TableParser } from '../data/TableParser';
