@@ -249,7 +249,7 @@ export class TimelineView extends ItemView {
         });
 
         jumpBtn.addEventListener('click', () => {
-            (hiddenDatePicker as any).showPicker?.() || hiddenDatePicker.click();
+            (hiddenDatePicker as unknown).showPicker?.() || hiddenDatePicker.click();
         });
 
         // Add entry button
@@ -594,7 +594,7 @@ export class TimelineView extends ItemView {
             noteIcon.setAttribute('title', `Open: ${entry.linkedNote}`);
             noteIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.openLinkedNote(entry.linkedNote!);
+                this.openLinkedNote(entry.linkedNote);
             });
         }
 

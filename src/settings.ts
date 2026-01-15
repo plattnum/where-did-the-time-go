@@ -16,14 +16,13 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h1', { text: 'Where did the time go?' });
         containerEl.createEl('p', {
             text: 'Configure your time tracking settings.',
             cls: 'setting-item-description'
         });
 
         // Storage Settings
-        containerEl.createEl('h2', { text: 'Storage' });
+        new Setting(containerEl).setName("Storage").setHeading();
 
         new Setting(containerEl)
             .setName('Time tracking folder')
@@ -57,7 +56,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 }));
 
         // Timeline Display Settings
-        containerEl.createEl('h2', { text: 'Timeline display' });
+        new Setting(containerEl).setName("Timeline display").setHeading();
 
         new Setting(containerEl)
             .setName('Hour height')
@@ -134,7 +133,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 }));
 
         // Bill From Section (for invoices)
-        containerEl.createEl('h2', { text: 'Bill from' });
+        new Setting(containerEl).setName("Bill from").setHeading();
         containerEl.createEl('p', {
             text: 'Your billing information that appears on invoices.',
             cls: 'setting-item-description'
@@ -174,7 +173,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 }));
 
         // Clients Section
-        containerEl.createEl('h2', { text: 'Clients' });
+        new Setting(containerEl).setName("Clients").setHeading();
         containerEl.createEl('p', {
             text: 'Define clients for billing. Projects can be assigned to clients for invoicing.',
             cls: 'setting-item-description'
@@ -203,7 +202,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 }));
 
         // Developer Settings
-        containerEl.createEl('h2', { text: 'Developer' });
+        new Setting(containerEl).setName("Developer").setHeading();
 
         new Setting(containerEl)
             .setName('Debug mode')

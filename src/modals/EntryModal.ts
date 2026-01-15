@@ -950,7 +950,7 @@ export class EntryModal extends Modal {
 
                 // Show start overlap (START is inside this entry)
                 if (hasStartOverlap) {
-                    const entry = this.startOverlap!;
+                    const entry = this.startOverlap;
                     const entryLabel = this.formatEntryLabel(entry);
                     const msg = textContainer.createDiv('overlap-message');
                     msg.setText(`Start overlaps with ${entryLabel} (${entry.start} – ${entry.end})`);
@@ -958,7 +958,7 @@ export class EntryModal extends Modal {
 
                 // Show end overlap (END is inside this entry)
                 if (hasEndOverlap) {
-                    const entry = this.endOverlap!;
+                    const entry = this.endOverlap;
                     const entryLabel = this.formatEntryLabel(entry);
                     const msg = textContainer.createDiv('overlap-message');
                     msg.setText(`End overlaps with ${entryLabel} (${entry.start} – ${entry.end})`);
@@ -966,7 +966,7 @@ export class EntryModal extends Modal {
 
                 // Show encompassed entry (we fully contain this entry)
                 if (hasEncompassed) {
-                    const entry = this.encompassedEntry!;
+                    const entry = this.encompassedEntry;
                     const entryLabel = this.formatEntryLabel(entry);
                     const msg = textContainer.createDiv('overlap-message');
                     msg.setText(`Conflicts with ${entryLabel} (${entry.start} – ${entry.end})`);

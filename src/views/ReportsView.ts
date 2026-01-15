@@ -369,7 +369,7 @@ export class ReportsView extends ItemView {
                 projectMap.set(projectName, { minutes: 0, activityMap: new Map() });
             }
 
-            const projectData = projectMap.get(projectName)!;
+            const projectData = projectMap.get(projectName);
             projectData.minutes += effectiveMinutes;
             this.totalMinutes += effectiveMinutes;
 
@@ -513,14 +513,14 @@ export class ReportsView extends ItemView {
                 clientMap.set(clientId, { minutes: 0, projects: new Map() });
             }
 
-            const clientData = clientMap.get(clientId)!;
+            const clientData = clientMap.get(clientId);
             clientData.minutes += effectiveMinutes;
 
             if (!clientData.projects.has(projectName)) {
                 clientData.projects.set(projectName, { minutes: 0, activities: new Map() });
             }
 
-            const projectData = clientData.projects.get(projectName)!;
+            const projectData = clientData.projects.get(projectName);
             projectData.minutes += effectiveMinutes;
 
             const currentActivityMinutes = projectData.activities.get(activityName) || 0;

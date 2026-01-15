@@ -101,7 +101,7 @@ export class DataManager {
         // Check cache first
         if (this.cache.has(monthStr)) {
             Logger.log('DataManager: Cache hit for', monthStr);
-            return this.cache.get(monthStr)!;
+            return this.cache.get(monthStr);
         }
 
         const filePath = this.getMonthFilePath(monthStr);
