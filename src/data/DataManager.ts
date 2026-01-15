@@ -518,7 +518,7 @@ export class DataManager {
     /**
      * Get all unique tags from entries (deprecated - returns empty)
      */
-    async getAllTags(): Promise<string[]> {
+    getAllTags(): string[] {
         // Tags feature removed - return empty array
         return [];
     }

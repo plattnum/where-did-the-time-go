@@ -67,12 +67,12 @@ export class ReportsView extends ItemView {
     }
 
     async onOpen(): Promise<void> {
-        await this.render();
+        this.render();
         await this.loadReport();
     }
 
     async onClose(): Promise<void> {
-        // Cleanup if needed
+        await super.onClose();
     }
 
     updateSettings(settings: TimeTrackerSettings): void {
@@ -87,7 +87,7 @@ export class ReportsView extends ItemView {
     /**
      * Main render function
      */
-    private async render(): Promise<void> {
+    private render(): void {
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.addClass('time-tracker-reports');

@@ -98,6 +98,9 @@ export class TimelineView extends ItemView {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
         }
+
+        // Call super.onClose to ensure proper cleanup of the base View
+        await super.onClose();
     }
 
     updateSettings(settings: TimeTrackerSettings): void {

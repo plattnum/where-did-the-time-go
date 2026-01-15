@@ -11664,7 +11664,7 @@ var _DataManager = class {
   /**
    * Get all unique tags from entries (deprecated - returns empty)
    */
-  async getAllTags() {
+  getAllTags() {
     return [];
   }
 };
@@ -12659,6 +12659,7 @@ var TimelineView = class extends import_obsidian5.ItemView {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
+    await super.onClose();
   }
   updateSettings(settings) {
     this.settings = settings;
@@ -14077,10 +14078,11 @@ var ReportsView = class extends import_obsidian8.ItemView {
     return "pie-chart";
   }
   async onOpen() {
-    await this.render();
+    this.render();
     await this.loadReport();
   }
   async onClose() {
+    await super.onClose();
   }
   updateSettings(settings) {
     this.settings = settings;
@@ -14092,7 +14094,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
   /**
    * Main render function
    */
-  async render() {
+  render() {
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("time-tracker-reports");
