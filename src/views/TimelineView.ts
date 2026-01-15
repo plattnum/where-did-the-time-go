@@ -61,7 +61,7 @@ export class TimelineView extends ItemView {
     }
 
     getDisplayText(): string {
-        return '∞ Timeline';
+        return '∞ timeline';
     }
 
     getIcon(): string {
@@ -187,7 +187,7 @@ export class TimelineView extends ItemView {
         const header = container.createDiv('timeline-header');
 
         const titleSection = header.createDiv('timeline-header-title');
-        titleSection.createEl('h2', { text: '∞ Timeline' });
+        titleSection.createEl('h2', { text: '∞ timeline' });
 
         // Visible date range label
         this.visibleDateLabel = titleSection.createSpan('timeline-visible-date');
@@ -1484,7 +1484,7 @@ class ConfirmDeleteModal extends Modal {
         contentEl.empty();
         contentEl.addClass('time-tracker-confirm-delete');
 
-        contentEl.createEl('h2', { text: 'Delete Entry' });
+        contentEl.createEl('h2', { text: 'Delete entry' });
 
         // Show entry details
         const details = contentEl.createDiv('delete-entry-details');

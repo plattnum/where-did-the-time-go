@@ -16,7 +16,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h1', { text: 'Where Did The Time Go?' });
+        containerEl.createEl('h1', { text: 'Where did the time go?' });
         containerEl.createEl('p', {
             text: 'Configure your time tracking settings.',
             cls: 'setting-item-description'
@@ -29,7 +29,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             .setName('Time tracking folder')
             .setDesc('Folder where time entries will be stored (relative to vault root)')
             .addText(text => text
-                .setPlaceholder('TimeTracking')
+                .setPlaceholder('Enter folder name')
                 .setValue(this.plugin.settings.timeTrackingFolder)
                 .onChange(async (value) => {
                     this.plugin.settings.timeTrackingFolder = value || 'TimeTracking';
@@ -57,7 +57,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 }));
 
         // Timeline Display Settings
-        containerEl.createEl('h2', { text: 'Timeline Display' });
+        containerEl.createEl('h2', { text: 'Timeline display' });
 
         new Setting(containerEl)
             .setName('Hour height')
@@ -101,7 +101,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('24-hour format')
-            .setDesc('Use 24-hour time format (e.g., 14:00) instead of 12-hour (e.g., 2:00 PM)')
+            .setDesc('Use 24-hour time format instead of 12-hour')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.use24HourFormat)
                 .onChange(async (value) => {
@@ -134,7 +134,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 }));
 
         // Bill From Section (for invoices)
-        containerEl.createEl('h2', { text: 'Bill From' });
+        containerEl.createEl('h2', { text: 'Bill from' });
         containerEl.createEl('p', {
             text: 'Your billing information that appears on invoices.',
             cls: 'setting-item-description'
@@ -144,7 +144,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             .setName('Name')
             .setDesc('Your name or business name')
             .addText(text => text
-                .setPlaceholder('Your Name / Business Name')
+                .setPlaceholder('Enter name')
                 .setValue(this.plugin.settings.billFrom.name)
                 .onChange(async (value) => {
                     this.plugin.settings.billFrom.name = value;
@@ -155,7 +155,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             .setName('Address')
             .setDesc('Your billing address (multi-line)')
             .addTextArea(textarea => textarea
-                .setPlaceholder('123 Main Street\nCity, State 12345\nCountry')
+                .setPlaceholder('Enter address')
                 .setValue(this.plugin.settings.billFrom.address)
                 .onChange(async (value) => {
                     this.plugin.settings.billFrom.address = value;
@@ -166,7 +166,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             .setName('Invoice folder')
             .setDesc('Folder where invoices will be saved (created automatically)')
             .addText(text => text
-                .setPlaceholder('TimeTracking/Invoices')
+                .setPlaceholder('Enter folder path')
                 .setValue(this.plugin.settings.invoiceFolder)
                 .onChange(async (value) => {
                     this.plugin.settings.invoiceFolder = value || 'TimeTracking/Invoices';
@@ -187,7 +187,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
         // Add new client button
         new Setting(containerEl)
             .addButton(button => button
-                .setButtonText('Add Client')
+                .setButtonText('Add client')
                 .setCta()
                 .onClick(() => {
                     const modal = new ClientModal(
@@ -298,7 +298,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 const projectsHeader = projectsSection.createDiv('client-section-header');
                 projectsHeader.createSpan({ text: 'Projects', cls: 'client-section-title' });
 
-                const addProjectBtn = projectsHeader.createEl('button', { text: '+ Add', cls: 'client-add-btn' });
+                const addProjectBtn = projectsHeader.createEl('button', { text: 'Add', cls: 'client-add-btn' });
                 addProjectBtn.addEventListener('click', async () => {
                     const newProject: Project = {
                         id: `project-${Date.now()}`,
@@ -329,7 +329,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 const activitiesHeader = activitiesSection.createDiv('client-section-header');
                 activitiesHeader.createSpan({ text: 'Activities', cls: 'client-section-title' });
 
-                const addActivityBtn = activitiesHeader.createEl('button', { text: '+ Add', cls: 'client-add-btn' });
+                const addActivityBtn = activitiesHeader.createEl('button', { text: 'Add', cls: 'client-add-btn' });
                 addActivityBtn.addEventListener('click', async () => {
                     const newActivity: Activity = {
                         id: `activity-${Date.now()}`,

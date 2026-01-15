@@ -127,7 +127,7 @@ export class ReportsView extends ItemView {
         const header = container.createDiv('reports-header');
 
         const titleSection = header.createDiv('reports-header-title');
-        titleSection.createEl('h2', { text: 'Time Reports' });
+        titleSection.createEl('h2', { text: 'Time reports' });
 
         const controls = header.createDiv('reports-header-controls');
 
@@ -612,7 +612,7 @@ export class ReportsView extends ItemView {
         // Header
         const thead = table.createEl('thead');
         const headerRow = thead.createEl('tr');
-        headerRow.createEl('th', { text: 'Client / Project / Activity' });
+        headerRow.createEl('th', { text: 'Client / project / activity' });
         headerRow.createEl('th', { text: 'Hours', cls: 'reports-col-hours' });
         headerRow.createEl('th', { text: 'Billable', cls: 'reports-col-billable' });
         headerRow.createEl('th', { text: '%', cls: 'reports-col-percent' });

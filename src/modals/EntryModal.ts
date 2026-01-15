@@ -323,13 +323,13 @@ export class EntryModal extends Modal {
 
         // Linked note
         const linkedNoteSetting = new Setting(contentEl)
-            .setName('Linked Note');
+            .setName('Linked note');
 
         let linkedNoteInput: TextComponent;
         linkedNoteSetting.addText((text) => {
             linkedNoteInput = text;
             text.setValue(this.linkedNoteValue);
-            text.setPlaceholder('path/to/note');
+            text.setPlaceholder('Enter note path');
             text.onChange((value) => {
                 this.linkedNoteValue = value;
             });
@@ -351,7 +351,7 @@ export class EntryModal extends Modal {
 
         // Create new note button
         linkedNoteSetting.addButton((btn) => {
-            btn.setButtonText('Create New')
+            btn.setButtonText('Create new')
                 .setTooltip('Create a new linked note')
                 .onClick(() => {
                     this.showCreateNoteInput(contentEl, linkedNoteInput);
@@ -786,7 +786,7 @@ export class EntryModal extends Modal {
         dropdown.selectEl.empty();
 
         // Add empty option
-        dropdown.addOption('', '(No project)');
+        dropdown.addOption('', 'No project');
 
         // Add projects belonging to the selected client
         for (const project of this.settings.projects) {
@@ -822,7 +822,7 @@ export class EntryModal extends Modal {
         dropdown.selectEl.empty();
 
         // Add empty option
-        dropdown.addOption('', '(No activity)');
+        dropdown.addOption('', 'No activity');
 
         // Add activities belonging to the selected client
         for (const activity of this.settings.activities) {
