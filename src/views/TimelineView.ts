@@ -86,11 +86,11 @@ export class TimelineView extends ItemView {
 
     async onClose(): Promise<void> {
         // Cleanup any active drag listeners (in case view closes mid-drag)
-        document.removeEventListener('mousemove', this.handleEntryDragMove);
-        document.removeEventListener('mouseup', this.handleEntryDragEnd);
-        document.removeEventListener('touchmove', this.handleEntryDragMoveTouch);
-        document.removeEventListener('touchend', this.handleEntryDragEndTouch);
-        document.removeEventListener('touchcancel', this.handleEntryDragEndTouch);
+        activeDocument.removeEventListener('mousemove', this.handleEntryDragMove);
+        activeDocument.removeEventListener('mouseup', this.handleEntryDragEnd);
+        activeDocument.removeEventListener('touchmove', this.handleEntryDragMoveTouch);
+        activeDocument.removeEventListener('touchend', this.handleEntryDragEndTouch);
+        activeDocument.removeEventListener('touchcancel', this.handleEntryDragEndTouch);
         this.cleanupEntryDrag();
 
         // Cleanup resize observer
@@ -695,8 +695,8 @@ export class TimelineView extends ItemView {
     private startEntryDrag(e: MouseEvent, entry: TimeEntry, card: HTMLElement, mode: 'move' | 'resize-top' | 'resize-bottom'): void {
         e.preventDefault();
         this.initEntryDrag(e.clientY, entry, card, mode);
-        document.addEventListener('mousemove', this.handleEntryDragMove);
-        document.addEventListener('mouseup', this.handleEntryDragEnd);
+        activeDocument.addEventListener('mousemove', this.handleEntryDragMove);
+        activeDocument.addEventListener('mouseup', this.handleEntryDragEnd);
     }
 
     /**
@@ -706,9 +706,9 @@ export class TimelineView extends ItemView {
         if (e.touches.length !== 1) return;
         e.preventDefault();
         this.initEntryDrag(e.touches[0].clientY, entry, card, mode);
-        document.addEventListener('touchmove', this.handleEntryDragMoveTouch, { passive: false });
-        document.addEventListener('touchend', this.handleEntryDragEndTouch);
-        document.addEventListener('touchcancel', this.handleEntryDragEndTouch);
+        activeDocument.addEventListener('touchmove', this.handleEntryDragMoveTouch, { passive: false });
+        activeDocument.addEventListener('touchend', this.handleEntryDragEndTouch);
+        activeDocument.addEventListener('touchcancel', this.handleEntryDragEndTouch);
     }
 
     /**
@@ -781,8 +781,8 @@ export class TimelineView extends ItemView {
      * End entry drag and save changes - mouse version
      */
     private handleEntryDragEnd = (e: MouseEvent): void => {
-        document.removeEventListener('mousemove', this.handleEntryDragMove);
-        document.removeEventListener('mouseup', this.handleEntryDragEnd);
+        activeDocument.removeEventListener('mousemove', this.handleEntryDragMove);
+        activeDocument.removeEventListener('mouseup', this.handleEntryDragEnd);
         void this.finalizeEntryDrag(e.clientY);
     };
 
@@ -790,9 +790,9 @@ export class TimelineView extends ItemView {
      * End entry drag and save changes - touch version
      */
     private handleEntryDragEndTouch = (e: TouchEvent): void => {
-        document.removeEventListener('touchmove', this.handleEntryDragMoveTouch);
-        document.removeEventListener('touchend', this.handleEntryDragEndTouch);
-        document.removeEventListener('touchcancel', this.handleEntryDragEndTouch);
+        activeDocument.removeEventListener('touchmove', this.handleEntryDragMoveTouch);
+        activeDocument.removeEventListener('touchend', this.handleEntryDragEndTouch);
+        activeDocument.removeEventListener('touchcancel', this.handleEntryDragEndTouch);
 
         // Use changedTouches for touchend (touches array is empty)
         const clientY = e.changedTouches?.[0]?.clientY ?? this.entryDragStartY;

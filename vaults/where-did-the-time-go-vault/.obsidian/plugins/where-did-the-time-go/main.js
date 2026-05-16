@@ -12609,8 +12609,8 @@ var TimelineView = class extends import_obsidian5.ItemView {
      * End entry drag and save changes - mouse version
      */
     this.handleEntryDragEnd = (e) => {
-      document.removeEventListener("mousemove", this.handleEntryDragMove);
-      document.removeEventListener("mouseup", this.handleEntryDragEnd);
+      activeDocument.removeEventListener("mousemove", this.handleEntryDragMove);
+      activeDocument.removeEventListener("mouseup", this.handleEntryDragEnd);
       void this.finalizeEntryDrag(e.clientY);
     };
     /**
@@ -12618,9 +12618,9 @@ var TimelineView = class extends import_obsidian5.ItemView {
      */
     this.handleEntryDragEndTouch = (e) => {
       var _a, _b, _c;
-      document.removeEventListener("touchmove", this.handleEntryDragMoveTouch);
-      document.removeEventListener("touchend", this.handleEntryDragEndTouch);
-      document.removeEventListener("touchcancel", this.handleEntryDragEndTouch);
+      activeDocument.removeEventListener("touchmove", this.handleEntryDragMoveTouch);
+      activeDocument.removeEventListener("touchend", this.handleEntryDragEndTouch);
+      activeDocument.removeEventListener("touchcancel", this.handleEntryDragEndTouch);
       const clientY = (_c = (_b = (_a = e.changedTouches) == null ? void 0 : _a[0]) == null ? void 0 : _b.clientY) != null ? _c : this.entryDragStartY;
       void this.finalizeEntryDrag(clientY);
     };
@@ -12649,11 +12649,11 @@ var TimelineView = class extends import_obsidian5.ItemView {
     });
   }
   async onClose() {
-    document.removeEventListener("mousemove", this.handleEntryDragMove);
-    document.removeEventListener("mouseup", this.handleEntryDragEnd);
-    document.removeEventListener("touchmove", this.handleEntryDragMoveTouch);
-    document.removeEventListener("touchend", this.handleEntryDragEndTouch);
-    document.removeEventListener("touchcancel", this.handleEntryDragEndTouch);
+    activeDocument.removeEventListener("mousemove", this.handleEntryDragMove);
+    activeDocument.removeEventListener("mouseup", this.handleEntryDragEnd);
+    activeDocument.removeEventListener("touchmove", this.handleEntryDragMoveTouch);
+    activeDocument.removeEventListener("touchend", this.handleEntryDragEndTouch);
+    activeDocument.removeEventListener("touchcancel", this.handleEntryDragEndTouch);
     this.cleanupEntryDrag();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -13100,8 +13100,8 @@ var TimelineView = class extends import_obsidian5.ItemView {
   startEntryDrag(e, entry, card, mode) {
     e.preventDefault();
     this.initEntryDrag(e.clientY, entry, card, mode);
-    document.addEventListener("mousemove", this.handleEntryDragMove);
-    document.addEventListener("mouseup", this.handleEntryDragEnd);
+    activeDocument.addEventListener("mousemove", this.handleEntryDragMove);
+    activeDocument.addEventListener("mouseup", this.handleEntryDragEnd);
   }
   /**
    * Start dragging an entry (move or resize) - touch version
@@ -13111,9 +13111,9 @@ var TimelineView = class extends import_obsidian5.ItemView {
       return;
     e.preventDefault();
     this.initEntryDrag(e.touches[0].clientY, entry, card, mode);
-    document.addEventListener("touchmove", this.handleEntryDragMoveTouch, { passive: false });
-    document.addEventListener("touchend", this.handleEntryDragEndTouch);
-    document.addEventListener("touchcancel", this.handleEntryDragEndTouch);
+    activeDocument.addEventListener("touchmove", this.handleEntryDragMoveTouch, { passive: false });
+    activeDocument.addEventListener("touchend", this.handleEntryDragEndTouch);
+    activeDocument.addEventListener("touchcancel", this.handleEntryDragEndTouch);
   }
   /**
    * Initialize entry drag state (shared by mouse and touch)
@@ -14818,9 +14818,9 @@ var ReportsView = class extends import_obsidian8.ItemView {
     link2.href = url;
     link2.download = filename;
     link2.classList.add("is-hidden");
-    document.body.appendChild(link2);
+    activeDocument.body.appendChild(link2);
     link2.click();
-    document.body.removeChild(link2);
+    activeDocument.body.removeChild(link2);
     URL.revokeObjectURL(url);
     Logger.log("ReportsView: Exported CSV -", filename);
   }
@@ -14878,9 +14878,9 @@ var ReportsView = class extends import_obsidian8.ItemView {
     link2.href = url;
     link2.download = filename;
     link2.classList.add("is-hidden");
-    document.body.appendChild(link2);
+    activeDocument.body.appendChild(link2);
     link2.click();
-    document.body.removeChild(link2);
+    activeDocument.body.removeChild(link2);
     URL.revokeObjectURL(url);
     Logger.log("ReportsView: Exported JSON -", filename);
   }

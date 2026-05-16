@@ -997,9 +997,9 @@ export class ReportsView extends ItemView {
         link.download = filename;
         link.classList.add('is-hidden');
 
-        document.body.appendChild(link);
+        activeDocument.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+        activeDocument.body.removeChild(link);
 
         URL.revokeObjectURL(url);
 
@@ -1076,9 +1076,9 @@ export class ReportsView extends ItemView {
         link.download = filename;
         link.classList.add('is-hidden');
 
-        document.body.appendChild(link);
+        activeDocument.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+        activeDocument.body.removeChild(link);
 
         URL.revokeObjectURL(url);
 
