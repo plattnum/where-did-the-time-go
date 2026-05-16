@@ -508,7 +508,7 @@ var TimeTrackerSettingTab = class extends import_obsidian2.PluginSettingTab {
           projectsSection.createEl("p", { text: "No projects yet", cls: "client-empty-text" });
         } else {
           const projectsList = projectsSection.createDiv("client-items-list");
-          clientProjects.forEach((project, projectIndex) => {
+          clientProjects.forEach((project, _projectIndex) => {
             const actualIndex = this.plugin.settings.projects.indexOf(project);
             this.renderProjectItem(projectsList, project, actualIndex, container);
           });
