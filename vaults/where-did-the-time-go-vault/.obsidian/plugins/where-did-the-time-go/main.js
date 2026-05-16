@@ -13749,11 +13749,11 @@ var InvoiceModal = class extends import_obsidian6.Modal {
     contentEl.createEl("h2", { text: "Generate invoice" });
     const clientInfo = contentEl.createDiv("invoice-client-info");
     clientInfo.createEl("strong", { text: this.data.client.name });
-    clientInfo.createEl("span", {
+    clientInfo.createSpan({
       text: ` \u2022 ${this.formatDateRange(this.data.periodStart, this.data.periodEnd)}`,
       cls: "invoice-period"
     });
-    clientInfo.createEl("span", {
+    clientInfo.createSpan({
       text: ` \u2022 ${this.formatCurrency(this.data.totalAmount, this.data.client.currency)}`,
       cls: "invoice-amount"
     });

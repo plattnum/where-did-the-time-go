@@ -75,11 +75,11 @@ export class InvoiceModal extends Modal {
         // Client info (read-only)
         const clientInfo = contentEl.createDiv('invoice-client-info');
         clientInfo.createEl('strong', { text: this.data.client.name });
-        clientInfo.createEl('span', {
+        clientInfo.createSpan({
             text: ` • ${this.formatDateRange(this.data.periodStart, this.data.periodEnd)}`,
             cls: 'invoice-period',
         });
-        clientInfo.createEl('span', {
+        clientInfo.createSpan({
             text: ` • ${this.formatCurrency(this.data.totalAmount, this.data.client.currency)}`,
             cls: 'invoice-amount',
         });
