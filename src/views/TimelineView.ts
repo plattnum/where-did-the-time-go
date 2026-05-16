@@ -1175,20 +1175,23 @@ export class TimelineView extends ItemView {
      * Handle drag start - begin selecting time range
      */
     private handleDragStart(e: MouseEvent): void {
+        Logger.log('handleDragStart: fired, button=', e.button, 'target=', (e.target as HTMLElement).className);
         // Don't start drag on entry cards
         const target = e.target as HTMLElement;
         if (target.closest('.timeline-entry-card')) {
+            Logger.log('handleDragStart: skip, target inside entry card');
             return;
         }
 
         // Only left mouse button
-        if (e.button !== 0) return;
+        if (e.button !== 0) { Logger.log('handleDragStart: skip, non-left button'); return; }
 
         // Prevent multiple drags - if already dragging, ignore
-        if (this.isDragging) return;
+        if (this.isDragging) { Logger.log('handleDragStart: skip, already dragging'); return; }
 
         // Set dragging flag immediately to prevent race conditions
         this.isDragging = true;
+        Logger.log('handleDragStart: begin');
 
         // Clean up any stale selection element (safety measure)
         if (this.selectionEl) {
@@ -1230,18 +1233,23 @@ export class TimelineView extends ItemView {
      * Handle drag end - open create modal with selected time range
      */
     private handleDragEnd(e: MouseEvent): void {
-        if (!this.isDragging) return;
+        Logger.log('handleDragEnd: fired, isDragging=', this.isDragging);
+        if (!this.isDragging) { Logger.log('handleDragEnd: skip, not dragging'); return; }
 
         const rect = this.timelineInner.getBoundingClientRect();
         const endY = e.clientY - rect.top;
 
-        // Calculate start and end times
+        // Calculate pixel positions
         const minY = Math.min(this.dragStartY, endY);
         const maxY = Math.max(this.dragStartY, endY);
+        const dragDistance = maxY - minY;
 
-        // Only open modal if drag was significant (more than ~15 min worth)
-        const minDrag = this.settings.hourHeight / 4; // 15 minutes
-        if (maxY - minY < minDrag) {
+        // Filter true accidental clicks; a real click on the timeline is reserved
+        // for the double-click handler, so a tiny mousedown→mouseup with no movement
+        // should not create an entry.
+        const clickThreshold = 3;
+        if (dragDistance < clickThreshold) {
+            Logger.log('handleDragEnd: skip, treated as click (distance=', dragDistance, ')');
             this.cleanupDrag();
             return;
         }
@@ -1259,9 +1267,15 @@ export class TimelineView extends ItemView {
         const startHours = startYInDay / this.settings.hourHeight;
         const endHours = endYInDay / this.settings.hourHeight;
 
-        // Round to nearest 15 minutes
+        // Snap to the nearest 15-minute grid line first; if the drag collapses
+        // to a single slot, expand end by 15 minutes so the modal always opens
+        // with a usable range.
         const startTime = this.roundToTimeString(startHours);
-        const endTime = this.roundToTimeString(endHours);
+        let endTime = this.roundToTimeString(endHours);
+        if (startTime === endTime) {
+            endTime = this.addQuarterHour(startTime);
+            Logger.log('handleDragEnd: snapped to single slot, expanded end by 15min');
+        }
 
         Logger.log('Drag selection:', clickedDate.toDateString(), startTime, '-', endTime);
 
@@ -1274,6 +1288,7 @@ export class TimelineView extends ItemView {
      */
     private handleDragCancel(_e: MouseEvent): void {
         if (this.isDragging) {
+            Logger.log('handleDragCancel: mouseleave killed in-progress drag');
             this.cleanupDrag();
         }
     }
@@ -1339,11 +1354,13 @@ export class TimelineView extends ItemView {
      * Handle touch end - open create modal with selected time range (touch version)
      */
     private handleDragEndTouch(e: TouchEvent): void {
-        if (!this.isDragging) return;
+        Logger.log('handleDragEndTouch: fired, isDragging=', this.isDragging);
+        if (!this.isDragging) { Logger.log('handleDragEndTouch: skip, not dragging'); return; }
 
         // Use changedTouches for touchend
         const touch = e.changedTouches?.[0];
         if (!touch) {
+            Logger.log('handleDragEndTouch: skip, no changedTouches');
             this.cleanupDrag();
             return;
         }
@@ -1351,13 +1368,17 @@ export class TimelineView extends ItemView {
         const rect = this.timelineInner.getBoundingClientRect();
         const endY = touch.clientY - rect.top;
 
-        // Calculate start and end times
+        // Calculate pixel positions
         const minY = Math.min(this.dragStartY, endY);
         const maxY = Math.max(this.dragStartY, endY);
+        const dragDistance = maxY - minY;
 
-        // Only open modal if drag was significant (more than ~15 min worth)
-        const minDrag = this.settings.hourHeight / 4; // 15 minutes
-        if (maxY - minY < minDrag) {
+        // Filter true accidental taps; a real tap is reserved for the
+        // double-tap/double-click handler, so a tiny touchstart→touchend
+        // with no movement should not create an entry.
+        const clickThreshold = 3;
+        if (dragDistance < clickThreshold) {
+            Logger.log('handleDragEndTouch: skip, treated as tap (distance=', dragDistance, ')');
             this.cleanupDrag();
             return;
         }
@@ -1375,9 +1396,15 @@ export class TimelineView extends ItemView {
         const startHours = startYInDay / this.settings.hourHeight;
         const endHours = endYInDay / this.settings.hourHeight;
 
-        // Round to nearest 15 minutes
+        // Snap to the nearest 15-minute grid line first; if the drag collapses
+        // to a single slot, expand end by 15 minutes so the modal always opens
+        // with a usable range.
         const startTime = this.roundToTimeString(startHours);
-        const endTime = this.roundToTimeString(endHours);
+        let endTime = this.roundToTimeString(endHours);
+        if (startTime === endTime) {
+            endTime = this.addQuarterHour(startTime);
+            Logger.log('handleDragEndTouch: snapped to single slot, expanded end by 15min');
+        }
 
         Logger.log('Touch drag selection:', clickedDate.toDateString(), startTime, '-', endTime);
 
@@ -1451,6 +1478,18 @@ export class TimelineView extends ItemView {
         const h = Math.floor(totalMinutes / 60) % 24;
         const m = totalMinutes % 60;
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    }
+
+    /**
+     * Add 15 minutes to an HH:mm time string. Wraps past 23:45 to 00:00
+     * (caller is responsible for advancing the date if needed).
+     */
+    private addQuarterHour(time: string): string {
+        const [h, m] = time.split(':').map(n => parseInt(n, 10));
+        const total = h * 60 + m + 15;
+        const newH = Math.floor(total / 60) % 24;
+        const newM = total % 60;
+        return `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`;
     }
 
     /**

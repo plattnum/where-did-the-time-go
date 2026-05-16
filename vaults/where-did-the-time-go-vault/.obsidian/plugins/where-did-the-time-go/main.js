@@ -13457,15 +13457,22 @@ var TimelineView = class extends import_obsidian5.ItemView {
    * Handle drag start - begin selecting time range
    */
   handleDragStart(e) {
+    Logger.log("handleDragStart: fired, button=", e.button, "target=", e.target.className);
     const target = e.target;
     if (target.closest(".timeline-entry-card")) {
+      Logger.log("handleDragStart: skip, target inside entry card");
       return;
     }
-    if (e.button !== 0)
+    if (e.button !== 0) {
+      Logger.log("handleDragStart: skip, non-left button");
       return;
-    if (this.isDragging)
+    }
+    if (this.isDragging) {
+      Logger.log("handleDragStart: skip, already dragging");
       return;
+    }
     this.isDragging = true;
+    Logger.log("handleDragStart: begin");
     if (this.selectionEl) {
       this.selectionEl.remove();
       this.selectionEl = null;
@@ -13495,14 +13502,19 @@ var TimelineView = class extends import_obsidian5.ItemView {
    * Handle drag end - open create modal with selected time range
    */
   handleDragEnd(e) {
-    if (!this.isDragging)
+    Logger.log("handleDragEnd: fired, isDragging=", this.isDragging);
+    if (!this.isDragging) {
+      Logger.log("handleDragEnd: skip, not dragging");
       return;
+    }
     const rect = this.timelineInner.getBoundingClientRect();
     const endY = e.clientY - rect.top;
     const minY = Math.min(this.dragStartY, endY);
     const maxY = Math.max(this.dragStartY, endY);
-    const minDrag = this.settings.hourHeight / 4;
-    if (maxY - minY < minDrag) {
+    const dragDistance = maxY - minY;
+    const clickThreshold = 3;
+    if (dragDistance < clickThreshold) {
+      Logger.log("handleDragEnd: skip, treated as click (distance=", dragDistance, ")");
       this.cleanupDrag();
       return;
     }
@@ -13515,7 +13527,11 @@ var TimelineView = class extends import_obsidian5.ItemView {
     const startHours = startYInDay / this.settings.hourHeight;
     const endHours = endYInDay / this.settings.hourHeight;
     const startTime = this.roundToTimeString(startHours);
-    const endTime = this.roundToTimeString(endHours);
+    let endTime = this.roundToTimeString(endHours);
+    if (startTime === endTime) {
+      endTime = this.addQuarterHour(startTime);
+      Logger.log("handleDragEnd: snapped to single slot, expanded end by 15min");
+    }
     Logger.log("Drag selection:", clickedDate.toDateString(), startTime, "-", endTime);
     this.cleanupDrag();
     this.openCreateModalWithRange(clickedDate, startTime, endTime);
@@ -13525,6 +13541,7 @@ var TimelineView = class extends import_obsidian5.ItemView {
    */
   handleDragCancel(_e) {
     if (this.isDragging) {
+      Logger.log("handleDragCancel: mouseleave killed in-progress drag");
       this.cleanupDrag();
     }
   }
@@ -13573,10 +13590,14 @@ var TimelineView = class extends import_obsidian5.ItemView {
    */
   handleDragEndTouch(e) {
     var _a;
-    if (!this.isDragging)
+    Logger.log("handleDragEndTouch: fired, isDragging=", this.isDragging);
+    if (!this.isDragging) {
+      Logger.log("handleDragEndTouch: skip, not dragging");
       return;
+    }
     const touch = (_a = e.changedTouches) == null ? void 0 : _a[0];
     if (!touch) {
+      Logger.log("handleDragEndTouch: skip, no changedTouches");
       this.cleanupDrag();
       return;
     }
@@ -13584,8 +13605,10 @@ var TimelineView = class extends import_obsidian5.ItemView {
     const endY = touch.clientY - rect.top;
     const minY = Math.min(this.dragStartY, endY);
     const maxY = Math.max(this.dragStartY, endY);
-    const minDrag = this.settings.hourHeight / 4;
-    if (maxY - minY < minDrag) {
+    const dragDistance = maxY - minY;
+    const clickThreshold = 3;
+    if (dragDistance < clickThreshold) {
+      Logger.log("handleDragEndTouch: skip, treated as tap (distance=", dragDistance, ")");
       this.cleanupDrag();
       return;
     }
@@ -13598,7 +13621,11 @@ var TimelineView = class extends import_obsidian5.ItemView {
     const startHours = startYInDay / this.settings.hourHeight;
     const endHours = endYInDay / this.settings.hourHeight;
     const startTime = this.roundToTimeString(startHours);
-    const endTime = this.roundToTimeString(endHours);
+    let endTime = this.roundToTimeString(endHours);
+    if (startTime === endTime) {
+      endTime = this.addQuarterHour(startTime);
+      Logger.log("handleDragEndTouch: snapped to single slot, expanded end by 15min");
+    }
     Logger.log("Touch drag selection:", clickedDate.toDateString(), startTime, "-", endTime);
     this.cleanupDrag();
     this.openCreateModalWithRange(clickedDate, startTime, endTime);
@@ -13658,6 +13685,17 @@ var TimelineView = class extends import_obsidian5.ItemView {
     const h = Math.floor(totalMinutes / 60) % 24;
     const m = totalMinutes % 60;
     return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+  }
+  /**
+   * Add 15 minutes to an HH:mm time string. Wraps past 23:45 to 00:00
+   * (caller is responsible for advancing the date if needed).
+   */
+  addQuarterHour(time) {
+    const [h, m] = time.split(":").map((n) => parseInt(n, 10));
+    const total = h * 60 + m + 15;
+    const newH = Math.floor(total / 60) % 24;
+    const newM = total % 60;
+    return `${newH.toString().padStart(2, "0")}:${newM.toString().padStart(2, "0")}`;
   }
   /**
    * Open create modal with pre-filled start and end times
