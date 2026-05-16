@@ -1486,34 +1486,6 @@
    Client-related Styles
    ======================================== */
 
-/* Settings: Client list */
-.clients-container {
-    margin-bottom: 16px;
-}
-
-.client-setting {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-radius: 6px;
-    background: var(--background-secondary);
-    margin-bottom: 4px;
-}
-
-.client-setting.is-archived {
-    opacity: 0.6;
-}
-
-.client-setting .setting-item-name {
-    flex-grow: 1;
-}
-
-.client-setting .setting-item-description {
-    color: var(--text-muted);
-    font-size: 12px;
-}
-
 /* Client modal */
 .client-modal {
     max-width: 500px;
