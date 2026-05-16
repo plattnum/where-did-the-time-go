@@ -1,6 +1,6 @@
 /* Where Did The Time Go - Timeline Styles */
 
-/* CSS Variables - adapt to Obsidian theme */
+/* Main container - CSS variables adapt to Obsidian theme */
 .time-tracker-timeline {
     --tt-bg: var(--background-primary);
     --tt-bg-secondary: var(--background-secondary);
@@ -12,6 +12,12 @@
     --tt-card-bg: var(--background-primary-alt);
     --tt-radius: 8px;
     --tt-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
 }
 
 /* Dark theme overrides */
@@ -22,15 +28,6 @@
 /* Utility classes */
 .is-hidden {
     display: none !important;
-}
-
-/* Main container */
-.time-tracker-timeline {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    padding: 0;
-    overflow: hidden;
 }
 
 /* Header */
@@ -1148,7 +1145,7 @@
 
 /* ===== Reports View Styles ===== */
 
-/* CSS Variables - adapt to Obsidian theme */
+/* Main container - CSS variables adapt to Obsidian theme */
 .time-tracker-reports {
     --tt-bg: var(--background-primary);
     --tt-bg-secondary: var(--background-secondary);
@@ -1160,19 +1157,16 @@
     --tt-card-bg: var(--background-primary-alt);
     --tt-radius: 8px;
     --tt-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
 
-.theme-dark .time-tracker-reports {
-    --tt-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Main container */
-.time-tracker-reports {
     display: flex;
     flex-direction: column;
     height: 100%;
     padding: 0;
     overflow: hidden;
+}
+
+.theme-dark .time-tracker-reports {
+    --tt-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 /* Header */
