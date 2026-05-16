@@ -992,7 +992,7 @@ export class ReportsView extends ItemView {
         const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
 
-        const link = document.createElement('a');
+        const link = createEl('a');
         link.href = url;
         link.download = filename;
         link.classList.add('is-hidden');
@@ -1071,7 +1071,7 @@ export class ReportsView extends ItemView {
         const blob = new Blob([content], { type: 'application/json;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
 
-        const link = document.createElement('a');
+        const link = createEl('a');
         link.href = url;
         link.download = filename;
         link.classList.add('is-hidden');

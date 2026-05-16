@@ -14776,7 +14776,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
   downloadCSV(content3, filename) {
     const blob = new Blob([content3], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const link2 = document.createElement("a");
+    const link2 = createEl("a");
     link2.href = url;
     link2.download = filename;
     link2.classList.add("is-hidden");
@@ -14836,7 +14836,7 @@ var ReportsView = class extends import_obsidian8.ItemView {
   downloadJSON(content3, filename) {
     const blob = new Blob([content3], { type: "application/json;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const link2 = document.createElement("a");
+    const link2 = createEl("a");
     link2.href = url;
     link2.download = filename;
     link2.classList.add("is-hidden");
