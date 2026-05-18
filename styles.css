@@ -26,8 +26,10 @@
 }
 
 /* Utility classes */
-.is-hidden {
-    display: none !important;
+/* Doubled class bumps specificity to (0,2,0) so this wins against component
+   styles like .reports-custom-dates (display: flex) without raising weight. */
+.is-hidden.is-hidden {
+    display: none;
 }
 
 /* Header */
@@ -224,7 +226,7 @@
     cursor: grabbing;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     z-index: 100;
-    transition: none !important;
+    transition: none;
 }
 
 /* Resize handles */
@@ -419,7 +421,7 @@
 
 .timeline-entry-card.entry-15m .entry-card-body,
 .timeline-entry-card.entry-15m .entry-card-footer {
-    display: none !important;
+    display: none;
 }
 
 /* Tiny tags container (15m only) */
@@ -772,7 +774,7 @@
 
 /* Overlap validation - error state for time inputs */
 .time-tracker-entry-modal input.time-input-error {
-    border-color: var(--text-error) !important;
+    border-color: var(--text-error);
     box-shadow: 0 0 0 1px var(--text-error);
 }
 
@@ -1843,16 +1845,6 @@
     color: var(--text-muted);
     font-style: italic;
     margin: 4px 0;
-}
-
-/* Error state for inputs */
-.time-input-error {
-    border-color: #dc2626 !important;
-    background-color: rgba(220, 38, 38, 0.05) !important;
-}
-
-.time-input-error:focus {
-    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
 }
 
 /* ==========================================================================
