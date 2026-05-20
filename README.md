@@ -4,6 +4,9 @@
 
 **A visual time tracking plugin for Obsidian.** An infinite-scroll timeline to log your hours, hierarchical reports to see where they went, and one-click invoicing to bill for them. Your data stays in your vault as plain markdown tables - no cloud, no sync, no subscriptions.
 
+> [!IMPORTANT]
+> **Experimental: AI-drivable CLI** — There's now a companion command-line tool, **[o-wdttg-cli](https://github.com/plattnum/o-wdttg-cli)**, that exposes this plugin through the new Obsidian CLI. It creates an AI-drivable surface so agents (like Claude) can read, write, and report on your time entries on your behalf. Experimental — build from source for now. Future releases plan to ship pre-built binaries downloadable from the plugin settings.
+
 ## Why This Exists
 
 I got tired of:
