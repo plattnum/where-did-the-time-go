@@ -18,32 +18,27 @@ export class TimePickerPopup {
         private readonly onClose: () => void,
     ) {
         const doc = anchor.ownerDocument;
-        this.element = doc.createElement('div');
+        this.element = anchor.parentElement.createEl('div');
         this.element.className = 'time-picker-popup';
         this.element.id = anchor.getAttribute('aria-controls')!;
         this.element.setAttribute('role', 'dialog');
         this.element.setAttribute('aria-label', `Choose ${label.toLowerCase()} time`);
-        anchor.parentElement.appendChild(this.element);
 
-        const choices = doc.createElement('div');
+        const choices = this.element.createEl('div');
         choices.className = 'time-picker-columns';
-        this.element.appendChild(choices);
         columns.forEach((column, columnIndex) => {
-            const section = doc.createElement('div');
+            const section = choices.createEl('div');
             section.className = 'time-picker-column';
-            const heading = doc.createElement('div');
+            const heading = section.createEl('div');
             heading.className = 'time-picker-column-heading';
             heading.textContent = column.label;
-            section.appendChild(heading);
-            const list = doc.createElement('div');
+            const list = section.createEl('div');
             list.className = 'time-picker-options';
             list.setAttribute('role', 'listbox');
             list.setAttribute('aria-label', column.label);
-            section.appendChild(list);
-            choices.appendChild(section);
             this.lists.push(list);
             column.values.forEach((value, index) => {
-                const option = doc.createElement('button');
+                const option = list.createEl('button');
                 option.type = 'button';
                 option.textContent = value;
                 option.dataset.value = value;
@@ -79,15 +74,13 @@ export class TimePickerPopup {
                     next.click();
                     next.focus();
                 });
-                list.appendChild(option);
             });
         });
-        const done = doc.createElement('button');
+        const done = this.element.createEl('button');
         done.type = 'button';
         done.className = 'time-picker-done';
         done.textContent = 'Done';
         done.addEventListener('click', () => this.close(true));
-        this.element.appendChild(done);
 
         // Top-layer presentation avoids clipping by the entry modal's scroll container.
         if (typeof this.element.showPopover === 'function') {

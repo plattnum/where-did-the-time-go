@@ -128,9 +128,9 @@ export class DataManager {
 
         // Prune cache if over limit (FIFO - Map maintains insertion order)
         if (this.cache.size > DataManager.MAX_CACHED_MONTHS) {
-            const firstKey = this.cache.keys().next() as IteratorResult<string, undefined>;
-            if (!firstKey.done && firstKey.value) {
-                this.cache.delete(firstKey.value);
+            for (const firstKey of this.cache.keys()) {
+                this.cache.delete(firstKey);
+                break;
             }
         }
 

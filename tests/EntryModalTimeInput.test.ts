@@ -5,9 +5,11 @@ import { TimeInput } from '../src/components/TimeInput';
 import { DataManager } from '../src/data/DataManager';
 import { EntryModal } from '../src/modals/EntryModal';
 import { DEFAULT_SETTINGS } from '../src/types';
+import { installObsidianDomHelpers } from './__mocks__/obsidianDom';
 
 function setup(use24HourFormat = true) {
     const dom = new JSDOM();
+    installObsidianDomHelpers(dom.window.Node.prototype);
     const doc = dom.window.document;
     const createEntry = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const dataManager = {

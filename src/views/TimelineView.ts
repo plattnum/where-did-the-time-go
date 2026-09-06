@@ -77,7 +77,7 @@ export class TimelineView extends ItemView {
         this.centerDate.setHours(0, 0, 0, 0);
         await this.render();
         // Scroll to show today at dayStartHour
-        requestAnimationFrame(() => {
+        this.timelineContainer.ownerDocument.defaultView?.requestAnimationFrame(() => {
             const targetOffset = this.visibleDaysBuffer * this.dayHeight +
                 this.settings.dayStartHour * this.settings.hourHeight;
             this.timelineContainer.scrollTop = targetOffset;

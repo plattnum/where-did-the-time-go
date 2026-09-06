@@ -285,10 +285,10 @@ export class TableParser {
         // Header row
         tableRows.push({
             type: 'tableRow',
-            children: this.HEADERS.map(h => ({
+            children: this.HEADERS.map<TableCell>(h => ({
                 type: 'tableCell',
                 children: [{ type: 'text', value: h }],
-            })) as TableCell[],
+            })),
         });
 
         // Data rows

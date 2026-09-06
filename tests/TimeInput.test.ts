@@ -1,6 +1,9 @@
 /** @jest-environment jsdom */
 import { jest } from '@jest/globals';
 import { TimeInput } from '../src/components/TimeInput';
+import { installObsidianDomHelpers } from './__mocks__/obsidianDom';
+
+beforeAll(() => installObsidianDomHelpers(Node.prototype));
 
 const controls: TimeInput[] = [];
 afterEach(() => {

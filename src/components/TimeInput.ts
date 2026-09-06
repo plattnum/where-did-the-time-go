@@ -17,35 +17,30 @@ export class TimeInput {
         value: string,
         private readonly onChange: (value: string) => void,
     ) {
-        const doc = container.ownerDocument;
-        this.inputEl = doc.createElement('div');
+        this.inputEl = container.createEl('div');
         this.inputEl.className = 'time-picker';
         this.inputEl.setAttribute('role', 'group');
         this.inputEl.setAttribute('aria-label', `${label} time`);
-        container.appendChild(this.inputEl);
 
         this.hours = this.createSegment(`${label} hours`, use24HourFormat ? 0 : 1, use24HourFormat ? 23 : 12);
-        const separator = doc.createElement('span');
+        const separator = this.inputEl.createEl('span');
         separator.textContent = ':';
         separator.setAttribute('aria-hidden', 'true');
-        this.inputEl.appendChild(separator);
         this.minutes = this.createSegment(`${label} minutes`, 0, 59);
 
         this.period = null;
         if (!use24HourFormat) {
-            this.period = doc.createElement('select');
+            this.period = this.inputEl.createEl('select');
             this.period.setAttribute('aria-label', `${label} AM or PM`);
             for (const period of ['AM', 'PM']) {
-                const option = doc.createElement('option');
+                const option = this.period.createEl('option');
                 option.value = period;
                 option.textContent = period;
-                this.period.appendChild(option);
             }
             this.period.addEventListener('change', () => this.notifyChange());
-            this.inputEl.appendChild(this.period);
         }
 
-        this.pickerButton = doc.createElement('button');
+        this.pickerButton = this.inputEl.createEl('button');
         this.pickerButton.type = 'button';
         this.pickerButton.className = 'time-picker-toggle';
         this.pickerButton.setAttribute('aria-label', `Choose ${label.toLowerCase()} time`);
@@ -53,22 +48,19 @@ export class TimeInput {
         this.pickerButton.setAttribute('aria-expanded', 'false');
         this.pickerButton.setAttribute('aria-controls', `time-picker-popup-${TimeInput.nextId++}`);
         this.pickerButton.title = 'Choose time';
-        const icon = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const icon = this.pickerButton.createSvg('svg');
         icon.setAttribute('viewBox', '0 0 24 24');
         icon.setAttribute('aria-hidden', 'true');
-        const face = doc.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        const face = icon.createSvg('circle');
         face.setAttribute('cx', '12');
         face.setAttribute('cy', '12');
         face.setAttribute('r', '9');
-        const hands = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const hands = icon.createSvg('path');
         hands.setAttribute('d', 'M12 6v6l4 2');
-        icon.append(face, hands);
-        this.pickerButton.appendChild(icon);
         this.pickerButton.addEventListener('click', () => {
             if (this.popup) this.popup.close();
             else this.openPicker();
         });
-        this.inputEl.appendChild(this.pickerButton);
         this.inputEl.addEventListener('keydown', (event) => {
             if (event.altKey && event.key === 'ArrowDown') {
                 event.preventDefault();
@@ -147,7 +139,7 @@ export class TimeInput {
     }
 
     private createSegment(label: string, min: number, max: number): HTMLInputElement {
-        const input = this.inputEl.ownerDocument.createElement('input');
+        const input = this.inputEl.createEl('input');
         input.type = 'text';
         input.inputMode = 'numeric';
         input.autocomplete = 'off';
@@ -174,7 +166,6 @@ export class TimeInput {
             input.select();
             this.notifyChange();
         });
-        this.inputEl.appendChild(input);
         return input;
     }
 
