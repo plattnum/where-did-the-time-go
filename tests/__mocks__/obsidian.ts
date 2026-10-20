@@ -13,6 +13,11 @@ export class ItemView {
 
 export class Setting {}
 
+export class PluginSettingTab {
+    constructor(..._args: unknown[]) {}
+    update(): void {}
+}
+
 export class Notice {
     constructor(message: string) {
         // Mock notice

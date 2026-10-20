@@ -1,244 +1,218 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
-import type { Project, Activity } from './types';
+import { App, PluginSettingTab, SettingDefinitionItem } from 'obsidian';
+import type { Project, Activity, BillFrom, TimeTrackerSettings } from './types';
+import { DEFAULT_SETTINGS } from './types';
 import type WhereDidTheTimeGoPlugin from '../main';
 import { ClientModal } from './modals/ClientModal';
+
+const BILL_FROM_PREFIX = 'billFrom.';
+
+type SettingKey = keyof TimeTrackerSettings | `billFrom.${keyof BillFrom}`;
+
+/** Converts control values back into the stored settings shape. */
+const NORMALIZERS: Partial<Record<SettingKey, (value: unknown) => unknown>> = {
+    timeTrackingFolder: (value) => value || DEFAULT_SETTINGS.timeTrackingFolder,
+    invoiceFolder: (value) => value || DEFAULT_SETTINGS.invoiceFolder,
+    dayStartHour: (value) => parseInt(value as string),
+    dayEndHour: (value) => parseInt(value as string),
+    descriptionMaxLength: (value) => Math.max(0, Math.trunc(value as number) || 0),
+};
 
 export class TimeTrackerSettingTab extends PluginSettingTab {
     plugin: WhereDidTheTimeGoPlugin;
     private expandedClients: Set<string> = new Set();
+    private clientsContainer: HTMLElement | null = null;
 
     constructor(app: App, plugin: WhereDidTheTimeGoPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
 
-    display(): void {
-        const { containerEl } = this;
-        containerEl.empty();
-
-        containerEl.createEl('p', {
-            text: 'Configure your time tracking settings.',
-            cls: 'setting-item-description'
-        });
-
-        // Storage Settings
-        new Setting(containerEl).setName("Storage").setHeading();
-
-        new Setting(containerEl)
-            .setName('Time tracking folder')
-            .setDesc('Folder where time entries will be stored (relative to vault root)')
-            .addText(text => text
-                .setPlaceholder('Enter folder name')
-                .setValue(this.plugin.settings.timeTrackingFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.timeTrackingFolder = value || 'TimeTracking';
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Auto-create folder')
-            .setDesc('Automatically create the time tracking folder if it doesn\'t exist')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.autoCreateFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.autoCreateFolder = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Hide tables in reading view')
-            .setDesc('Wrap data tables in %% comment markers to hide them in reading view. Disable to see raw table data.')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.hideTablesInPreview)
-                .onChange(async (value) => {
-                    this.plugin.settings.hideTablesInPreview = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        // Timeline Display Settings
-        new Setting(containerEl).setName("Timeline display").setHeading();
-
-        new Setting(containerEl)
-            .setName('Hour height')
-            .setDesc('Height in pixels for each hour in the timeline view')
-            .addSlider(slider => slider
-                .setLimits(200, 240, 10)
-                .setValue(this.plugin.settings.hourHeight)
-                .setDynamicTooltip()
-                .onChange(async (value) => {
-                    this.plugin.settings.hourHeight = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Day start hour')
-            .setDesc('First hour to display in the timeline (0-23)')
-            .addDropdown(dropdown => {
-                for (let i = 0; i <= 12; i++) {
-                    dropdown.addOption(i.toString(), `${i}:00`);
-                }
-                dropdown.setValue(this.plugin.settings.dayStartHour.toString());
-                dropdown.onChange(async (value) => {
-                    this.plugin.settings.dayStartHour = parseInt(value);
-                    await this.plugin.saveSettings();
-                });
-            });
-
-        new Setting(containerEl)
-            .setName('Day end hour')
-            .setDesc('Last hour to display in the timeline (0-23)')
-            .addDropdown(dropdown => {
-                for (let i = 18; i <= 24; i++) {
-                    dropdown.addOption(i.toString(), i === 24 ? '24:00 (midnight)' : `${i}:00`);
-                }
-                dropdown.setValue(this.plugin.settings.dayEndHour.toString());
-                dropdown.onChange(async (value) => {
-                    this.plugin.settings.dayEndHour = parseInt(value);
-                    await this.plugin.saveSettings();
-                });
-            });
-
-        new Setting(containerEl)
-            .setName('24-hour format')
-            .setDesc('Use 24-hour time format instead of 12-hour')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.use24HourFormat)
-                .onChange(async (value) => {
-                    this.plugin.settings.use24HourFormat = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Description max length')
-            .setDesc('Maximum characters for entry descriptions (0 = no limit)')
-            .addText(text => text
-                .setValue(this.plugin.settings.descriptionMaxLength.toString())
-                .setPlaceholder('200')
-                .onChange(async (value) => {
-                    const num = parseInt(value) || 0;
-                    this.plugin.settings.descriptionMaxLength = Math.max(0, num);
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Week start')
-            .setDesc('First day of the week')
-            .addDropdown(dropdown => dropdown
-                .addOption('monday', 'Monday')
-                .addOption('sunday', 'Sunday')
-                .setValue(this.plugin.settings.weekStart)
-                .onChange(async (value: 'monday' | 'sunday') => {
-                    this.plugin.settings.weekStart = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        // Billing Section
-        new Setting(containerEl).setName("Billing").setHeading();
-
-        new Setting(containerEl)
-            .setName('Enable billing and invoicing')
-            .setDesc('Show client rates, billable amounts in reports, and invoice generation. Turning this off hides them without deleting any saved billing details.')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.enableBilling)
-                .onChange(async (value) => {
-                    this.plugin.settings.enableBilling = value;
-                    await this.plugin.saveSettings();
-                    // Re-render to show/hide billing settings
-                    this.display();
-                }));
-
-        if (this.plugin.settings.enableBilling) {
-            this.renderBillFromSettings(containerEl);
+    getSettingDefinitions(): SettingDefinitionItem<SettingKey>[] {
+        const billingEnabled = () => this.plugin.settings.enableBilling;
+        const dayStartOptions: Record<string, string> = {};
+        for (let i = 0; i <= 12; i++) {
+            dayStartOptions[i.toString()] = `${i}:00`;
+        }
+        const dayEndOptions: Record<string, string> = {};
+        for (let i = 18; i <= 24; i++) {
+            dayEndOptions[i.toString()] = i === 24 ? '24:00 (midnight)' : `${i}:00`;
         }
 
-        // Clients Section
-        new Setting(containerEl).setName("Clients").setHeading();
-        containerEl.createEl('p', {
-            text: this.plugin.settings.enableBilling
-                ? 'Define clients for billing. Projects can be assigned to clients for invoicing.'
-                : 'Define clients to group your time. Projects and activities belong to a client.',
-            cls: 'setting-item-description'
-        });
-
-        // Client list
-        const clientsContainer = containerEl.createDiv('clients-container');
-        this.renderClientsList(clientsContainer);
-
-        // Add new client button
-        new Setting(containerEl)
-            .addButton(button => button
-                .setButtonText('Add client')
-                .setCta()
-                .onClick(() => {
-                    const modal = new ClientModal(
-                        this.app,
-                        { mode: 'create', enableBilling: this.plugin.settings.enableBilling },
-                        (client) => {
-                            this.plugin.settings.clients.push(client);
-                            void this.plugin.saveSettings().then(() => {
-                                this.renderClientsList(clientsContainer);
-                            });
-                        }
-                    );
-                    modal.open();
-                }));
-
-        // Developer Settings
-        new Setting(containerEl).setName("Developer").setHeading();
-
-        new Setting(containerEl)
-            .setName('Debug mode')
-            .setDesc('Enable verbose logging to the developer console (useful for troubleshooting)')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.debugMode)
-                .onChange(async (value) => {
-                    this.plugin.settings.debugMode = value;
-                    await this.plugin.saveSettings();
-                }));
+        return [
+            {
+                type: 'group',
+                heading: 'Storage',
+                items: [
+                    {
+                        name: 'Time tracking folder',
+                        desc: 'Folder where time entries will be stored (relative to vault root)',
+                        control: { type: 'text', key: 'timeTrackingFolder', placeholder: 'Enter folder name' },
+                    },
+                    {
+                        name: 'Auto-create folder',
+                        desc: 'Automatically create the time tracking folder if it doesn\'t exist',
+                        control: { type: 'toggle', key: 'autoCreateFolder' },
+                    },
+                    {
+                        name: 'Hide tables in reading view',
+                        desc: 'Wrap data tables in %% comment markers to hide them in reading view. Disable to see raw table data.',
+                        control: { type: 'toggle', key: 'hideTablesInPreview' },
+                    },
+                ],
+            },
+            {
+                type: 'group',
+                heading: 'Timeline display',
+                items: [
+                    {
+                        name: 'Hour height',
+                        desc: 'Height in pixels for each hour in the timeline view',
+                        control: { type: 'slider', key: 'hourHeight', min: 200, max: 240, step: 10 },
+                    },
+                    {
+                        name: 'Day start hour',
+                        desc: 'First hour to display in the timeline (0-23)',
+                        control: { type: 'dropdown', key: 'dayStartHour', options: dayStartOptions },
+                    },
+                    {
+                        name: 'Day end hour',
+                        desc: 'Last hour to display in the timeline (0-23)',
+                        control: { type: 'dropdown', key: 'dayEndHour', options: dayEndOptions },
+                    },
+                    {
+                        name: '24-hour format',
+                        desc: 'Use 24-hour time format instead of 12-hour',
+                        control: { type: 'toggle', key: 'use24HourFormat' },
+                    },
+                    {
+                        name: 'Description max length',
+                        desc: 'Maximum characters for entry descriptions (0 = no limit)',
+                        control: { type: 'number', key: 'descriptionMaxLength', placeholder: '200', min: 0 },
+                    },
+                    {
+                        name: 'Week start',
+                        desc: 'First day of the week',
+                        control: { type: 'dropdown', key: 'weekStart', options: { monday: 'Monday', sunday: 'Sunday' } },
+                    },
+                ],
+            },
+            {
+                type: 'group',
+                heading: 'Billing',
+                items: [
+                    {
+                        name: 'Enable billing and invoicing',
+                        desc: 'Show client rates, billable amounts in reports, and invoice generation. Turning this off hides them without deleting any saved billing details.',
+                        control: { type: 'toggle', key: 'enableBilling' },
+                    },
+                    {
+                        name: 'Invoice folder',
+                        desc: 'Folder where invoices will be saved (created automatically)',
+                        visible: billingEnabled,
+                        control: { type: 'text', key: 'invoiceFolder', placeholder: 'Enter folder path' },
+                    },
+                ],
+            },
+            {
+                type: 'group',
+                heading: 'Bill from',
+                visible: billingEnabled,
+                items: [
+                    {
+                        name: 'Name',
+                        desc: 'Your name or business name, as it appears on invoices',
+                        control: { type: 'text', key: 'billFrom.name', placeholder: 'Enter name' },
+                    },
+                    {
+                        name: 'Address',
+                        desc: 'Your billing address (multi-line), as it appears on invoices',
+                        control: { type: 'textarea', key: 'billFrom.address', placeholder: 'Enter address' },
+                    },
+                ],
+            },
+            {
+                type: 'group',
+                heading: 'Clients',
+                items: [
+                    {
+                        name: 'Add client',
+                        desc: this.plugin.settings.enableBilling
+                            ? 'Define clients for billing. Projects can be assigned to clients for invoicing.'
+                            : 'Define clients to group your time. Projects and activities belong to a client.',
+                        aliases: ['Projects', 'Activities'],
+                        render: (setting) => {
+                            setting.addButton(button => button
+                                .setButtonText('Add client')
+                                .setCta()
+                                .onClick(() => this.openNewClientModal()));
+                        },
+                    },
+                    {
+                        // The client cards are custom UI, so this row only hosts them.
+                        name: 'Client list',
+                        searchable: false,
+                        render: (setting) => {
+                            setting.settingEl.addClass('clients-setting-item');
+                            const container = setting.settingEl.createDiv('clients-container');
+                            this.clientsContainer = container;
+                            this.renderClientsList(container);
+                            return () => {
+                                if (this.clientsContainer === container) this.clientsContainer = null;
+                            };
+                        },
+                    },
+                ],
+            },
+            {
+                type: 'group',
+                heading: 'Developer',
+                items: [
+                    {
+                        name: 'Debug mode',
+                        desc: 'Enable verbose logging to the developer console (useful for troubleshooting)',
+                        control: { type: 'toggle', key: 'debugMode' },
+                    },
+                ],
+            },
+        ];
     }
 
-    /**
-     * Render the bill-from details and invoice folder (only shown when billing is enabled)
-     */
-    private renderBillFromSettings(containerEl: HTMLElement): void {
-        new Setting(containerEl).setName("Bill from").setHeading();
-        containerEl.createEl('p', {
-            text: 'Your billing information that appears on invoices.',
-            cls: 'setting-item-description'
-        });
+    getControlValue(key: string): unknown {
+        const settings = this.plugin.settings;
+        if (key.startsWith(BILL_FROM_PREFIX)) {
+            return settings.billFrom[key.slice(BILL_FROM_PREFIX.length) as keyof BillFrom];
+        }
+        // Dropdown controls carry strings, but these settings are stored as numbers.
+        if (key === 'dayStartHour' || key === 'dayEndHour') return String(settings[key]);
+        return settings[key as keyof TimeTrackerSettings];
+    }
 
-        new Setting(containerEl)
-            .setName('Name')
-            .setDesc('Your name or business name')
-            .addText(text => text
-                .setPlaceholder('Enter name')
-                .setValue(this.plugin.settings.billFrom.name)
-                .onChange(async (value) => {
-                    this.plugin.settings.billFrom.name = value;
-                    await this.plugin.saveSettings();
-                }));
+    /** Saves through the plugin so views, the logger, and the data manager see the change. */
+    async setControlValue(key: string, value: unknown): Promise<void> {
+        const settings = this.plugin.settings;
+        const normalized = NORMALIZERS[key as SettingKey]?.(value) ?? value;
+        if (key.startsWith(BILL_FROM_PREFIX)) {
+            settings.billFrom[key.slice(BILL_FROM_PREFIX.length) as keyof BillFrom] = normalized as string;
+        } else {
+            (settings as unknown as Record<string, unknown>)[key] = normalized;
+        }
+        await this.plugin.saveSettings();
+        // Client descriptions and rate badges depend on billing, so rebuild those rows.
+        if (key === 'enableBilling') this.update();
+    }
 
-        new Setting(containerEl)
-            .setName('Address')
-            .setDesc('Your billing address (multi-line)')
-            .addTextArea(textarea => textarea
-                .setPlaceholder('Enter address')
-                .setValue(this.plugin.settings.billFrom.address)
-                .onChange(async (value) => {
-                    this.plugin.settings.billFrom.address = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Invoice folder')
-            .setDesc('Folder where invoices will be saved (created automatically)')
-            .addText(text => text
-                .setPlaceholder('Enter folder path')
-                .setValue(this.plugin.settings.invoiceFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.invoiceFolder = value || 'TimeTracking/Invoices';
-                    await this.plugin.saveSettings();
-                }));
+    private openNewClientModal(): void {
+        const modal = new ClientModal(
+            this.app,
+            { mode: 'create', enableBilling: this.plugin.settings.enableBilling },
+            (client) => {
+                this.plugin.settings.clients.push(client);
+                void this.plugin.saveSettings().then(() => {
+                    if (this.clientsContainer) this.renderClientsList(this.clientsContainer);
+                });
+            }
+        );
+        modal.open();
     }
 
     private renderClientsList(container: HTMLElement): void {

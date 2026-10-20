@@ -1810,6 +1810,16 @@
    Settings: Expandable Client Cards
    ======================================== */
 
+/* The settings row that hosts the cards shows only the cards. */
+.setting-item.clients-setting-item {
+    display: block;
+}
+
+.clients-setting-item > .setting-item-info,
+.clients-setting-item > .setting-item-control {
+    display: none;
+}
+
 .clients-container {
     display: flex;
     flex-direction: column;
