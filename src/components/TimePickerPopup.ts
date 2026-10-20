@@ -18,22 +18,17 @@ export class TimePickerPopup {
         private readonly onClose: () => void,
     ) {
         const doc = anchor.ownerDocument;
-        this.element = anchor.parentElement.createEl('div');
-        this.element.className = 'time-picker-popup';
+        this.element = anchor.parentElement.createDiv('time-picker-popup');
         this.element.id = anchor.getAttribute('aria-controls')!;
         this.element.setAttribute('role', 'dialog');
         this.element.setAttribute('aria-label', `Choose ${label.toLowerCase()} time`);
 
-        const choices = this.element.createEl('div');
-        choices.className = 'time-picker-columns';
+        const choices = this.element.createDiv('time-picker-columns');
         columns.forEach((column, columnIndex) => {
-            const section = choices.createEl('div');
-            section.className = 'time-picker-column';
-            const heading = section.createEl('div');
-            heading.className = 'time-picker-column-heading';
+            const section = choices.createDiv('time-picker-column');
+            const heading = section.createDiv('time-picker-column-heading');
             heading.textContent = column.label;
-            const list = section.createEl('div');
-            list.className = 'time-picker-options';
+            const list = section.createDiv('time-picker-options');
             list.setAttribute('role', 'listbox');
             list.setAttribute('aria-label', column.label);
             this.lists.push(list);

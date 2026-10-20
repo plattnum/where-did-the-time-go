@@ -23,18 +23,20 @@ export default tseslint.config(
     {
         files: ["src/**/*.ts", "main.ts"],
         rules: {
-            // The installed Obsidian lint plugin predates prefer-create-el.
             "no-restricted-syntax": [
                 "error",
-                {
-                    selector: "CallExpression[callee.type='MemberExpression'][callee.property.name=/^createElement(NS)?$/]",
-                    message: "Use Obsidian's parent.createEl() or parent.createSvg() helpers.",
-                },
                 {
                     selector: "CallExpression[callee.type='Identifier'][callee.name=/^(requestAnimationFrame|cancelAnimationFrame)$/]",
                     message: "Use the element's ownerDocument.defaultView for animation frames in popout windows.",
                 },
             ],
+        },
+    },
+    {
+        // The DOM mock implements Obsidian's createEl helpers, so it must use the native APIs.
+        files: ["tests/__mocks__/obsidianDom.ts"],
+        rules: {
+            "obsidianmd/prefer-create-el": "off",
         },
     },
     {

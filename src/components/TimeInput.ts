@@ -17,13 +17,12 @@ export class TimeInput {
         value: string,
         private readonly onChange: (value: string) => void,
     ) {
-        this.inputEl = container.createEl('div');
-        this.inputEl.className = 'time-picker';
+        this.inputEl = container.createDiv('time-picker');
         this.inputEl.setAttribute('role', 'group');
         this.inputEl.setAttribute('aria-label', `${label} time`);
 
         this.hours = this.createSegment(`${label} hours`, use24HourFormat ? 0 : 1, use24HourFormat ? 23 : 12);
-        const separator = this.inputEl.createEl('span');
+        const separator = this.inputEl.createSpan();
         separator.textContent = ':';
         separator.setAttribute('aria-hidden', 'true');
         this.minutes = this.createSegment(`${label} minutes`, 0, 59);
