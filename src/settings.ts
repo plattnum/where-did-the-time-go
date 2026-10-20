@@ -132,7 +132,75 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        // Bill From Section (for invoices)
+        // Billing Section
+        new Setting(containerEl).setName("Billing").setHeading();
+
+        new Setting(containerEl)
+            .setName('Enable billing and invoicing')
+            .setDesc('Show client rates, billable amounts in reports, and invoice generation. Turning this off hides them without deleting any saved billing details.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableBilling)
+                .onChange(async (value) => {
+                    this.plugin.settings.enableBilling = value;
+                    await this.plugin.saveSettings();
+                    // Re-render to show/hide billing settings
+                    this.display();
+                }));
+
+        if (this.plugin.settings.enableBilling) {
+            this.renderBillFromSettings(containerEl);
+        }
+
+        // Clients Section
+        new Setting(containerEl).setName("Clients").setHeading();
+        containerEl.createEl('p', {
+            text: this.plugin.settings.enableBilling
+                ? 'Define clients for billing. Projects can be assigned to clients for invoicing.'
+                : 'Define clients to group your time. Projects and activities belong to a client.',
+            cls: 'setting-item-description'
+        });
+
+        // Client list
+        const clientsContainer = containerEl.createDiv('clients-container');
+        this.renderClientsList(clientsContainer);
+
+        // Add new client button
+        new Setting(containerEl)
+            .addButton(button => button
+                .setButtonText('Add client')
+                .setCta()
+                .onClick(() => {
+                    const modal = new ClientModal(
+                        this.app,
+                        { mode: 'create', enableBilling: this.plugin.settings.enableBilling },
+                        (client) => {
+                            this.plugin.settings.clients.push(client);
+                            void this.plugin.saveSettings().then(() => {
+                                this.renderClientsList(clientsContainer);
+                            });
+                        }
+                    );
+                    modal.open();
+                }));
+
+        // Developer Settings
+        new Setting(containerEl).setName("Developer").setHeading();
+
+        new Setting(containerEl)
+            .setName('Debug mode')
+            .setDesc('Enable verbose logging to the developer console (useful for troubleshooting)')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.debugMode)
+                .onChange(async (value) => {
+                    this.plugin.settings.debugMode = value;
+                    await this.plugin.saveSettings();
+                }));
+    }
+
+    /**
+     * Render the bill-from details and invoice folder (only shown when billing is enabled)
+     */
+    private renderBillFromSettings(containerEl: HTMLElement): void {
         new Setting(containerEl).setName("Bill from").setHeading();
         containerEl.createEl('p', {
             text: 'Your billing information that appears on invoices.',
@@ -171,49 +239,6 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                     this.plugin.settings.invoiceFolder = value || 'TimeTracking/Invoices';
                     await this.plugin.saveSettings();
                 }));
-
-        // Clients Section
-        new Setting(containerEl).setName("Clients").setHeading();
-        containerEl.createEl('p', {
-            text: 'Define clients for billing. Projects can be assigned to clients for invoicing.',
-            cls: 'setting-item-description'
-        });
-
-        // Client list
-        const clientsContainer = containerEl.createDiv('clients-container');
-        this.renderClientsList(clientsContainer);
-
-        // Add new client button
-        new Setting(containerEl)
-            .addButton(button => button
-                .setButtonText('Add client')
-                .setCta()
-                .onClick(() => {
-                    const modal = new ClientModal(
-                        this.app,
-                        { mode: 'create' },
-                        (client) => {
-                            this.plugin.settings.clients.push(client);
-                            void this.plugin.saveSettings().then(() => {
-                                this.renderClientsList(clientsContainer);
-                            });
-                        }
-                    );
-                    modal.open();
-                }));
-
-        // Developer Settings
-        new Setting(containerEl).setName("Developer").setHeading();
-
-        new Setting(containerEl)
-            .setName('Debug mode')
-            .setDesc('Enable verbose logging to the developer console (useful for troubleshooting)')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.debugMode)
-                .onChange(async (value) => {
-                    this.plugin.settings.debugMode = value;
-                    await this.plugin.saveSettings();
-                }));
     }
 
     private renderClientsList(container: HTMLElement): void {
@@ -221,7 +246,9 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
 
         if (this.plugin.settings.clients.length === 0) {
             container.createEl('p', {
-                text: 'No clients defined yet. Add a client to start tracking billable time.',
+                text: this.plugin.settings.enableBilling
+                    ? 'No clients defined yet. Add a client to start tracking billable time.'
+                    : 'No clients defined yet. Add a client to start tracking time.',
                 cls: 'setting-item-description'
             });
             return;
@@ -257,8 +284,10 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
             clientHeader.createSpan({ text: client.name, cls: 'client-name' });
 
             // Rate badge (always hourly)
-            const rateDisplay = `${client.currency} ${client.rate}/hr`;
-            clientHeader.createSpan({ text: rateDisplay, cls: 'client-rate-badge' });
+            if (this.plugin.settings.enableBilling) {
+                const rateDisplay = `${client.currency} ${client.rate}/hr`;
+                clientHeader.createSpan({ text: rateDisplay, cls: 'client-rate-badge' });
+            }
 
             // Edit button (stops propagation)
             const editBtn = clientHeader.createEl('button', { cls: 'client-edit-btn' });
@@ -267,7 +296,7 @@ export class TimeTrackerSettingTab extends PluginSettingTab {
                 e.stopPropagation();
                 const modal = new ClientModal(
                     this.app,
-                    { mode: 'edit', client },
+                    { mode: 'edit', client, enableBilling: this.plugin.settings.enableBilling },
                     (updatedClient) => {
                         this.plugin.settings.clients[clientIndex] = updatedClient;
                         void this.plugin.saveSettings().then(() => {

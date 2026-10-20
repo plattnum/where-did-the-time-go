@@ -146,12 +146,14 @@ export interface TimeTrackerSettings {
     activities: Activity[];
     /** Default activity for new entries */
     defaultActivity: string;
-    /** List of clients for billing */
+    /** List of clients */
     clients: Client[];
     /** Enable debug logging to console */
     debugMode: boolean;
     /** Hide data tables in reading view using %% comment markers */
     hideTablesInPreview: boolean;
+    /** Show billing features (rates, billable amounts, invoices) */
+    enableBilling: boolean;
 }
 
 /**
@@ -190,6 +192,7 @@ export const DEFAULT_SETTINGS: TimeTrackerSettings = {
     defaultActivity: '',
     debugMode: false,
     hideTablesInPreview: true,
+    enableBilling: true,
 };
 
 /**

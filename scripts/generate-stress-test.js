@@ -77,7 +77,7 @@ TABLE COLUMNS:
 - Start (required): Start date and time (YYYY-MM-DD HH:mm)
 - End (required): End date and time (may be next day for overnight entries)
 - Description: Free text describing the activity
-- Client (required): Client for billing
+- Client (required): Client or category
 - Project (optional): Project name
 - Activity (optional): Work type classification
 - Notes (optional): Obsidian wikilink [[linked note]]

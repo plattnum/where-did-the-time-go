@@ -7,6 +7,10 @@ export class Modal {
 
 export class FuzzySuggestModal extends Modal {}
 
+export class ItemView {
+    constructor(..._args: unknown[]) {}
+}
+
 export class Setting {}
 
 export class Notice {

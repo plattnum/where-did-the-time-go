@@ -13,6 +13,8 @@ export interface ClientModalData {
     mode: ClientModalMode;
     /** For edit mode: the existing client to edit */
     client?: Client;
+    /** Show billing fields (rate, currency, invoice details). Defaults to true. */
+    enableBilling?: boolean;
 }
 
 /**
@@ -60,7 +62,8 @@ export class ClientModal extends Modal {
             // Defaults for new client
             this.nameValue = '';
             this.colorValue = this.getRandomColor();
-            this.rateValue = 100;
+            // No rate when billing is off, so the client isn't silently billed later
+            this.rateValue = data.enableBilling === false ? 0 : 100;
             this.currencyValue = 'USD';
             this.addressValue = '';
             this.emailValue = '';
@@ -101,6 +104,55 @@ export class ClientModal extends Modal {
                     this.colorValue = value;
                 }));
 
+        if (this.data.enableBilling !== false) {
+            this.renderBillingFields(contentEl);
+        }
+
+        // Notes (textarea)
+        new Setting(contentEl)
+            .setName('Notes')
+            .setDesc('Internal notes about this client')
+            .addTextArea(textarea => textarea
+                .setPlaceholder('Optional internal notes...')
+                .setValue(this.notesValue)
+                .onChange(value => {
+                    this.notesValue = value;
+                }));
+
+        // Button row
+        const buttonRow = contentEl.createDiv('modal-button-row');
+
+        // Delete button (only in edit mode)
+        if (this.data.mode === 'edit' && this.onDelete) {
+            const deleteBtn = buttonRow.createEl('button', {
+                text: 'Delete',
+                cls: 'mod-warning',
+            });
+            deleteBtn.addEventListener('click', () => {
+                this.onDelete();
+                this.close();
+            });
+        }
+
+        // Spacer
+        buttonRow.createDiv('button-spacer');
+
+        // Cancel button
+        const cancelBtn = buttonRow.createEl('button', { text: 'Cancel' });
+        cancelBtn.addEventListener('click', () => this.close());
+
+        // Save button
+        const saveBtn = buttonRow.createEl('button', {
+            text: 'Save',
+            cls: 'mod-cta',
+        });
+        saveBtn.addEventListener('click', () => this.handleSave());
+    }
+
+    /**
+     * Render rate, currency and invoice detail fields (only shown when billing is enabled)
+     */
+    private renderBillingFields(contentEl: HTMLElement): void {
         // Billing section header
         contentEl.createEl('h3', { text: 'Billing' });
 
@@ -186,46 +238,6 @@ export class ClientModal extends Modal {
                 .onChange(value => {
                     this.paymentTermsValue = value;
                 }));
-
-        // Notes (textarea)
-        new Setting(contentEl)
-            .setName('Notes')
-            .setDesc('Internal notes about this client')
-            .addTextArea(textarea => textarea
-                .setPlaceholder('Optional internal notes...')
-                .setValue(this.notesValue)
-                .onChange(value => {
-                    this.notesValue = value;
-                }));
-
-        // Button row
-        const buttonRow = contentEl.createDiv('modal-button-row');
-
-        // Delete button (only in edit mode)
-        if (this.data.mode === 'edit' && this.onDelete) {
-            const deleteBtn = buttonRow.createEl('button', {
-                text: 'Delete',
-                cls: 'mod-warning',
-            });
-            deleteBtn.addEventListener('click', () => {
-                this.onDelete();
-                this.close();
-            });
-        }
-
-        // Spacer
-        buttonRow.createDiv('button-spacer');
-
-        // Cancel button
-        const cancelBtn = buttonRow.createEl('button', { text: 'Cancel' });
-        cancelBtn.addEventListener('click', () => this.close());
-
-        // Save button
-        const saveBtn = buttonRow.createEl('button', {
-            text: 'Save',
-            cls: 'mod-cta',
-        });
-        saveBtn.addEventListener('click', () => this.handleSave());
     }
 
     onClose(): void {

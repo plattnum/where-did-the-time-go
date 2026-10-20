@@ -607,6 +607,7 @@ export class ReportsView extends ItemView {
             return;
         }
 
+        const showBilling = this.settings.enableBilling;
         const table = this.clientContainer.createEl('table', { cls: 'reports-table' });
 
         // Header
@@ -614,7 +615,9 @@ export class ReportsView extends ItemView {
         const headerRow = thead.createEl('tr');
         headerRow.createEl('th', { text: 'Client / project / activity' });
         headerRow.createEl('th', { text: 'Hours', cls: 'reports-col-hours' });
-        headerRow.createEl('th', { text: 'Billable', cls: 'reports-col-billable' });
+        if (showBilling) {
+            headerRow.createEl('th', { text: 'Billable', cls: 'reports-col-billable' });
+        }
         headerRow.createEl('th', { text: '%', cls: 'reports-col-percent' });
         headerRow.createEl('th', { text: '', cls: 'reports-col-bar' });
 
@@ -635,8 +638,8 @@ export class ReportsView extends ItemView {
 
             nameCell.createSpan({ text: report.name });
 
-            // Invoice button (show if client has tracked time)
-            if (report.totalMinutes > 0) {
+            // Invoice button (show if billing is enabled and client has tracked time)
+            if (showBilling && report.totalMinutes > 0) {
                 const invoiceBtn = nameCell.createEl('button', {
                     text: 'Invoice',
                     cls: 'reports-invoice-btn',
@@ -652,10 +655,12 @@ export class ReportsView extends ItemView {
                 cls: 'reports-col-hours',
             });
 
-            row.createEl('td', {
-                text: this.formatCurrency(report.billableAmount, report.currency),
-                cls: 'reports-col-billable',
-            });
+            if (showBilling) {
+                row.createEl('td', {
+                    text: this.formatCurrency(report.billableAmount, report.currency),
+                    cls: 'reports-col-billable',
+                });
+            }
 
             row.createEl('td', {
                 text: `${report.percentage.toFixed(1)}%`,
@@ -698,7 +703,9 @@ export class ReportsView extends ItemView {
                         cls: 'reports-col-hours',
                     });
 
-                    projectRow.createEl('td', { cls: 'reports-col-billable' });
+                    if (showBilling) {
+                        projectRow.createEl('td', { cls: 'reports-col-billable' });
+                    }
 
                     projectRow.createEl('td', {
                         text: `${projectReport.percentage.toFixed(1)}%`,
@@ -725,7 +732,9 @@ export class ReportsView extends ItemView {
                                 cls: 'reports-col-hours',
                             });
 
-                            activityRow.createEl('td', { cls: 'reports-col-billable' });
+                            if (showBilling) {
+                                activityRow.createEl('td', { cls: 'reports-col-billable' });
+                            }
 
                             activityRow.createEl('td', {
                                 text: `${activityReport.percentageOfProject.toFixed(1)}%`,
@@ -758,12 +767,14 @@ export class ReportsView extends ItemView {
             cls: 'reports-col-hours',
         });
 
-        // Use first client's currency for total (could be mixed currencies)
-        const currency = this.clientReports[0]?.currency || 'USD';
-        totalRow.createEl('td', {
-            text: this.formatCurrency(totalBillable, currency),
-            cls: 'reports-col-billable',
-        });
+        if (showBilling) {
+            // Use first client's currency for total (could be mixed currencies)
+            const currency = this.clientReports[0]?.currency || 'USD';
+            totalRow.createEl('td', {
+                text: this.formatCurrency(totalBillable, currency),
+                cls: 'reports-col-billable',
+            });
+        }
 
         totalRow.createEl('td', { text: '', cls: 'reports-col-percent' });
         totalRow.createEl('td', { text: '', cls: 'reports-col-bar' });

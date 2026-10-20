@@ -69,6 +69,8 @@ Generate markdown invoices directly from the Reports view. Each client row shows
 
 Invoices are saved to your invoice folder (default: `TimeTracking/Invoices/`) as `{invoice-number}.md`. The generated markdown renders nicely in Obsidian and can be exported to PDF.
 
+Not billing anyone? Turn off **Enable billing and invoicing** in Settings to hide rates, billable amounts, and the Invoice button. Your saved billing details are kept, so turning it back on restores everything.
+
 ### Overlap Detection
 Won't let you accidentally double-book yourself. The timeline shows conflicts in real-time.
 
@@ -149,6 +151,7 @@ When creating or editing an entry, you'll see these fields:
 | **Week start** | Monday or Sunday |
 | **24-hour format** | Toggle 24h vs 12h time display |
 | **Description max length** | Character limit for descriptions (0 = unlimited) |
+| **Enable billing and invoicing** | Show client rates, billable amounts in reports, and invoice generation (default: on). Turn off if you only track time |
 | **Bill From name** | Your name or business name for invoices |
 | **Bill From address** | Your billing address (multi-line) for invoices |
 | **Invoice folder** | Where generated invoices are saved (default: `TimeTracking/Invoices`) |
