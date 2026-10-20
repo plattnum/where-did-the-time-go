@@ -4,6 +4,8 @@
 
 **A visual time tracking plugin for Obsidian.** An infinite-scroll timeline to log your hours, hierarchical reports to see where they went, and one-click invoicing to bill for them. Your data stays in your vault as plain markdown tables - no cloud, no sync, no subscriptions.
 
+**Website:** [plattnum.github.io/where-did-the-time-go](https://plattnum.github.io/where-did-the-time-go/) · **Install:** [Obsidian community plugin page](https://community.obsidian.md/plugins/where-did-the-time-go)
+
 > [!IMPORTANT]
 > **Experimental: AI-drivable CLI** — There's now a companion command-line tool, **[o-wdttg-cli](https://github.com/plattnum/o-wdttg-cli)**, that exposes this plugin through the new Obsidian CLI. It creates an AI-drivable surface so agents (like Claude) can read, write, and report on your time entries on your behalf. Experimental — build from source for now. Future releases plan to ship pre-built binaries downloadable from the plugin settings.
 
@@ -79,8 +81,8 @@ Working late? Entries can cross midnight without breaking. The plugin handles mu
 
 ## Installation
 
-### From Obsidian Community Plugins *(pending approval)*
-Once approved:
+### From Obsidian Community Plugins
+Requires Obsidian 1.13.0 or later. [View it on the community plugin page](https://community.obsidian.md/plugins/where-did-the-time-go), or in Obsidian:
 1. Open Settings → Community Plugins
 2. Search for "Where Did The Time Go"
 3. Install and enable

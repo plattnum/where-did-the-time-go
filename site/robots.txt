@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://plattnum.github.io/where-did-the-time-go/sitemap.xml
